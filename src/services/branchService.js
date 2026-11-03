@@ -12,8 +12,9 @@ export async function listBranches() {
     return branches.map(toBranchView);
 }
 
-export async function listAvailableBranches() {
-    const { branches } = await apiRequest("/branches/available");
+export async function listAvailableBranches(institution) {
+    const query = new URLSearchParams({ institution });
+    const { branches } = await apiRequest(`/branches/available?${query}`);
     return branches.map(toBranchView);
 }
 

@@ -12,28 +12,13 @@ import {
 } from "../services/questionService";
 
 const emptyForm = {
-    questionType: "MCQ",
     text: "",
-    options: [
-        { key: "A", text: "" },
-        { key: "B", text: "" },
-        { key: "C", text: "" },
-        { key: "D", text: "" }
-    ],
-    correctAnswer: "A",
-    expectedAnswer: "",
     marks: "1",
-    negativeMarks: "0",
     explanation: ""
 };
 
-function createEmptyQuestionForm(testType) {
-    return {
-        ...emptyForm,
-        questionType: ["TYPING", "DESCRIPTIVE"].includes(testType)
-            ? "TYPING"
-            : "MCQ"
-    };
+function createEmptyQuestionForm() {
+    return { ...emptyForm };
 }
 
 function TeacherTestQuestions() {
@@ -83,32 +68,13 @@ function TeacherTestQuestions() {
     const editQuestion = (question) => {
         setEditingQuestion(question);
         setForm({
-            questionType: question.questionType,
             text: question.text,
-            options: question.questionType === "MCQ"
-                ? ["A", "B", "C", "D"].map((key) => ({
-                    key,
-                    text: question.options.find((option) => option.key === key)?.text || ""
-                }))
-                : emptyForm.options,
-            correctAnswer: question.correctAnswer || "A",
-            expectedAnswer: question.expectedAnswer || "",
             marks: String(question.marks),
-            negativeMarks: String(question.negativeMarks || 0),
             explanation: question.explanation || ""
         });
         setFormError("");
         setValidationErrors([]);
         window.scrollTo({ top: 0, behavior: "smooth" });
-    };
-
-    const changeOption = (key, text) => {
-        setForm((previous) => ({
-            ...previous,
-            options: previous.options.map((option) => (
-                option.key === key ? { ...option, text } : option
-            ))
-        }));
     };
 
     const submitQuestion = async (event) => {
@@ -117,17 +83,9 @@ function TeacherTestQuestions() {
         setFormError("");
         setValidationErrors([]);
         const details = {
-            questionType: form.questionType,
             text: form.text.trim(),
             marks: Number(form.marks),
-            negativeMarks: Number(form.negativeMarks || 0),
-            explanation: form.explanation.trim(),
-            ...(form.questionType === "MCQ"
-                ? {
-                    options: form.options.filter((option) => option.text.trim()),
-                    correctAnswer: form.correctAnswer
-                }
-                : { expectedAnswer: form.expectedAnswer.trim() })
+            explanation: form.explanation.trim()
         };
 
         try {
@@ -227,53 +185,18 @@ function TeacherTestQuestions() {
                     ) : (
                         <form onSubmit={submitQuestion}>
                             <div className="teacher-form-grid">
-                                {test.testType === "MIXED" && (
-                                    <div className="teacher-form-group">
-                                        <label htmlFor="questionType">Question type</label>
-                                        <select id="questionType" value={form.questionType} onChange={(event) => setForm((old) => ({ ...old, questionType: event.target.value }))}>
-                                            <option value="MCQ">MCQ</option>
-                                            <option value="TYPING">Typing</option>
-                                        </select>
-                                    </div>
-                                )}
+                                <div className="teacher-form-group">
+                                    <label>Question type</label>
+                                    <input value="Descriptive" readOnly />
+                                </div>
                                 <div className="teacher-form-group teacher-form-full">
                                     <label htmlFor="questionText">Question text</label>
                                     <textarea id="questionText" value={form.text} onChange={(event) => setForm((old) => ({ ...old, text: event.target.value }))} maxLength={10000} rows="4" required />
                                 </div>
-                                {form.questionType === "MCQ" && (
-                                    <>
-                                        {form.options.map((option) => (
-                                            <div className="teacher-form-group" key={option.key}>
-                                                <label htmlFor={`option-${option.key}`}>Option {option.key}</label>
-                                                <input id={`option-${option.key}`} value={option.text} onChange={(event) => changeOption(option.key, event.target.value)} maxLength={2000} required />
-                                            </div>
-                                        ))}
-                                        <div className="teacher-form-group">
-                                            <label htmlFor="correctAnswer">Correct option</label>
-                                            <select id="correctAnswer" value={form.correctAnswer} onChange={(event) => setForm((old) => ({ ...old, correctAnswer: event.target.value }))}>
-                                                {form.options.map((option) => <option key={option.key} value={option.key}>{option.key}</option>)}
-                                            </select>
-                                        </div>
-                                    </>
-                                )}
-                                {form.questionType === "TYPING" && (
-                                    <div className="teacher-form-group teacher-form-full">
-                                        <label htmlFor="expectedAnswer">
-                                            Expected answer (case and whitespace normalized for automatic grading)
-                                        </label>
-                                        <textarea id="expectedAnswer" value={form.expectedAnswer} onChange={(event) => setForm((old) => ({ ...old, expectedAnswer: event.target.value }))} maxLength={10000} rows="3" required />
-                                    </div>
-                                )}
                                 <div className="teacher-form-group">
                                     <label htmlFor="marks">Marks</label>
                                     <input id="marks" type="number" min="0.01" step="0.01" value={form.marks} onChange={(event) => setForm((old) => ({ ...old, marks: event.target.value }))} required />
                                 </div>
-                                {form.questionType === "MCQ" && (
-                                    <div className="teacher-form-group">
-                                        <label htmlFor="negativeMarks">Negative marks</label>
-                                        <input id="negativeMarks" type="number" min="0" step="0.01" value={form.negativeMarks} onChange={(event) => setForm((old) => ({ ...old, negativeMarks: event.target.value }))} />
-                                    </div>
-                                )}
                                 <div className="teacher-form-group teacher-form-full">
                                     <label htmlFor="explanation">Explanation (optional)</label>
                                     <textarea id="explanation" value={form.explanation} onChange={(event) => setForm((old) => ({ ...old, explanation: event.target.value }))} maxLength={5000} rows="2" />
@@ -301,11 +224,7 @@ function TeacherTestQuestions() {
                                 </div>
                                 <strong>{question.marks} marks</strong>
                             </div>
-                            {question.questionType === "MCQ" ? (
-                                <ol type="A">
-                                    {question.options.map((option) => <li key={option.key}>{option.text}</li>)}
-                                </ol>
-                            ) : <p>Expected answer is securely stored.</p>}
+                            <p>Student answers will be evaluated manually by the teacher.</p>
                             <div className="management-actions">
                                 <button type="button" onClick={() => moveQuestion(index, -1)} disabled={index === 0 || test.status !== "Draft"}>Move up</button>
                                 <button type="button" onClick={() => moveQuestion(index, 1)} disabled={index === questions.length - 1 || test.status !== "Draft"}>Move down</button>

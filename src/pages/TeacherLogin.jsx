@@ -8,27 +8,21 @@ function TeacherLogin() {
   const location = useLocation();
   const { login } = useAuth();
 
-  const [formData, setFormData] = useState({
-    username: "",
-    password: ""
-  });
+  const [formData, setFormData] = useState({ identifier: "", password: "" });
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (event) => {
-    setFormData({
-      ...formData,
-      [event.target.name]: event.target.value
-    });
-
+    setFormData({ ...formData, [event.target.name]: event.target.value });
     setError("");
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (!formData.username || !formData.password) {
-      setError("Please enter your username and password.");
+    if (!formData.identifier.trim() || !formData.password) {
+      setError("Please enter your username or email and password.");
       return;
     }
 
@@ -36,7 +30,7 @@ function TeacherLogin() {
     setIsSubmitting(true);
     try {
       await login("teacher", {
-        identifier: formData.username.trim(),
+        identifier: formData.identifier.trim(),
         password: formData.password
       });
       navigate(location.state?.from?.pathname || "/teacher/dashboard", { replace: true });
@@ -48,134 +42,68 @@ function TeacherLogin() {
   };
 
   return (
-    <div className="auth-page teacher-auth">
-
-      <div className="auth-brand">
-        <Link to="/" className="logo">
+    <main className="auth-page auth-page--login">
+      <section className="auth-card auth-card--login" aria-labelledby="teacher-login-title">
+        <Link to="/" className="auth-login-brand" aria-label="SmartExam home">
           <BrandLogoImage />
-          <span>SmartExam</span>
+          <span>SMARTEXAM</span>
         </Link>
-      </div>
 
-      <div className="auth-container">
+        <h1 id="teacher-login-title">Teacher Login</h1>
 
-        <div className="auth-info">
+        {error && <div className="error-message" role="alert">{error}</div>}
 
-          <span className="auth-badge">
-            TEACHER PORTAL
-          </span>
-
-          <h1>
-            Manage your
-            <br />
-            <span>examinations.</span>
-          </h1>
-
-          <p>
-            Create tests, manage questions, monitor students
-            and analyze examination performance.
-          </p>
-
-          <div className="auth-benefits">
-            <div>✓ Create and manage examinations</div>
-            <div>✓ Manage branches and subjects</div>
-            <div>✓ View student answers and results</div>
-            <div>✓ Analyze student performance</div>
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label htmlFor="teacher-identifier">Username / Email</label>
+            <input
+              id="teacher-identifier"
+              type="text"
+              name="identifier"
+              autoComplete="username"
+              required
+              value={formData.identifier}
+              onChange={handleChange}
+              placeholder="Enter your username or email"
+            />
           </div>
 
-        </div>
-
-        <div className="auth-card">
-
-          <h2>Teacher Login</h2>
-
-          <p className="auth-subtitle">
-            Sign in to your teacher dashboard.
-          </p>
-
-          {error && (
-            <div className="error-message">
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit}>
-
-            <div className="form-group">
-              <label>Username or Email</label>
-
+          <div className="form-group">
+            <label htmlFor="teacher-password">Password</label>
+            <div className="auth-password-field">
               <input
-                type="text"
-                name="username"
-                autoComplete="username"
-                required
-                value={formData.username}
-                onChange={handleChange}
-                placeholder="Enter username or email"
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Password</label>
-
-              <input
-                type="password"
+                id="teacher-password"
+                type={showPassword ? "text" : "password"}
                 name="password"
                 autoComplete="current-password"
                 required
                 value={formData.password}
                 onChange={handleChange}
-                placeholder="Enter password"
+                placeholder="Enter your password"
               />
-            </div>
-
-            <div className="form-options">
-
-              <label className="remember-option">
-                <input type="checkbox" />
-                Remember me
-              </label>
-
               <button
                 type="button"
-                className="forgot-button"
+                className="auth-password-toggle"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-pressed={showPassword}
+                onClick={() => setShowPassword((visible) => !visible)}
               >
-                Forgot password?
+                {showPassword ? "Hide" : "Show"}
               </button>
-
             </div>
-
-            <button
-              type="submit"
-              className="auth-button"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? "Signing in..." : "Sign In"}
-            </button>
-
-          </form>
-
-          <div className="auth-divider">
-            <span>OR</span>
           </div>
 
-          <p className="register-text">
-            New teacher?
+          <button type="submit" className="auth-button" disabled={isSubmitting}>
+            {isSubmitting ? "Signing in..." : "Login"}
+          </button>
+        </form>
 
-            <Link to="/teacher/register">
-              Create Teacher Account
-            </Link>
-          </p>
-
-          <Link to="/" className="back-home">
-            ← Back to SmartExam
-          </Link>
-
-        </div>
-
-      </div>
-
-    </div>
+        <p className="register-text">
+          Don&apos;t have an account? <Link to="/teacher/register">Register</Link>
+        </p>
+        <Link to="/" className="back-home">Back to Home</Link>
+      </section>
+    </main>
   );
 }
 

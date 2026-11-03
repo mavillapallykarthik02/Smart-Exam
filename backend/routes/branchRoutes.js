@@ -14,20 +14,31 @@ import { validateRequest } from "../middleware/validationMiddleware.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { listBranches } from "../services/branchService.js";
 import { sendSuccess } from "../utils/apiResponse.js";
+import { INSTITUTION } from "../config/institution.js";
 import {
     validateBranchCreate,
     validateBranchId,
     validateBranchStatus,
     validateBranchSubjects,
-    validateBranchUpdate
+    validateBranchUpdate,
+    validateAvailableBranches
 } from "../validators/branchValidator.js";
+import { isSupportedInstitution } from "../utils/institution.js";
 
 const router = Router();
 
 router.get(
     "/available",
-    asyncHandler(async (_request, response) => {
-        const branches = await listBranches({ role: "student" });
+    validateAvailableBranches,
+    validateRequest,
+    asyncHandler(async (request, response) => {
+        const branches = !request.query.institution ||
+            isSupportedInstitution(request.query.institution)
+            ? await listBranches({
+                role: "student",
+                institution: INSTITUTION.name
+            })
+            : [];
         return sendSuccess(response, { branches });
     })
 );

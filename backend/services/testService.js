@@ -3,6 +3,9 @@ import { Attempt } from "../models/Attempt.js";
 import { Question } from "../models/Question.js";
 import { Subject } from "../models/Subject.js";
 import { Test } from "../models/Test.js";
+import { User } from "../models/User.js";
+import { INSTITUTION_KEY } from "../config/institution.js";
+import { getActiveTeacherIds } from "./studentTeacherService.js";
 
 function notFound(message = "Test not found.") {
     const error = new Error(message);
@@ -32,6 +35,13 @@ function serializeTest(test) {
         totalMarks: test.totalMarks,
         passingPercentage: test.passingPercentage,
         instructions: test.instructions,
+        teacher: test.createdBy && typeof test.createdBy === "object"
+            ? {
+                id: test.createdBy.id,
+                name: test.createdBy.name,
+                teacherId: test.createdBy.teacherId
+            }
+            : null,
         publishedAt: test.publishedAt,
         createdAt: test.createdAt,
         updatedAt: test.updatedAt
@@ -39,10 +49,21 @@ function serializeTest(test) {
 }
 
 async function activeAssignment(branchId, subjectId, teacherId) {
+    const teacher = teacherId
+        ? await User.findOne({ _id: teacherId, role: "teacher" }).select("institution teacherId")
+        : null;
+    if (teacherId && !teacher) {
+        const error = new Error("Teacher not found.");
+        error.statusCode = 404;
+        throw error;
+    }
     const [branch, subject] = await Promise.all([
         Branch.findOne({
             _id: branchId,
-            isActive: true
+            isActive: true,
+            ...(teacher ? {
+                institutionKey: INSTITUTION_KEY
+            } : {})
         }).select("_id name code"),
         Subject.findOne({
             _id: subjectId,
@@ -65,7 +86,7 @@ async function activeAssignment(branchId, subjectId, teacherId) {
         error.statusCode = 400;
         throw error;
     }
-    return { branch, subject };
+    return { branch, subject, teacher };
 }
 
 function applyChanges(test, input) {
@@ -84,11 +105,15 @@ function applyChanges(test, input) {
 }
 
 export async function listTests({ user, filters }) {
+    const connectedTeacherIds = user.role === "student"
+        ? await getActiveTeacherIds(user._id || user.id)
+        : [];
     const filter = user.role === "teacher"
         ? { createdBy: user.id }
         : {
             status: "PUBLISHED",
-            branch: user.branch?._id || user.branch
+            branch: user.branch?._id || user.branch,
+            createdBy: { $in: connectedTeacherIds }
         };
     if (filters.status && user.role === "teacher") filter.status = filters.status;
     if (filters.branch && user.role === "teacher") filter.branch = filters.branch;
@@ -98,6 +123,7 @@ export async function listTests({ user, filters }) {
     let query = Test.find(filter)
         .populate("branch", "name code isActive")
         .populate("subject", "name code isActive branch")
+        .populate("createdBy", "name teacherId institution")
         .sort({ updatedAt: -1 });
     const tests = await query;
     const applicableTests = user.role === "student"
@@ -117,10 +143,12 @@ export async function getTestById(id, user) {
     } else {
         filter.status = "PUBLISHED";
         filter.branch = user.branch?._id || user.branch;
+        filter.createdBy = { $in: await getActiveTeacherIds(user._id || user.id) };
     }
     const test = await Test.findOne(filter)
         .populate("branch", "name code isActive")
-        .populate("subject", "name code isActive branch");
+        .populate("subject", "name code isActive branch")
+        .populate("createdBy", "name teacherId institution");
     if (!test) throw notFound();
     if (user.role === "student" && (
         !test.branch?.isActive ||
@@ -139,7 +167,8 @@ export async function createTest(input, teacherId) {
     await test.save();
     await test.populate([
         { path: "branch", select: "name code isActive" },
-        { path: "subject", select: "name code isActive branch" }
+        { path: "subject", select: "name code isActive branch" },
+        { path: "createdBy", select: "name teacherId institution" }
     ]);
     return serializeTest(test);
 }
@@ -162,7 +191,8 @@ export async function updateTest(id, input, teacherId) {
     await test.save();
     await test.populate([
         { path: "branch", select: "name code isActive" },
-        { path: "subject", select: "name code isActive branch" }
+        { path: "subject", select: "name code isActive branch" },
+        { path: "createdBy", select: "name teacherId institution" }
     ]);
     return serializeTest(test);
 }

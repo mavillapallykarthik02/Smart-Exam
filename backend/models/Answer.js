@@ -12,29 +12,25 @@ const answerSchema = new mongoose.Schema(
             ref: "Question",
             required: true
         },
-        selectedOption: {
-            type: String,
-            trim: true,
-            uppercase: true,
-            default: ""
-        },
         textResponse: {
             type: String,
             trim: true,
             maxlength: 10000,
             default: ""
         },
+        feedback: {
+            type: String,
+            trim: true,
+            maxlength: 5000,
+            default: ""
+        },
         marksAwarded: {
             type: Number,
             default: null
         },
-        isCorrect: {
-            type: Boolean,
-            default: null
-        },
         evaluationStatus: {
             type: String,
-            enum: ["PENDING", "EVALUATED", "NOT_AUTO_GRADED"],
+            enum: ["PENDING", "EVALUATED"],
             default: "PENDING",
             required: true
         }

@@ -1,16 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import StudentNavbar from "../components/StudentNavbar";
-import { useAuth } from "../context/AuthContext";
-import { listStudentBranches } from "../services/branchService";
-import { listStudentSubjects } from "../services/subjectService";
+import { getStudentSubjectDetails, listStudentSubjects } from "../services/subjectService";
 
 function StudentSubjects() {
-    const [searchParams] = useSearchParams();
-    const { user } = useAuth();
-    const requestedBranch = searchParams.get("branch") || user.branchId || "";
-    const [branch, setBranch] = useState(null);
+    const { subjectId } = useParams();
     const [subjects, setSubjects] = useState([]);
+    const [selectedSubject, setSelectedSubject] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState("");
 
@@ -18,27 +14,20 @@ function StudentSubjects() {
         setIsLoading(true);
         setError("");
         try {
-            if (requestedBranch && requestedBranch !== user.branchId) {
-                throw new Error("Students can only view subjects in their assigned branch.");
-            }
-            const branches = await listStudentBranches();
-            const assignedBranchId = user.branchId || "";
-            const selected = branches.find((item) => item.id === assignedBranchId);
-            setBranch(selected || null);
-
-            if (!selected) {
-                setSubjects([]);
+            if (subjectId) {
+                setSelectedSubject(await getStudentSubjectDetails(subjectId));
                 return;
             }
-
-            setSubjects(await listStudentSubjects(selected.id));
+            setSelectedSubject(null);
+            setSubjects(await listStudentSubjects());
         } catch (requestError) {
             setError(requestError.message);
             setSubjects([]);
+            setSelectedSubject(null);
         } finally {
             setIsLoading(false);
         }
-    }, [requestedBranch, user.branchId]);
+    }, [subjectId]);
 
     useEffect(() => {
         Promise.resolve().then(loadPageData);
@@ -46,103 +35,106 @@ function StudentSubjects() {
 
     return (
         <div className="student-page">
-
             <StudentNavbar />
-
             <main className="student-content">
-
-                <div className="page-title">
-
-                    <div>
-                        <p className="dashboard-label">
-                            {branch ? `${branch.code} BRANCH` : "SUBJECTS"}
-                        </p>
-
-                        <h1>Subjects</h1>
-
-                        <p>
-                            {branch
-                                ? "Select a subject to view its available tests."
-                                : "View active subjects and tests for your assigned branch."}
-                        </p>
-                    </div>
-
-                </div>
-
-                {error && <div className="error-message" role="alert">{error}</div>}
-
-                {!branch && !isLoading && !error ? (
-                    <div className="teacher-empty-state">
-                        <h3>No active branch selected</h3>
-                        <p>Choose an active branch to view its subjects.</p>
-                        <Link to="/student/branches" className="branch-button">
-                            Browse Branches
-                        </Link>
-                    </div>
-                ) : isLoading ? (
-                    <div className="teacher-empty-state" aria-live="polite">
-                        Loading subjects...
-                    </div>
-                ) : error ? null : (
-                    subjects.length === 0 ? (
-                        <div className="teacher-empty-state">
-                            <h3>No active subjects available</h3>
-                            <p>This branch does not have any active subjects yet.</p>
-                        </div>
-                    ) : (
-                        <div className="subject-grid">
-
-                        {subjects.map((subject) => (
-
-                            <div
-                                className="subject-card"
-                                key={subject.id}
-                            >
-
-                                <div className="subject-card-header">
-
-                                    <span className="subject-icon">
-                                        📚
-                                    </span>
-
-                                    <span className="subject-code">
-                                        {subject.code}
-                                    </span>
-
-                                </div>
-
-                                <h2>
-                                    {subject.name}
-                                </h2>
-
-                                <p>
-                                    {subject.description}
-                                </p>
-
-                                <div className="subject-footer">
-
-                                    <span>
-                                        {subject.code}
-                                    </span>
-
-                                    <Link
-                                        to="/student/tests"
-                                    >
-                                        View Tests →
-                                    </Link>
-
-                                </div>
-
+                {subjectId ? selectedSubject ? (
+                    <>
+                        <div className="page-title student-subject-detail-heading">
+                            <div>
+                                <p className="dashboard-label">{selectedSubject.code}</p>
+                                <h1>{selectedSubject.name}</h1>
+                                <p>{selectedSubject.description || selectedSubject.branch.name}</p>
                             </div>
-
-                        ))}
-
+                            <Link className="branch-button" to="/student/subjects">All Subjects</Link>
                         </div>
-                    )
+
+                        <section className="student-subject-teacher">
+                            <p>Assigned Teacher</p>
+                            <h2>{selectedSubject.teacher.name}</h2>
+                            <span>{selectedSubject.teacher.teacherId} · {selectedSubject.teacher.institution}</span>
+                        </section>
+
+                        <section className="student-subject-test-section">
+                            <div className="student-subject-section-heading">
+                                <div>
+                                    <p className="dashboard-label">TEST SERIES</p>
+                                    <h2>Available and Completed Tests</h2>
+                                </div>
+                                <span>{selectedSubject.tests.length} tests</span>
+                            </div>
+                            {selectedSubject.tests.length ? (
+                                <div className="student-subject-test-list">
+                                    {selectedSubject.tests.map((test) => (
+                                        <article className="student-subject-test" key={test.id}>
+                                            <div>
+                                                <h3>{test.title}</h3>
+                                                <p>{test.totalQuestions} questions · {test.duration} minutes · {test.totalMarks} marks</p>
+                                            </div>
+                                            <span className={`student-test-state student-test-state--${test.status.toLowerCase()}`}>
+                                                {test.status.replace("_", " ")}
+                                            </span>
+                                            {test.status === "COMPLETED" ? (
+                                                <Link to="/student/results">View Results</Link>
+                                            ) : (
+                                                <Link to={`/student/tests/${test.id}`}>
+                                                    {test.status === "IN_PROGRESS" ? "Continue" : "Open Test"}
+                                                </Link>
+                                            )}
+                                        </article>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="teacher-empty-state">
+                                    <h3>No published tests</h3>
+                                    <p>Tests published by this teacher for this subject will appear here.</p>
+                                </div>
+                            )}
+                        </section>
+
+                    </>
+                ) : isLoading ? (
+                    <div className="teacher-empty-state" aria-live="polite">Loading subject...</div>
+                ) : error ? (
+                    <div className="error-message" role="alert">{error}</div>
+                ) : null : (
+                    <>
+                        <div className="page-title">
+                            <p className="dashboard-label">SUBJECTS</p>
+                            <h1>My Subjects</h1>
+                            <p>Subjects assigned by teachers you are connected with.</p>
+                        </div>
+                        {error && <div className="error-message" role="alert">{error}</div>}
+                        {isLoading ? (
+                            <div className="teacher-empty-state" aria-live="polite">Loading subjects...</div>
+                        ) : error ? null : subjects.length === 0 ? (
+                            <div className="teacher-empty-state">
+                                <h3>No connected teacher subjects</h3>
+                                <p>Connect to a teacher from your account to see their assigned subjects.</p>
+                                <Link className="branch-button" to="/student/account">Connect to Teachers</Link>
+                            </div>
+                        ) : (
+                            <div className="student-subject-list" role="list">
+                                {subjects.map((subject, index) => (
+                                    <div role="listitem" key={subject.id}>
+                                        <Link
+                                            className="student-subject-row"
+                                            to={`/student/subjects/${subject.id}`}
+                                        >
+                                            <span className="student-subject-number">
+                                                {String(index + 1).padStart(2, "0")}
+                                            </span>
+                                            <span className="student-subject-name">{subject.name}</span>
+                                            <span className="student-subject-teacher-name">
+                                                {subject.teacher?.name || "Teacher"}
+                                            </span>
+                                        </Link>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </>
                 )}
-
             </main>
-
         </div>
     );
 }

@@ -24,7 +24,8 @@ export async function getSubject(request, response) {
         request.user.role,
         request.user.role === "student"
             ? request.user.branch?._id?.toString() || request.user.branch?.toString()
-            : request.user.id
+            : request.user.id,
+        request.user.role === "student" ? request.user.id : undefined
     );
     return sendSuccess(response, { subject });
 }

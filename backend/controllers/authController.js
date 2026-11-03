@@ -27,8 +27,7 @@ function clearSessionCookie(response) {
 }
 
 export async function register(request, response, role) {
-    const { user, token } = await registerUser(role, request.body);
-    setSessionCookie(response, token);
+    const user = await registerUser(role, request.body);
     return sendSuccess(response, { user }, "Account created successfully.", 201);
 }
 

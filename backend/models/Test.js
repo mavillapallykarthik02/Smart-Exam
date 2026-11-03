@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-export const TEST_TYPES = Object.freeze(["MCQ", "TYPING", "DESCRIPTIVE", "MIXED"]);
+export const TEST_TYPES = Object.freeze(["DESCRIPTIVE"]);
 export const TEST_STATUSES = Object.freeze(["DRAFT", "PUBLISHED", "ARCHIVED"]);
 
 const testSchema = new mongoose.Schema(

@@ -57,8 +57,8 @@ subjectSchema.pre("validate", function normalizeSubjectName() {
     }
 });
 
-subjectSchema.index({ branch: 1, code: 1 }, { unique: true });
-subjectSchema.index({ branch: 1, normalizedName: 1 }, { unique: true });
+subjectSchema.index({ createdBy: 1, branch: 1, code: 1 }, { unique: true });
+subjectSchema.index({ createdBy: 1, branch: 1, normalizedName: 1 }, { unique: true });
 subjectSchema.index({ isActive: 1, branch: 1 });
 subjectSchema.index({ createdBy: 1 });
 

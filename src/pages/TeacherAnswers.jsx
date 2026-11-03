@@ -40,18 +40,18 @@ function TeacherAnswers() {
                     <div>
                         <span className="page-badge">ANSWER MANAGEMENT</span>
                         <h1>Submitted Answers</h1>
-                        <p>Review student responses and the authoritative evaluation for each attempt.</p>
+                        <p>Review submitted descriptive responses, award marks and publish completed results.</p>
                     </div>
                 </div>
                 <div className="teacher-stats-grid">
                     <div className="teacher-stat-card"><div className="stat-icon">📄</div>
-                        <div><h3>{summary?.totalAttempts ?? 0}</h3><p>Evaluated Submissions</p></div></div>
+                        <div><h3>{summary?.totalAttempts ?? 0}</h3><p>Submitted Examinations</p></div></div>
+                    <div className="teacher-stat-card"><div className="stat-icon">⌛</div>
+                        <div><h3>{results.filter((result) => result.evaluationStatus === "PENDING_EVALUATION").length}</h3>
+                            <p>Awaiting Evaluation</p></div></div>
                     <div className="teacher-stat-card"><div className="stat-icon">✓</div>
-                        <div><h3>{summary?.correctAnswers ?? 0}</h3>
-                            <p>Correct Responses</p></div></div>
-                    <div className="teacher-stat-card"><div className="stat-icon">?</div>
-                        <div><h3>{summary?.unanswered ?? 0}</h3>
-                            <p>Unanswered</p></div></div>
+                        <div><h3>{results.filter((result) => result.evaluationStatus === "PUBLISHED").length}</h3>
+                            <p>Published Results</p></div></div>
                 </div>
                 {error && <div className="error-message" role="alert">
                     <p>{error}</p><button type="button" onClick={loadResults}>Retry</button>
@@ -74,8 +74,8 @@ function TeacherAnswers() {
                 ) : (
                     <div className="teacher-management-table student-id-management-table">
                         <div className="management-table-header">
-                            <div>Student ID</div><div>Student</div><div>Test</div><div>Answered</div>
-                            <div>Correct</div><div>Score</div><div>Review</div>
+                            <div>Student ID</div><div>Student</div><div>Test</div>
+                            <div>Evaluation</div><div>Score</div><div>Submitted</div><div>Review</div>
                         </div>
                         {results.map((result) => (
                             <div className="management-table-row" key={result.id}>
@@ -89,11 +89,9 @@ function TeacherAnswers() {
                                         {result.student?.branch} · {result.test?.subject}
                                     </small>
                                 </div>
-                                <div>{result.correctAnswers + result.incorrectAnswers} / {
-                                    result.correctAnswers + result.incorrectAnswers + result.unanswered
-                                }</div>
-                                <div>{result.correctAnswers}</div>
+                                <div>{result.evaluationStatus.replaceAll("_", " ")}</div>
                                 <div>{result.obtainedMarks} / {result.totalMarks}</div>
+                                <div>{new Date(result.submittedAt).toLocaleDateString()}</div>
                                 <div><Link to={`/teacher/answers/${result.id}`}>Review answers</Link></div>
                             </div>
                         ))}

@@ -1,4 +1,4 @@
-import { body, param } from "express-validator";
+import { body, param, query } from "express-validator";
 
 const validateBranchFields = [
     body("name")
@@ -43,4 +43,8 @@ export const validateBranchStatus = [
 ];
 export const validateBranchSubjects = [
     param("branchId").isMongoId().withMessage("Branch ID must be a valid MongoDB ObjectId.")
+];
+export const validateAvailableBranches = [
+    query("institution").optional().isString().trim().isLength({ min: 1, max: 150 })
+        .withMessage("Institution must be between 1 and 150 characters.")
 ];

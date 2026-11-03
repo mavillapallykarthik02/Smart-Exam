@@ -2,7 +2,8 @@ import { Answer } from "../models/Answer.js";
 import { Attempt } from "../models/Attempt.js";
 import { Question } from "../models/Question.js";
 import { Test } from "../models/Test.js";
-import { evaluateAttempt } from "./evaluationService.js";
+import { getActiveTeacherIds } from "./studentTeacherService.js";
+import { createPendingResult } from "./evaluationService.js";
 
 function resourceError(statusCode, message) {
     const error = new Error(message);
@@ -14,9 +15,7 @@ function safeQuestion(question) {
     return {
         id: question.id,
         position: question.position,
-        questionType: question.questionType,
         text: question.text,
-        options: question.options.map(({ key, text }) => ({ key, text })),
         marks: question.marks
     };
 }
@@ -37,7 +36,6 @@ function safeTest(test) {
 function serializeAttempt(attempt, questions, answers) {
     const responseByQuestion = new Map(
         answers.map((answer) => [answer.question.toString(), {
-            selectedOption: answer.selectedOption,
             textResponse: answer.textResponse,
             updatedAt: answer.updatedAt
         }])
@@ -52,7 +50,6 @@ function serializeAttempt(attempt, questions, answers) {
         questions: questions.map((question) => ({
             ...safeQuestion(question),
             response: responseByQuestion.get(question.id) || {
-                selectedOption: "",
                 textResponse: ""
             }
         }))
@@ -76,7 +73,7 @@ async function loadAttempt(attemptId, studentId) {
         attempt.submittedAt = attempt.expiresAt;
         await attempt.save();
     }
-    if (attempt.status !== "IN_PROGRESS") await evaluateAttempt(attempt.id);
+    if (attempt.status !== "IN_PROGRESS") await createPendingResult(attempt.id);
     return serializeAttempt(attempt, questions, answers);
 }
 
@@ -88,7 +85,8 @@ export async function startAttempt(testId, student) {
     const test = await Test.findOne({
         _id: testId,
         status: "PUBLISHED",
-        branch: studentBranchId
+        branch: studentBranchId,
+        createdBy: { $in: await getActiveTeacherIds(student._id || student.id) }
     }).populate([
         { path: "branch", select: "name isActive" },
         { path: "subject", select: "name isActive branch" }
@@ -157,35 +155,23 @@ export async function saveAnswer(attemptId, questionId, input, studentId) {
             attempt.status = "TIMED_OUT";
             attempt.submittedAt = attempt.expiresAt;
             await attempt.save();
-            await evaluateAttempt(attempt.id);
+            await createPendingResult(attempt.id);
         }
         throw resourceError(409, "This exam is no longer accepting answers.");
     }
     const question = await Question.findOne({ _id: questionId, test: attempt.test });
     if (!question) throw resourceError(404, "Question not found for this attempt.");
-    const selectedOption = input.selectedOption?.trim().toUpperCase() || "";
     const textResponse = input.textResponse?.trim() || "";
-    if (question.questionType === "MCQ" &&
-        selectedOption && !question.options.some((option) => option.key === selectedOption)) {
-        throw resourceError(400, "Select one of the available options.");
-    }
-    if (question.questionType === "MCQ" && textResponse) {
-        throw resourceError(400, "This question requires an option selection.");
-    }
-    if (question.questionType === "TYPING" && selectedOption) {
-        throw resourceError(400, "This question requires a text response.");
-    }
     const answer = await Answer.findOneAndUpdate(
         { attempt: attempt.id, question: question.id },
         {
-            $set: { selectedOption, textResponse, evaluationStatus: "PENDING" },
+            $set: { textResponse, evaluationStatus: "PENDING" },
             $setOnInsert: { attempt: attempt.id, question: question.id }
         },
         { new: true, upsert: true, runValidators: true }
     );
     return {
         questionId: question.id,
-        selectedOption: answer.selectedOption,
         textResponse: answer.textResponse,
         updatedAt: answer.updatedAt
     };
@@ -199,7 +185,7 @@ export async function submitAttempt(attemptId, studentId) {
         attempt.submittedAt = attempt.status === "TIMED_OUT" ? attempt.expiresAt : new Date();
         await attempt.save();
     }
-    await evaluateAttempt(attempt.id);
+    await createPendingResult(attempt.id);
     return loadAttempt(attempt.id, studentId);
 }
 
@@ -226,7 +212,7 @@ export async function expireDueAttempts() {
             { new: true }
         );
         if (expiredAttempt) {
-            await evaluateAttempt(expiredAttempt.id);
+            await createPendingResult(expiredAttempt.id);
             expiredCount += 1;
         }
     }

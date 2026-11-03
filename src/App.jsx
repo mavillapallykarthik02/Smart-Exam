@@ -229,6 +229,11 @@ function App() {
                     element={<ProtectedRoute role="student"><StudentSubjects /></ProtectedRoute>}
                 />
 
+                <Route
+                    path="/student/subjects/:subjectId"
+                    element={<ProtectedRoute role="student"><StudentSubjects /></ProtectedRoute>}
+                />
+
 
                 {/* =================================================
                     STUDENT TESTS

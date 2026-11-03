@@ -21,7 +21,7 @@ function createEmptyTestForm() {
         instructions: "",
         questions: "20",
         duration: "30",
-        type: "MCQ",
+        type: "DESCRIPTIVE",
         totalMarks: "100",
         passingPercentage: "40"
     };
@@ -213,9 +213,6 @@ function TeacherTests() {
         }
         if (!formData.subject) {
             errors.push({ field: "subject", message: "Select a subject." });
-        }
-        if (!["MCQ", "TYPING", "DESCRIPTIVE", "MIXED"].includes(formData.type)) {
-            errors.push({ field: "testType", message: "Select a valid test type." });
         }
         if (!/^\d+$/.test(formData.questions) || Number(formData.questions) < 1 || Number(formData.questions) > 500) {
             errors.push({
@@ -830,24 +827,8 @@ function TeacherTests() {
                                 </div>
 
                                 <div className="teacher-form-group">
-                                    <label htmlFor="test-type">Test Type *</label>
-                                    <select
-                                        id="test-type"
-                                        name="type"
-                                        value={formData.type}
-                                        onChange={handleChange}
-                                        required
-                                        aria-invalid={Boolean(getFieldError("type"))}
-                                        aria-describedby={getFieldError("type") ? "test-type-error" : undefined}
-                                    >
-                                        <option value="MCQ">MCQ</option>
-                                        <option value="TYPING">Typing Test</option>
-                                        <option value="DESCRIPTIVE">Descriptive Test</option>
-                                        <option value="MIXED">Mixed</option>
-                                    </select>
-                                    {getFieldError("type") && (
-                                        <p className="teacher-field-error" id="test-type-error">{getFieldError("type")}</p>
-                                    )}
+                                    <label htmlFor="test-type">Examination Type</label>
+                                    <input id="test-type" value="Descriptive examination" readOnly />
                                 </div>
 
                                 <div className="teacher-form-group">

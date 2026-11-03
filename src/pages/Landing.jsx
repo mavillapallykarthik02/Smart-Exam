@@ -1,176 +1,96 @@
 import { Link } from "react-router-dom";
 import BrandLogoImage from "../components/BrandLogoImage";
-import "../index.css";
+
+function StudentIcon() {
+  return (
+    <svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
+      <path d="m5 17 19-9 19 9-19 9-19-9Z" />
+      <path d="M13 21v10c6 5 16 5 22 0V21" />
+      <path d="M43 18v12" />
+      <circle cx="43" cy="33" r="2" />
+    </svg>
+  );
+}
+
+function TeacherIcon() {
+  return (
+    <svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
+      <rect x="5" y="7" width="38" height="27" rx="3" />
+      <path d="M12 15h13M12 21h9M14 41l10-7 10 7" />
+      <circle cx="33" cy="18" r="4" />
+      <path d="M27 29c1-4 3-6 6-6s5 2 6 6" />
+    </svg>
+  );
+}
+
+function ArrowIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M5 12h14M13 6l6 6-6 6" />
+    </svg>
+  );
+}
 
 function Landing() {
   return (
     <div className="landing-page">
-
-      <header className="main-header">
-        <div className="logo">
+      <header className="landing-header">
+        <Link to="/" className="landing-brand" aria-label="SmartExam home">
           <BrandLogoImage />
-          <span>SmartExam</span>
-        </div>
-
-        <nav className="header-nav">
-          <a href="#features">Features</a>
-          <a href="#about">About</a>
-          <Link to="/student/login" className="nav-login">
-            Login
-          </Link>
-        </nav>
+          <span className="landing-brand-copy">
+            <strong>SMARTEXAM</strong>
+          </span>
+        </Link>
+        <h1 className="landing-header-title">Authentication</h1>
       </header>
 
-      <main>
-
-        <section className="hero-section">
-
-          <div className="hero-content">
-            <div className="hero-badge">
-              Smart • Secure • Simple
-            </div>
-
-            <h1>
-              Your Complete
-              <span> Online Examination </span>
-              Platform
-            </h1>
-
-            <p>
-              SmartExam provides a modern examination experience for
-              students and powerful test management tools for teachers.
-            </p>
-
-            <div className="hero-buttons">
-              <Link to="/student/register" className="primary-button">
-                Join as Student
-              </Link>
-
-              <Link to="/teacher/register" className="secondary-button">
-                Join as Teacher
-              </Link>
-            </div>
+      <main className="landing-main">
+        <section className="landing-hero" aria-labelledby="landing-title">
+          <div className="landing-hero-logo" aria-label="SmartExam logo">
+            <BrandLogoImage />
           </div>
+          <span className="landing-badge">
+            <span className="landing-badge-dot" />
+            Smart Online Examination
+          </span>
+          <h1 id="landing-title">Welcome to SmartExam</h1>
+          <p>Choose your role to continue to the right login experience.</p>
 
-          <div className="hero-card">
-            <div className="exam-card-header">
-              <span>Your examination workspace</span>
-            </div>
+          <div className="landing-role-list">
+            <Link to="/student/login" className="landing-role-card">
+              <span className="landing-role-icon student-icon">
+                <StudentIcon />
+              </span>
+              <span className="landing-role-copy">
+                <strong>Student</strong>
+                <span>
+                  Attend online examinations, practice tests, view results and
+                  track your progress.
+                </span>
+              </span>
+              <span className="landing-role-arrow">
+                <ArrowIcon />
+              </span>
+            </Link>
 
-            <div className="exam-card-body">
-              <h3>Exams created by your teachers</h3>
-              <p>Sign in to see published tests for your branch, or create an account to get started.</p>
-              <Link to="/student/login" className="branch-button">View student exams</Link>
-            </div>
+            <Link to="/teacher/login" className="landing-role-card">
+              <span className="landing-role-icon teacher-icon">
+                <TeacherIcon />
+              </span>
+              <span className="landing-role-copy">
+                <strong>Teacher</strong>
+                <span>
+                  Create tests, manage questions, view student results and
+                  monitor performance.
+                </span>
+              </span>
+              <span className="landing-role-arrow">
+                <ArrowIcon />
+              </span>
+            </Link>
           </div>
-
         </section>
-
-        <section id="features" className="features-section">
-
-          <div className="section-heading">
-            <span>POWERFUL FEATURES</span>
-            <h2>Everything you need for online examinations</h2>
-            <p>
-              SmartExam brings students and teachers together in one
-              organized examination platform.
-            </p>
-          </div>
-
-          <div className="feature-grid">
-
-            <div className="feature-card">
-              <div className="feature-icon">📝</div>
-              <h3>Online Tests</h3>
-              <p>
-                Take structured examinations with questions,
-                marks and time limits.
-              </p>
-            </div>
-
-            <div className="feature-card">
-              <div className="feature-icon">⌨️</div>
-              <h3>Typing Exams</h3>
-              <p>
-                Complete typing questions and have submitted responses evaluated.
-              </p>
-            </div>
-
-            <div className="feature-card">
-              <div className="feature-icon">📊</div>
-              <h3>Progress Tracking</h3>
-              <p>
-                Monitor scores, subject performance and
-                improvement over multiple attempts.
-              </p>
-            </div>
-
-            <div className="feature-card">
-              <div className="feature-icon">✅</div>
-              <h3>Answer Review</h3>
-              <p>
-                Review submitted answers, marks and explanations after evaluation.
-              </p>
-            </div>
-
-          </div>
-
-        </section>
-
-        <section id="about" className="role-section">
-
-          <div className="section-heading">
-            <span>CHOOSE YOUR ROLE</span>
-            <h2>Designed for Students and Teachers</h2>
-          </div>
-
-          <div className="role-grid">
-
-            <div className="role-card student-role">
-              <div className="role-icon">🎓</div>
-
-              <h3>Student</h3>
-
-              <p>
-                Access tests, complete examinations, view results,
-                track progress and practice again.
-              </p>
-
-              <Link to="/student/login">
-                Student Login →
-              </Link>
-            </div>
-
-            <div className="role-card teacher-role">
-              <div className="role-icon">👨‍🏫</div>
-
-              <h3>Teacher</h3>
-
-              <p>
-                Create tests, manage questions, monitor students
-                and analyze examination results.
-              </p>
-
-              <Link to="/teacher/login">
-                Teacher Login →
-              </Link>
-            </div>
-
-          </div>
-
-        </section>
-
       </main>
-
-      <footer className="main-footer">
-        <div className="logo">
-          <BrandLogoImage />
-          <span>SmartExam</span>
-        </div>
-
-        <p>© 2026 SmartExam. Online Examination Platform.</p>
-      </footer>
-
     </div>
   );
 }

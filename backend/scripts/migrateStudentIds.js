@@ -4,6 +4,13 @@ import mongoose from "mongoose";
 import { config } from "../config/env.js";
 import "../models/Branch.js";
 import { User } from "../models/User.js";
+import { normalizeInstitution } from "../utils/institution.js";
+import {
+    createLookupHash,
+    decryptField,
+    encryptField,
+    isEncryptedField
+} from "../utils/fieldEncryption.js";
 
 function migrationError(message) {
     return new Error(`Student ID migration stopped: ${message}`);
@@ -16,55 +23,72 @@ function createStudentId(branchCode, year, sequence) {
 
 export async function migrateStudentIds({ currentYear = new Date().getFullYear() } = {}) {
     const students = await User.find({ role: "student" })
-        .select("_id studentId branch createdAt")
+        .select("_id studentId branch createdAt institution +institutionKey")
         .populate("branch", "code")
         .sort({ createdAt: 1, _id: 1 })
         .lean();
     const idsInUse = new Set();
+    const institutionKeyFor = (student) => (
+        student.institutionKey || normalizeInstitution(student.institution)
+    );
+    const scopedId = (student, id) => `${institutionKeyFor(student)}:${id}`;
 
     for (const student of students) {
-        if (!student.studentId) continue;
-        if (typeof student.studentId !== "string") {
+        const studentIdValue = typeof student.studentId === "string"
+            ? decryptField(student.studentId)
+            : student.studentId;
+        if (!studentIdValue) continue;
+        if (typeof studentIdValue !== "string") {
             throw migrationError(`student ${student._id} has a non-text Student ID.`);
         }
-        const normalizedId = student.studentId.trim().toUpperCase();
+        const normalizedId = studentIdValue.trim().toUpperCase();
         if (!/^[A-Z0-9][A-Z0-9-]{2,29}$/u.test(normalizedId)) {
             throw migrationError(`student ${student._id} has an invalid existing Student ID.`);
         }
-        if (idsInUse.has(normalizedId)) {
+        if (idsInUse.has(scopedId(student, normalizedId))) {
             throw migrationError(`duplicate existing Student ID "${normalizedId}" must be resolved before migration.`);
         }
-        idsInUse.add(normalizedId);
+        idsInUse.add(scopedId(student, normalizedId));
     }
 
     const updates = [];
     const sequencesByPrefix = new Map();
     for (const student of students) {
-        if (student.studentId) {
-            const normalizedId = student.studentId.trim().toUpperCase();
-            if (student.studentId !== normalizedId) {
+        const studentIdValue = typeof student.studentId === "string"
+            ? decryptField(student.studentId)
+            : student.studentId;
+        if (studentIdValue) {
+            const normalizedId = studentIdValue.trim().toUpperCase();
+            if (studentIdValue !== normalizedId || !isEncryptedField(student.studentId)) {
                 updates.push({
                     updateOne: {
                         filter: { _id: student._id },
-                        update: { $set: { studentId: normalizedId } }
+                        update: {
+                            $set: {
+                                studentId: encryptField(normalizedId),
+                                studentIdLookup: createLookupHash(normalizedId)
+                            }
+                        }
                     }
                 });
             }
             continue;
         }
 
+        const institutionKey = institutionKeyFor(student);
         const prefix = (student.branch?.code || "STU")
             .replace(/[^A-Z0-9]/giu, "")
             .toUpperCase()
             .slice(0, 8) || "STU";
-        let sequence = sequencesByPrefix.get(prefix) || 1;
+        const sequenceKey = `${institutionKey}:${prefix}`;
+        let sequence = sequencesByPrefix.get(sequenceKey) || 1;
         let studentId = createStudentId(prefix, currentYear, sequence);
-        while (idsInUse.has(studentId)) {
+        while (idsInUse.has(`${institutionKey}:${studentId}`)) {
             sequence += 1;
             studentId = createStudentId(prefix, currentYear, sequence);
         }
-        sequencesByPrefix.set(prefix, sequence + 1);
-        idsInUse.add(studentId);
+        sequencesByPrefix.set(sequenceKey, sequence + 1);
+        idsInUse.add(`${institutionKey}:${studentId}`);
         updates.push({
             updateOne: {
                 filter: {
@@ -76,7 +100,12 @@ export async function migrateStudentIds({ currentYear = new Date().getFullYear()
                         { studentId: "" }
                     ]
                 },
-                update: { $set: { studentId } }
+                update: {
+                    $set: {
+                        studentId: encryptField(studentId),
+                        studentIdLookup: createLookupHash(studentId)
+                    }
+                }
             }
         });
     }
@@ -84,13 +113,23 @@ export async function migrateStudentIds({ currentYear = new Date().getFullYear()
     if (updates.length) {
         await User.bulkWrite(updates, { ordered: true });
     }
+    const indexes = await User.collection.indexes();
+    for (const index of indexes) {
+        if (
+            index.name !== "_id_" &&
+            (index.key.studentId || index.key.studentIdLookup)
+        ) {
+            await User.collection.dropIndex(index.name);
+        }
+    }
     await User.collection.createIndex(
-        { studentId: 1 },
+        { institutionKey: 1, studentIdLookup: 1 },
         {
+            name: "institutionKey_1_studentIdLookup_1",
             unique: true,
             partialFilterExpression: {
                 role: "student",
-                studentId: { $type: "string" }
+                studentIdLookup: { $type: "string" }
             }
         }
     );

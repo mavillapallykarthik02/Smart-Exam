@@ -10,7 +10,7 @@ export async function getStudentProgress(studentId) {
     const [summaryRows, subjectPerformance, recentResults, trendRows, comparisonRows] =
         await Promise.all([
             Result.aggregate([
-                { $match: { student: studentObjectId } },
+                { $match: { student: studentObjectId, evaluationStatus: "PUBLISHED" } },
                 {
                     $group: {
                         _id: null,
@@ -25,7 +25,7 @@ export async function getStudentProgress(studentId) {
                 }
             ]),
             Result.aggregate([
-                { $match: { student: studentObjectId } },
+                { $match: { student: studentObjectId, evaluationStatus: "PUBLISHED" } },
                 {
                     $lookup: {
                         from: "tests",
@@ -62,7 +62,7 @@ export async function getStudentProgress(studentId) {
                     }
                 }
             ]),
-            Result.find({ student: studentObjectId })
+            Result.find({ student: studentObjectId, evaluationStatus: "PUBLISHED" })
                 .populate({
                     path: "test",
                     select: "title subject",
@@ -71,12 +71,12 @@ export async function getStudentProgress(studentId) {
                 .sort({ submittedAt: -1, _id: -1 })
                 .limit(5)
                 .lean(),
-            Result.find({ student: studentObjectId })
+            Result.find({ student: studentObjectId, evaluationStatus: "PUBLISHED" })
                 .select("percentage submittedAt")
                 .sort({ submittedAt: -1, _id: -1 })
                 .limit(30)
                 .lean(),
-            Result.find({ student: studentObjectId })
+            Result.find({ student: studentObjectId, evaluationStatus: "PUBLISHED" })
                 .select("percentage")
                 .sort({ submittedAt: -1, _id: -1 })
                 .limit(6)

@@ -1,4 +1,4 @@
-import { param, query } from "express-validator";
+import { body, param, query } from "express-validator";
 
 export const validateResultList = [
     query("page").optional().isInt({ min: 1, max: 100000 })
@@ -14,5 +14,18 @@ export const validateResultList = [
 ];
 
 export const validateResultId = [
+    param("id").isMongoId().withMessage("Result ID must be a valid MongoDB ObjectId.")
+];
+
+export const validateAnswerEvaluation = [
+    param("id").isMongoId().withMessage("Result ID must be a valid MongoDB ObjectId."),
+    param("questionId").isMongoId().withMessage("Question ID must be a valid MongoDB ObjectId."),
+    body("marksAwarded").isFloat({ min: 0, max: 100000 })
+        .withMessage("Marks must be a non-negative number within the question's maximum marks."),
+    body("feedback").optional().isString().trim().isLength({ max: 5000 })
+        .withMessage("Feedback must be 5000 characters or fewer.")
+];
+
+export const validateResultPublish = [
     param("id").isMongoId().withMessage("Result ID must be a valid MongoDB ObjectId.")
 ];

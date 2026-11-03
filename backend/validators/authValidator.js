@@ -1,4 +1,5 @@
 import { body } from "express-validator";
+import { isSupportedInstitution } from "../utils/institution.js";
 
 const requiredText = (field, label, maxLength = 150) =>
     body(field)
@@ -40,12 +41,18 @@ export const validateStudentRegistration = [
     requiredText("name", "Name", 100),
     username(),
     email(),
-    requiredText("mobile", "Mobile number", 30),
+    body("mobile")
+        .optional({ checkFalsy: true })
+        .trim()
+        .isLength({ max: 30 })
+        .withMessage("Mobile number must be 30 characters or fewer."),
     password(),
     body("branch")
         .isMongoId()
         .withMessage("Select a valid active branch."),
-    requiredText("institution", "Institution", 150),
+    body("institution")
+        .custom(isSupportedInstitution)
+        .withMessage("Registration is limited to Government Polytechnic, Masab Tank."),
     requiredText("year", "Year / semester", 20)
 ];
 
@@ -53,13 +60,29 @@ export const validateTeacherRegistration = [
     requiredText("name", "Name", 100),
     username(),
     email(),
-    requiredText("mobile", "Mobile number", 30),
+    body("mobile")
+        .optional({ checkFalsy: true })
+        .trim()
+        .isLength({ max: 30 })
+        .withMessage("Mobile number must be 30 characters or fewer."),
     password(),
-    requiredText("institution", "Institution", 150),
+    body("institution")
+        .custom(isSupportedInstitution)
+        .withMessage("Registration is limited to Government Polytechnic, Masab Tank."),
     body("teacherId")
         .trim()
-        .isLength({ min: 1, max: 40 })
-        .withMessage("Teacher ID is required and must be 40 characters or fewer.")
+        .isLength({ min: 3, max: 40 })
+        .withMessage("Teacher ID must be between 3 and 40 characters.")
+        .matches(/^[A-Za-z0-9][A-Za-z0-9_-]*$/)
+        .withMessage("Teacher ID may contain letters, numbers, hyphens and underscores.")
+        .toUpperCase(),
+    body("confirmTeacherId")
+        .trim()
+        .custom((value, { req }) => (
+            typeof value === "string" &&
+            value.trim().toUpperCase() === req.body.teacherId?.trim().toUpperCase()
+        ))
+        .withMessage("Teacher IDs do not match.")
 ];
 
 export const validateLogin = [
@@ -89,8 +112,8 @@ export const validateProfileUpdate = [
         .withMessage("Mobile number must be 30 characters or fewer."),
     body("institution").optional().trim().isLength({ min: 1, max: 150 })
         .withMessage("Institution must be 150 characters or fewer."),
-    body("teacherId").optional().trim().isLength({ min: 1, max: 40 })
-        .withMessage("Teacher ID must be 40 characters or fewer."),
+    body("teacherId").not().exists()
+        .withMessage("Teacher ID cannot be changed."),
     body("branch").optional().isMongoId()
         .withMessage("Branch must be a valid branch ID."),
     body("year").optional().trim().isLength({ min: 1, max: 20 })

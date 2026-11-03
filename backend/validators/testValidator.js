@@ -15,7 +15,7 @@ const testFields = [
     body("duration").isInt({ min: 1, max: 600 })
         .withMessage("Duration must be from 1 to 600 minutes."),
     body("testType").isIn(TEST_TYPES)
-        .withMessage(`Test type must be one of: ${TEST_TYPES.join(", ")}.`),
+        .withMessage("Only descriptive examinations are supported."),
     body("totalQuestions").isInt({ min: 1, max: 500 })
         .withMessage("Question count must be from 1 to 500."),
     body("totalMarks").isFloat({ min: 0.01, max: 100000 })

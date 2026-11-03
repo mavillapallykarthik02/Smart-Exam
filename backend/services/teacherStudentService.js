@@ -4,6 +4,7 @@ import { Branch } from "../models/Branch.js";
 import { Result } from "../models/Result.js";
 import { Subject } from "../models/Subject.js";
 import { User } from "../models/User.js";
+import { createLookupHash, createNameSearchTokens } from "../utils/fieldEncryption.js";
 
 function escapeRegex(value) {
     return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
@@ -26,16 +27,18 @@ export async function listTeacherStudents(teacherId, filters) {
     if (filters.status) filter.accountStatus = filters.status;
     if (filters.search) {
         const pattern = new RegExp(escapeRegex(filters.search), "i");
+        const lookupHash = createLookupHash(filters.search);
+        const nameTokens = createNameSearchTokens(filters.search);
         const matchingBranches = await Branch.find({
             _id: { $in: branchIds },
             $or: [{ name: pattern }, { code: pattern }]
         }).distinct("_id");
         filter.$or = [
-            { studentId: pattern },
-            { name: pattern },
-            { username: pattern },
-            { email: pattern },
-            { mobile: pattern },
+            { studentIdLookup: lookupHash },
+            { nameSearchTokens: { $all: nameTokens } },
+            { usernameLookup: lookupHash },
+            { emailLookup: lookupHash },
+            { mobileLookup: lookupHash },
             { branch: { $in: matchingBranches } }
         ];
     }
@@ -54,13 +57,12 @@ export async function listTeacherStudents(teacherId, filters) {
             .sort({ name: 1, _id: 1 })
             .skip((filters.page - 1) * filters.limit)
             .limit(filters.limit)
-            .lean()
     ]);
     const studentIds = students.map((student) => student._id);
     const [performance, attemptCounts] = studentIds.length
         ? await Promise.all([
             Result.aggregate([
-                { $match: { student: { $in: studentIds } } },
+                { $match: { student: { $in: studentIds }, evaluationStatus: "PUBLISHED" } },
                 {
                     $group: {
                         _id: "$student",

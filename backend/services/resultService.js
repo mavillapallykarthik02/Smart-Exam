@@ -6,6 +6,7 @@ import { Subject } from "../models/Subject.js";
 import { Result } from "../models/Result.js";
 import { Test } from "../models/Test.js";
 import { User } from "../models/User.js";
+import { createLookupHash, createNameSearchTokens } from "../utils/fieldEncryption.js";
 
 function notFound() {
     const error = new Error("Result not found.");
@@ -38,10 +39,10 @@ function serializeResult(result) {
         totalMarks: result.totalMarks,
         obtainedMarks: result.obtainedMarks,
         percentage: result.percentage,
-        correctAnswers: result.correctAnswers,
-        incorrectAnswers: result.incorrectAnswers,
         unanswered: result.unanswered,
         passed: result.passed,
+        evaluationStatus: result.evaluationStatus,
+        publishedAt: result.publishedAt,
         submittedAt: result.submittedAt
     };
 }
@@ -69,7 +70,7 @@ function escapeRegex(value) {
 export async function listResults(user, filters) {
     let filter;
     if (user.role === "student") {
-        filter = { student: user._id };
+        filter = { student: user._id, evaluationStatus: "PUBLISHED" };
     } else {
         const tests = await Test.find({ createdBy: user._id }).select("_id");
         filter = { test: { $in: tests.map((test) => test._id) } };
@@ -84,16 +85,18 @@ export async function listResults(user, filters) {
     }
     if (filters.search) {
         const pattern = new RegExp(escapeRegex(filters.search), "i");
+        const lookupHash = createLookupHash(filters.search);
+        const nameTokens = createNameSearchTokens(filters.search);
         const [matchingSubjects, matchingBranches, matchingStudents] = await Promise.all([
             Subject.find({ name: pattern }).select("_id"),
             Branch.find({ $or: [{ name: pattern }, { code: pattern }] }).select("_id"),
             User.find({
                 role: "student",
                 $or: [
-                    { studentId: pattern },
-                    { name: pattern },
-                    { username: pattern },
-                    { email: pattern }
+                    { studentIdLookup: lookupHash },
+                    { nameSearchTokens: { $all: nameTokens } },
+                    { usernameLookup: lookupHash },
+                    { emailLookup: lookupHash }
                 ]
             }).select("_id")
         ]);
@@ -126,7 +129,6 @@ export async function listResults(user, filters) {
                     totalAttempts: { $sum: 1 },
                     passed: { $sum: { $cond: ["$passed", 1, 0] } },
                     failed: { $sum: { $cond: ["$passed", 0, 1] } },
-                    correctAnswers: { $sum: "$correctAnswers" },
                     unanswered: { $sum: "$unanswered" },
                     averagePercentage: { $avg: "$percentage" }
                 }
@@ -144,7 +146,6 @@ export async function listResults(user, filters) {
             passed: summaryRows[0].passed,
             failed: summaryRows[0].failed,
             participantCount: participantRows[0]?.participantCount || 0,
-            correctAnswers: summaryRows[0].correctAnswers,
             unanswered: summaryRows[0].unanswered,
             averagePercentage: Math.round(summaryRows[0].averagePercentage * 10) / 10
         }
@@ -153,7 +154,6 @@ export async function listResults(user, filters) {
             passed: 0,
             failed: 0,
             participantCount: 0,
-            correctAnswers: 0,
             unanswered: 0,
             averagePercentage: 0
         };
@@ -179,7 +179,10 @@ export async function listResults(user, filters) {
 export async function getResult(id, user) {
     const result = await Result.findById(id).populate(resultPopulation);
     if (!result) throw notFound();
-    if (user.role === "student" && result.student.id !== user.id) throw notFound();
+    if (user.role === "student" && (
+        result.student.id !== user.id ||
+        result.evaluationStatus !== "PUBLISHED"
+    )) throw notFound();
     if (user.role === "teacher") {
         const ownedTest = await Test.exists({ _id: result.test.id, createdBy: user.id });
         if (!ownedTest) throw notFound();
@@ -198,18 +201,13 @@ export async function getResult(id, user) {
         return {
             id: question.id,
             position: question.position,
-            questionType: question.questionType,
             text: question.text,
-            options: question.options,
-            selectedOption: answer?.selectedOption || "",
             textResponse: answer?.textResponse || "",
-            correctAnswer: question.correctAnswer,
-            expectedAnswer: question.expectedAnswer,
             marks: question.marks,
-            marksAwarded: answer?.marksAwarded ?? 0,
-            isCorrect: answer?.isCorrect ?? null,
-            unanswered: !answer || (!answer.selectedOption && !answer.textResponse),
-            explanation: question.explanation
+            marksAwarded: answer?.marksAwarded ?? null,
+            feedback: answer?.feedback || "",
+            evaluationStatus: answer?.evaluationStatus || "PENDING",
+            unanswered: !answer || !answer.textResponse
         };
     });
     return {

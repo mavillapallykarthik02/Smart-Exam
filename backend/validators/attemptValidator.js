@@ -13,13 +13,13 @@ export const validateAnswerSave = [
     param("questionId").isMongoId()
         .withMessage("Question ID must be a valid MongoDB ObjectId."),
     body().custom((body) => {
-        if (!Object.hasOwn(body, "selectedOption") && !Object.hasOwn(body, "textResponse")) {
-            throw new Error("Provide the selected option or text response.");
+        if (!Object.hasOwn(body, "textResponse")) {
+            throw new Error("Provide a descriptive text response.");
         }
         return true;
     }),
-    body("selectedOption").optional().isString().trim().isLength({ max: 2 })
-        .withMessage("Selected option must be two characters or fewer."),
+    body("selectedOption").not().exists()
+        .withMessage("Descriptive examinations do not accept selected options."),
     body("textResponse").optional().isString().trim().isLength({ max: 10000 })
         .withMessage("Response must be 10000 characters or fewer.")
 ];

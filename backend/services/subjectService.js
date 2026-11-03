@@ -1,6 +1,9 @@
 import mongoose from "mongoose";
 import { Branch } from "../models/Branch.js";
 import { Subject } from "../models/Subject.js";
+import { User } from "../models/User.js";
+import { getActiveTeacherIds } from "./studentTeacherService.js";
+import { INSTITUTION_KEY } from "../config/institution.js";
 
 function notFound(message) {
     const error = new Error(message);
@@ -25,21 +28,34 @@ function serializeSubject(subject) {
             : String(branch),
         isActive: subject.isActive,
         createdAt: subject.createdAt,
-        updatedAt: subject.updatedAt
+        updatedAt: subject.updatedAt,
+        teacher: subject.createdBy && typeof subject.createdBy === "object"
+            ? {
+                id: subject.createdBy.id,
+                name: subject.createdBy.name,
+                teacherId: subject.createdBy.teacherId,
+                institution: subject.createdBy.institution
+            }
+            : null
     };
 }
 
-async function requireActiveBranch(branchId) {
+async function requireActiveBranch(branchId, teacherId) {
     if (!mongoose.isValidObjectId(branchId)) {
         const error = new Error("Branch ID must be a valid MongoDB ObjectId.");
         error.statusCode = 400;
         throw error;
     }
 
-    const branch = await Branch.findOne({
-        _id: branchId,
-        isActive: true
-    });
+    const teacher = await User.findOne({ _id: teacherId, role: "teacher" })
+        .select("institution");
+    const branch = teacher
+        ? await Branch.findOne({
+            _id: branchId,
+            isActive: true,
+            institutionKey: INSTITUTION_KEY
+        })
+        : null;
     if (!branch) {
         throw notFound("The selected branch does not exist or is inactive.");
     }
@@ -54,6 +70,9 @@ export async function listSubjects({ role, branchId, teacherId, studentBranchId 
         filter.branch = studentBranchId
             ? studentBranchId
             : { $in: [] };
+        filter.createdBy = {
+            $in: studentBranchId && teacherId ? await getActiveTeacherIds(teacherId) : []
+        };
         if (studentBranchId && !await Branch.exists({
             _id: studentBranchId,
             isActive: true
@@ -84,22 +103,25 @@ export async function listSubjects({ role, branchId, teacherId, studentBranchId 
 
     const subjects = await Subject.find(filter)
         .populate("branch", "name code isActive")
+        .populate("createdBy", "name teacherId institution")
         .sort({ name: 1 });
     return subjects.map(serializeSubject);
 }
 
-export async function getSubjectById(id, role, userId) {
+export async function getSubjectById(id, role, userId, studentId) {
     const filter = { _id: id };
     if (role === "student") {
         filter.isActive = true;
+        filter.branch = userId;
+        filter.createdBy = { $in: await getActiveTeacherIds(studentId) };
     } else if (userId) {
         filter.createdBy = userId;
     }
     const subject = await Subject.findOne(filter)
-        .populate("branch", "name code isActive");
+        .populate("branch", "name code isActive")
+        .populate("createdBy", "name teacherId institution");
     if (!subject || (role === "student" && (
-        !subject.branch?.isActive ||
-        subject.branch.id !== userId
+        !subject.branch?.isActive
     ))) {
         throw notFound("Subject not found.");
     }
@@ -107,7 +129,7 @@ export async function getSubjectById(id, role, userId) {
 }
 
 export async function createSubject(input, teacherId) {
-    await requireActiveBranch(input.branch);
+    await requireActiveBranch(input.branch, teacherId);
     const subject = await Subject.create({
         name: input.name,
         code: input.code,
@@ -116,6 +138,7 @@ export async function createSubject(input, teacherId) {
         createdBy: teacherId
     });
     await subject.populate("branch", "name code isActive");
+    await subject.populate("createdBy", "name teacherId institution");
     return serializeSubject(subject);
 }
 
@@ -125,13 +148,14 @@ export async function updateSubject(id, input, teacherId) {
         throw notFound("Subject not found.");
     }
 
-    await requireActiveBranch(input.branch);
+    await requireActiveBranch(input.branch, teacherId);
     subject.name = input.name;
     subject.code = input.code;
     subject.description = input.description || "";
     subject.branch = input.branch;
     await subject.save();
     await subject.populate("branch", "name code isActive");
+    await subject.populate("createdBy", "name teacherId institution");
     return serializeSubject(subject);
 }
 
@@ -142,11 +166,12 @@ export async function setSubjectStatus(id, isActive, teacherId) {
     }
 
     if (isActive) {
-        await requireActiveBranch(subject.branch);
+        await requireActiveBranch(subject.branch, teacherId);
     }
     subject.isActive = isActive;
     await subject.save();
     await subject.populate("branch", "name code isActive");
+    await subject.populate("createdBy", "name teacherId institution");
     return serializeSubject(subject);
 }
 

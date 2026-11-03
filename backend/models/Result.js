@@ -33,16 +33,6 @@ const resultSchema = new mongoose.Schema(
             min: 0,
             max: 100
         },
-        correctAnswers: {
-            type: Number,
-            required: true,
-            min: 0
-        },
-        incorrectAnswers: {
-            type: Number,
-            required: true,
-            min: 0
-        },
         unanswered: {
             type: Number,
             required: true,
@@ -51,6 +41,16 @@ const resultSchema = new mongoose.Schema(
         passed: {
             type: Boolean,
             required: true
+        },
+        evaluationStatus: {
+            type: String,
+            enum: ["PENDING_EVALUATION", "EVALUATED", "PUBLISHED"],
+            default: "PENDING_EVALUATION",
+            required: true
+        },
+        publishedAt: {
+            type: Date,
+            default: null
         },
         submittedAt: {
             type: Date,

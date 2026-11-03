@@ -9,6 +9,7 @@ function TeacherAccount() {
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState("");
     const [message, setMessage] = useState("");
+    const [isCopied, setIsCopied] = useState(false);
 
     const handleChange = (event) => {
         setProfile((current) => ({ ...current, [event.target.name]: event.target.value }));
@@ -27,8 +28,6 @@ function TeacherAccount() {
                 username: profile.username.trim(),
                 email: profile.email.trim(),
                 mobile: profile.mobile.trim(),
-                institution: profile.institution.trim(),
-                teacherId: profile.teacherId.trim()
             });
             setProfile(updated);
             setIsEditing(false);
@@ -48,6 +47,17 @@ function TeacherAccount() {
         setMessage("");
     };
 
+    const copyTeacherId = async () => {
+        setError("");
+        try {
+            await navigator.clipboard.writeText(user.teacherId);
+            setIsCopied(true);
+            window.setTimeout(() => setIsCopied(false), 1800);
+        } catch {
+            setError("Unable to copy the Teacher ID. Please copy it manually.");
+        }
+    };
+
     const initials = user.name.trim().split(/\s+/u)
         .map((part) => part.charAt(0))
         .slice(0, 2)
@@ -59,7 +69,6 @@ function TeacherAccount() {
         ["username", "Username", "text", "username"],
         ["email", "Email Address", "email", "email"],
         ["mobile", "Mobile Number", "tel", "tel"],
-        ["institution", "Institution", "text", "organization"],
         ["teacherId", "Teacher ID", "text", "off"]
     ];
 
@@ -109,12 +118,21 @@ function TeacherAccount() {
                                         autoComplete={autoComplete}
                                         value={profile[name] || ""}
                                         onChange={handleChange}
-                                        disabled={!isEditing || isSaving}
+                                        disabled={!isEditing || isSaving || name === "teacherId"}
                                         required
                                         minLength={name === "username" ? 3 : undefined}
                                         maxLength={name === "username" ? 32 : undefined}
-                                        pattern={name === "username" ? "[A-Za-z0-9._-]+" : undefined}
+                                        pattern={name === "username" ? "[A-Za-z0-9._\\-]+" : undefined}
                                     />
+                                    {name === "teacherId" && (
+                                        <button
+                                            className="teacher-secondary-button teacher-id-copy"
+                                            type="button"
+                                            onClick={copyTeacherId}
+                                        >
+                                            {isCopied ? "Copied" : "Copy Teacher ID"}
+                                        </button>
+                                    )}
                                 </div>
                             ))}
                         </div>

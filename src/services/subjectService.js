@@ -23,6 +23,13 @@ export async function listStudentSubjects(branchId) {
     return subjects.map(toSubjectView);
 }
 
+export async function getStudentSubjectDetails(subjectId) {
+    const { subject } = await apiRequest(
+        `/student/subjects/${encodeURIComponent(subjectId)}`
+    );
+    return subject;
+}
+
 export async function createSubject(details) {
     const { subject } = await apiRequest("/subjects", {
         method: "POST",

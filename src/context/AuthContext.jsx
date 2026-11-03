@@ -45,8 +45,6 @@ export function AuthProvider({ children }) {
             method: "POST",
             body: details
         });
-        setUser(result.user);
-        setAuthError("");
         return result.user;
     }, []);
 

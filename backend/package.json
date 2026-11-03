@@ -6,7 +6,10 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
+    "migrate:branch-institutions": "node scripts/migrateBranchInstitutions.js",
+    "migrate:teacher-ids": "node scripts/migrateTeacherIds.js",
     "migrate:student-ids": "node scripts/migrateStudentIds.js",
+    "migrate:user-encryption": "node scripts/migrateUserEncryption.js",
     "test": "node --test"
   },
   "dependencies": {

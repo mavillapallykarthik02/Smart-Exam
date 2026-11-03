@@ -4,106 +4,158 @@ import { Question } from "../models/Question.js";
 import { Result } from "../models/Result.js";
 import { Test } from "../models/Test.js";
 
-function normalizeTypingResponse(value) {
-    return value.normalize("NFKC").trim().toLocaleLowerCase().replace(/\s+/gu, " ");
-}
-
 function roundMarks(value) {
     return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
-export async function evaluateAttempt(attemptId) {
+export async function createPendingResult(attemptId) {
     const attempt = await Attempt.findById(attemptId);
     if (!attempt || attempt.status === "IN_PROGRESS") {
-        const error = new Error("Only submitted exams can be evaluated.");
+        const error = new Error("Only submitted examinations can be queued for evaluation.");
         error.statusCode = 409;
         throw error;
     }
 
-    const existingResult = await Result.findOne({ attempt: attempt.id });
-    if (existingResult) return existingResult;
-
-    const [test, questions, answers] = await Promise.all([
+    const [test, questions] = await Promise.all([
         Test.findById(attempt.test),
-        Question.find({ test: attempt.test }).sort({ position: 1 }),
-        Answer.find({ attempt: attempt.id })
+        Question.find({ test: attempt.test }).select("_id")
     ]);
     if (!test) {
-        const error = new Error("The test for this attempt could not be found.");
+        const error = new Error("The examination for this attempt could not be found.");
         error.statusCode = 404;
         throw error;
     }
 
-    const answerByQuestion = new Map(answers.map((answer) => [
-        answer.question.toString(),
-        answer
-    ]));
-    let obtainedMarks = 0;
-    let correctAnswers = 0;
-    let incorrectAnswers = 0;
-    let unanswered = 0;
-
-    for (const question of questions) {
-        const answer = answerByQuestion.get(question.id);
-        const responseValue = question.questionType === "MCQ"
-            ? answer?.selectedOption || ""
-            : answer?.textResponse || "";
-        if (!responseValue.trim()) {
-            unanswered += 1;
-            if (answer) {
-                answer.marksAwarded = 0;
-                answer.isCorrect = null;
-                answer.evaluationStatus = "EVALUATED";
-                await answer.save();
-            }
-            continue;
+    await Answer.bulkWrite(questions.map((question) => ({
+        updateOne: {
+            filter: { attempt: attempt.id, question: question.id },
+            update: {
+                $setOnInsert: {
+                    attempt: attempt.id,
+                    question: question.id,
+                    textResponse: "",
+                    evaluationStatus: "PENDING"
+                }
+            },
+            upsert: true
         }
+    })), { ordered: true });
 
-        const correct = question.questionType === "MCQ"
-            ? responseValue.trim().toUpperCase() === question.correctAnswer
-            : normalizeTypingResponse(responseValue) ===
-                normalizeTypingResponse(question.expectedAnswer);
-        const marksAwarded = correct
-            ? question.marks
-            : question.questionType === "MCQ"
-                ? -Math.min(question.negativeMarks, question.marks)
-                : 0;
-        obtainedMarks += marksAwarded;
-        if (correct) {
-            correctAnswers += 1;
-        } else {
-            incorrectAnswers += 1;
-        }
-        if (answer) {
-            answer.marksAwarded = roundMarks(marksAwarded);
-            answer.isCorrect = correct;
-            answer.evaluationStatus = "EVALUATED";
-            await answer.save();
-        }
-    }
-
-    obtainedMarks = roundMarks(obtainedMarks);
-    const percentage = test.totalMarks > 0
-        ? Math.max(0, Math.min(100, roundMarks(obtainedMarks / test.totalMarks * 100)))
-        : 0;
     try {
-        return await Result.create({
-            attempt: attempt.id,
-            student: attempt.student,
-            test: test.id,
-            totalMarks: test.totalMarks,
-            obtainedMarks,
-            percentage,
-            correctAnswers,
-            incorrectAnswers,
-            unanswered,
-            passed: obtainedMarks >= test.totalMarks * test.passingPercentage / 100,
-            submittedAt: attempt.submittedAt || new Date()
-        });
+        return await Result.findOneAndUpdate(
+            { attempt: attempt.id },
+            {
+                $setOnInsert: {
+                    attempt: attempt.id,
+                    student: attempt.student,
+                    test: test.id,
+                    totalMarks: test.totalMarks,
+                    obtainedMarks: 0,
+                    percentage: 0,
+                    unanswered: 0,
+                    passed: false,
+                    evaluationStatus: "PENDING_EVALUATION",
+                    submittedAt: attempt.submittedAt || new Date()
+                }
+            },
+            { new: true, upsert: true, setDefaultsOnInsert: true }
+        );
     } catch (error) {
-        if (error.code === 11000) {
-            return Result.findOne({ attempt: attempt.id });
-        }
+        if (error.code === 11000) return Result.findOne({ attempt: attempt.id });
         throw error;
     }
+}
+
+export async function saveAnswerEvaluation(resultId, questionId, teacher, input) {
+    const result = await Result.findById(resultId);
+    if (!result) {
+        const error = new Error("Result not found.");
+        error.statusCode = 404;
+        throw error;
+    }
+    if (teacher.role !== "teacher" ||
+        !await Test.exists({ _id: result.test, createdBy: teacher.id })) {
+        const error = new Error("Result not found.");
+        error.statusCode = 404;
+        throw error;
+    }
+    if (result.evaluationStatus === "PUBLISHED") {
+        const error = new Error("Published results cannot be changed.");
+        error.statusCode = 409;
+        throw error;
+    }
+
+    const answer = await Answer.findOne({
+        attempt: result.attempt,
+        question: questionId
+    });
+    const question = await Question.findOne({
+        _id: questionId,
+        test: result.test
+    });
+    if (!answer || !question) {
+        const error = new Error("Answer not found for this examination.");
+        error.statusCode = 404;
+        throw error;
+    }
+
+    const marksAwarded = Number(input.marksAwarded);
+    if (!Number.isFinite(marksAwarded) || marksAwarded < 0 || marksAwarded > question.marks) {
+        const error = new Error(`Marks must be between 0 and ${question.marks}.`);
+        error.statusCode = 400;
+        throw error;
+    }
+    answer.marksAwarded = roundMarks(marksAwarded);
+    answer.feedback = input.feedback?.trim() || "";
+    answer.evaluationStatus = "EVALUATED";
+    await answer.save();
+
+    const answers = await Answer.find({ attempt: result.attempt });
+    if (answers.length === await Question.countDocuments({ test: result.test }) &&
+        answers.every((item) => item.evaluationStatus === "EVALUATED")) {
+        const obtainedMarks = roundMarks(answers.reduce((total, item) => total + item.marksAwarded, 0));
+        result.obtainedMarks = obtainedMarks;
+        result.percentage = result.totalMarks > 0
+            ? roundMarks(obtainedMarks / result.totalMarks * 100)
+            : 0;
+        result.passed = obtainedMarks >= result.totalMarks *
+            (await Test.findById(result.test).select("passingPercentage")).passingPercentage / 100;
+        result.evaluationStatus = "EVALUATED";
+        await result.save();
+    }
+
+    return {
+        questionId: question.id,
+        marksAwarded: answer.marksAwarded,
+        feedback: answer.feedback,
+        evaluationStatus: answer.evaluationStatus,
+        resultStatus: result.evaluationStatus
+    };
+}
+
+export async function publishResult(resultId, teacher) {
+    const result = await Result.findById(resultId);
+    if (!result || teacher.role !== "teacher" ||
+        !await Test.exists({ _id: result.test, createdBy: teacher.id })) {
+        const error = new Error("Result not found.");
+        error.statusCode = 404;
+        throw error;
+    }
+    if (result.evaluationStatus === "PUBLISHED") return result;
+
+    const [answers, questionCount] = await Promise.all([
+        Answer.find({ attempt: result.attempt }),
+        Question.countDocuments({ test: result.test })
+    ]);
+    if (result.evaluationStatus !== "EVALUATED" ||
+        answers.length !== questionCount ||
+        !answers.every((answer) => answer.evaluationStatus === "EVALUATED")) {
+        const error = new Error("Evaluate every answer before publishing this result.");
+        error.statusCode = 409;
+        throw error;
+    }
+    result.evaluationStatus = "PUBLISHED";
+    result.publishedAt = new Date();
+    await result.save();
+    return result;
 }

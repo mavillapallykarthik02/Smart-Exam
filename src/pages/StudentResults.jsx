@@ -77,8 +77,7 @@ function StudentResults() {
                         <table className="results-table">
                             <thead><tr>
                                 <th>Test</th><th>Subject</th><th>Submitted</th>
-                                <th>Score</th><th>Percentage</th><th>Correct</th>
-                                <th>Incorrect</th><th>Unanswered</th><th>Status</th><th>Review</th>
+                                <th>Score</th><th>Percentage</th><th>Outcome</th><th>Review</th>
                             </tr></thead>
                             <tbody>
                                 {results.map((result) => (
@@ -88,9 +87,6 @@ function StudentResults() {
                                         <td>{new Date(result.submittedAt).toLocaleString()}</td>
                                         <td>{result.obtainedMarks} / {result.totalMarks}</td>
                                         <td><span className="result-percentage">{result.percentage.toFixed(1)}%</span></td>
-                                        <td>{result.correctAnswers}</td>
-                                        <td>{result.incorrectAnswers}</td>
-                                        <td>{result.unanswered}</td>
                                         <td>{result.passed ? "Passed" : "Failed"}</td>
                                         <td><Link to={`/student/results/${result.id}`}>Review answers</Link></td>
                                     </tr>

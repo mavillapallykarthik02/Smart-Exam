@@ -4695,3 +4695,827 @@ a {
         border-radius: 14px;
     }
 }
+
+.teacher-form-group .teacher-id-copy {
+    width: fit-content;
+    min-height: 36px;
+    margin-top: 9px;
+    padding: 8px 12px;
+    color: #173b70;
+    background: #eaf3ff;
+    border: 1px solid #d5e5f5;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.student-teacher-connections {
+    margin-top: 28px;
+    padding: 28px;
+}
+
+.student-connections-heading h2 {
+    margin-top: 4px;
+    color: #173b70;
+    font-size: 22px;
+}
+
+.student-connections-heading p:last-child {
+    margin-top: 7px;
+    color: #64748b;
+    font-size: 14px;
+}
+
+.student-connect-form {
+    margin-top: 24px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 14px;
+}
+
+.student-connect-form .form-group {
+    gap: 8px;
+}
+
+.student-connect-form .form-group input {
+    height: 46px;
+    padding: 0 14px;
+    border: 1px solid #dce5ef;
+    border-radius: 9px;
+}
+
+.student-connect-form .branch-button {
+    min-height: 46px;
+    margin: 0;
+    padding: 0 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    background: #2563eb;
+    border: 0;
+    border-radius: 9px;
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+.student-connect-form .branch-button:hover {
+    background: #1d4ed8;
+}
+
+.student-connect-form .branch-button:disabled {
+    cursor: wait;
+    opacity: 0.72;
+}
+
+.student-connected-list {
+    margin-top: 24px;
+    display: grid;
+    gap: 12px;
+}
+
+.student-connected-list > p {
+    color: #64748b;
+    font-size: 14px;
+}
+
+.student-connected-teacher {
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    background: #f7fbff;
+    border: 1px solid #e1edf7;
+    border-radius: 12px;
+}
+
+.student-connected-teacher h3 {
+    margin-bottom: 7px;
+    color: #173b70;
+    font-size: 17px;
+}
+
+.student-connected-teacher p {
+    margin-top: 4px;
+    color: #64748b;
+    font-size: 13px;
+}
+
+.connected-status {
+    display: inline-block;
+    margin-top: 9px;
+    padding: 4px 9px;
+    color: #167447;
+    background: #e8f7ef;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: capitalize;
+}
+
+.student-disconnect-button {
+    flex: 0 0 auto;
+    padding: 9px 13px;
+    color: #b42318;
+    background: #fff;
+    border: 1px solid #f1c7c4;
+    border-radius: 8px;
+    font-weight: 650;
+}
+
+.student-subject-list {
+    width: min(100%, 900px);
+    margin: 20px auto 0;
+    border-top: 1px solid #dceaf6;
+    border-bottom: 1px solid #dceaf6;
+}
+
+.student-subject-row {
+    min-height: 72px;
+    padding: 16px 22px;
+    display: grid;
+    grid-template-columns: 90px minmax(0, 1fr) minmax(170px, 0.7fr);
+    align-items: center;
+    gap: 18px;
+    color: #17324d;
+    border-bottom: 1px solid #e8f0f7;
+    transition: background-color 160ms ease, transform 160ms ease;
+}
+
+.student-subject-row:last-child {
+    border-bottom: 0;
+}
+
+.student-subject-row:hover,
+.student-subject-row:focus-visible {
+    background: #f2f8ff;
+    transform: translateX(2px);
+}
+
+.student-subject-number {
+    color: #168b55;
+    font-size: 14px;
+    font-weight: 750;
+}
+
+.student-subject-name {
+    min-width: 0;
+    color: #173b70;
+    font-size: 17px;
+    font-weight: 650;
+}
+
+.student-subject-teacher-name {
+    color: #64748b;
+    font-size: 14px;
+    text-align: right;
+}
+
+.student-subject-detail-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.student-subject-teacher,
+.student-subject-test-section {
+    margin-top: 22px;
+    padding: 22px 24px;
+    background: #fff;
+    border: 1px solid #e1ebf5;
+    border-radius: 14px;
+    box-shadow: 0 5px 16px rgba(23, 59, 112, 0.045);
+}
+
+.student-subject-teacher > p,
+.student-subject-section-heading .dashboard-label {
+    color: #168b55;
+    font-size: 11px;
+    font-weight: 750;
+    letter-spacing: 0.8px;
+}
+
+.student-subject-teacher h2,
+.student-subject-section-heading h2 {
+    margin-top: 5px;
+    color: #173b70;
+    font-size: 20px;
+}
+
+.student-subject-teacher span {
+    display: inline-block;
+    margin-top: 7px;
+    color: #64748b;
+    font-size: 13px;
+}
+
+.student-subject-section-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 17px;
+}
+
+.student-subject-section-heading > span {
+    color: #64748b;
+    font-size: 13px;
+}
+
+.student-subject-test-list {
+    display: grid;
+}
+
+.student-subject-test {
+    padding: 15px 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 16px;
+    border-top: 1px solid #e8f0f7;
+}
+
+.student-subject-test h3 {
+    color: #17324d;
+    font-size: 15px;
+}
+
+.student-subject-test p {
+    margin-top: 5px;
+    color: #64748b;
+    font-size: 12px;
+}
+
+.student-subject-test > a {
+    color: #2563eb;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.student-test-state {
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.student-test-state--available,
+.student-test-state--in_progress {
+    color: #168b55;
+}
+
+.student-test-state--completed {
+    color: #2563eb;
+}
+
+@media (max-width: 600px) {
+    .student-teacher-connections {
+      padding: 20px;
+    }
+
+    .student-connect-form {
+      grid-template-columns: 1fr;
+    }
+
+    .student-connect-form .branch-button {
+      width: 100%;
+    }
+
+    .student-connected-teacher {
+      padding: 15px;
+      align-items: flex-start;
+    }
+
+    .student-subject-row {
+      min-height: 66px;
+      padding: 14px 12px;
+      grid-template-columns: 38px minmax(0, 1fr) minmax(84px, 0.7fr);
+      gap: 9px;
+    }
+
+    .student-subject-name {
+      font-size: 14px;
+    }
+
+    .student-subject-teacher-name {
+      font-size: 12px;
+    }
+
+    .student-subject-detail-heading {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .student-subject-teacher,
+    .student-subject-test-section {
+      padding: 18px;
+    }
+
+    .student-subject-test {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .student-subject-test > a {
+      grid-column: 1 / -1;
+      justify-self: start;
+    }
+}
+
+
+/* =========================================================
+   LANDING ROLE SELECTOR
+   ========================================================= */
+
+.landing-page {
+  min-height: 100vh;
+  color: #17324d;
+  background:
+    radial-gradient(ellipse at 50% 0, rgba(37, 99, 235, 0.1), transparent 46%),
+    linear-gradient(145deg, #eaf3ff 0%, #f5f9ff 55%, #eaf3ff 100%);
+}
+
+.landing-header {
+  min-height: 88px;
+  padding: 14px max(24px, calc((100% - 1120px) / 2));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  background: #ffffff;
+  border-bottom: 1px solid #e3edf8;
+  box-shadow: 0 2px 12px rgba(23, 59, 112, 0.035);
+}
+
+.landing-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: #173b70;
+}
+
+.landing-brand .brand-logo-image {
+  width: 52px;
+  height: 52px;
+}
+
+.landing-brand-copy {
+  display: block;
+}
+
+.landing-brand-copy strong {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+}
+
+.landing-header-title {
+  color: #173b70;
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.landing-main {
+  width: 100%;
+  padding: 52px 24px 76px;
+}
+
+.landing-hero {
+  width: min(100%, 720px);
+  margin: 0 auto;
+  text-align: center;
+}
+
+.landing-hero-logo {
+  width: 96px;
+  height: 96px;
+  margin: 0 auto 20px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: linear-gradient(145deg, #2563eb, #168b55);
+  border: 5px solid rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  box-shadow: 0 8px 22px rgba(37, 99, 235, 0.16);
+}
+
+.landing-hero-logo .brand-logo-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.landing-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 15px;
+  color: #168b55;
+  background: #ffffff;
+  border: 1px solid #d6e8f7;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.15px;
+}
+
+.landing-badge-dot {
+  width: 7px;
+  height: 7px;
+  background: #168b55;
+  border-radius: 50%;
+}
+
+.landing-hero h1 {
+  margin-top: 21px;
+  color: #173b70;
+  font-size: clamp(36px, 5vw, 52px);
+  font-weight: 750;
+  letter-spacing: -1.8px;
+  line-height: 1.14;
+}
+
+.landing-hero > p {
+  margin-top: 13px;
+  color: #64748b;
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.landing-role-list {
+  display: grid;
+  gap: 16px;
+  margin-top: 38px;
+  text-align: left;
+}
+
+.landing-role-card {
+  min-height: 136px;
+  padding: 25px 28px;
+  display: grid;
+  grid-template-columns: 66px minmax(0, 1fr) 42px;
+  align-items: center;
+  gap: 21px;
+  color: #17324d;
+  background: #ffffff;
+  border: 1px solid #dceaf6;
+  border-radius: 18px;
+  box-shadow: 0 7px 22px rgba(23, 59, 112, 0.055);
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
+}
+
+.landing-role-card:hover {
+  transform: translateY(-3px);
+  border-color: #b9ddcc;
+  box-shadow: 0 14px 30px rgba(23, 59, 112, 0.12);
+}
+
+.landing-role-card:focus-visible {
+  outline: 3px solid rgba(22, 139, 85, 0.35);
+  outline-offset: 3px;
+}
+
+.landing-role-icon {
+  width: 66px;
+  height: 66px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+}
+
+.landing-role-icon svg {
+  width: 39px;
+  height: 39px;
+  stroke: #168b55;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.student-icon {
+  background: #e8f7ef;
+}
+
+.teacher-icon {
+  background: #e8f7ef;
+}
+
+.landing-role-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.landing-role-copy strong {
+  color: #173b70;
+  font-size: 21px;
+  font-weight: 700;
+}
+
+.landing-role-copy > span {
+  max-width: 540px;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.landing-role-arrow {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  color: #168b55;
+  background: #e8f7ef;
+  border-radius: 50%;
+  transition:
+    color 180ms ease,
+    background-color 180ms ease,
+    transform 180ms ease;
+}
+
+.landing-role-arrow svg {
+  width: 21px;
+  height: 21px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.landing-role-card:hover .landing-role-arrow {
+  color: #ffffff;
+  background: #168b55;
+  transform: translateX(3px);
+}
+
+@media (max-width: 600px) {
+  .landing-header {
+    min-height: 74px;
+    padding: 10px 18px;
+  }
+
+  .landing-brand {
+    gap: 9px;
+  }
+
+  .landing-brand .brand-logo-image {
+    width: 46px;
+    height: 46px;
+  }
+
+  .landing-brand-copy strong {
+    font-size: 14px;
+  }
+
+  .landing-header-title {
+    font-size: 14px;
+  }
+
+  .landing-main {
+    padding: 40px 18px 56px;
+  }
+
+  .landing-hero-logo {
+    width: 82px;
+    height: 82px;
+    margin-bottom: 17px;
+  }
+
+  .landing-hero h1 {
+    margin-top: 18px;
+    font-size: clamp(34px, 9vw, 43px);
+    letter-spacing: -1.2px;
+  }
+
+  .landing-hero > p {
+    max-width: 340px;
+    margin: 12px auto 0;
+    font-size: 14px;
+  }
+
+  .landing-role-list {
+    gap: 13px;
+    margin-top: 30px;
+  }
+
+  .landing-role-card {
+    min-height: 122px;
+    padding: 20px 17px;
+    grid-template-columns: 54px minmax(0, 1fr) 34px;
+    gap: 14px;
+    border-radius: 16px;
+  }
+
+  .landing-role-icon {
+    width: 54px;
+    height: 54px;
+    border-radius: 14px;
+  }
+
+  .landing-role-icon svg {
+    width: 33px;
+    height: 33px;
+  }
+
+  .landing-role-copy {
+    gap: 6px;
+  }
+
+  .landing-role-copy strong {
+    font-size: 19px;
+  }
+
+  .landing-role-copy > span {
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+  .landing-role-arrow {
+    width: 34px;
+    height: 34px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-role-card,
+  .landing-role-arrow {
+    transition: none;
+  }
+}
+
+@media (max-width: 360px) {
+  body:has(.landing-page) {
+    min-width: 0;
+  }
+
+  .landing-header {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .landing-brand .brand-logo-image {
+    width: 40px;
+    height: 40px;
+  }
+
+  .landing-role-card {
+    grid-template-columns: 48px minmax(0, 1fr) 30px;
+    gap: 10px;
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  .landing-role-icon {
+    width: 48px;
+    height: 48px;
+  }
+}
+
+/* =========================================================
+   CLEAN AUTHENTICATION FLOWS
+   ========================================================= */
+
+.auth-page--login {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px 20px;
+  background:
+    radial-gradient(circle at top, rgba(37, 99, 235, 0.1), transparent 42%),
+    linear-gradient(145deg, #eaf3ff 0%, #f5f9ff 55%, #eaf3ff 100%);
+}
+
+.auth-card--login {
+  width: min(100%, 440px);
+  padding: 38px;
+  border-color: #dceaf6;
+  border-radius: 20px;
+  box-shadow: 0 18px 48px rgba(23, 59, 112, 0.12);
+}
+
+.auth-login-brand {
+  width: fit-content;
+  margin: 0 auto 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #173b70;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 1.1px;
+}
+
+.auth-login-brand .brand-logo-image {
+  width: 48px;
+  height: 48px;
+}
+
+.auth-card--login h1 {
+  color: #173b70;
+  font-size: 27px;
+  font-weight: 750;
+  text-align: center;
+}
+
+.auth-card--login form {
+  margin-top: 27px;
+}
+
+.auth-card--login .form-group + .form-group {
+  margin-top: 20px;
+}
+
+.auth-card--login .form-group label {
+  font-size: 13px;
+}
+
+.auth-card--login .form-group input {
+  height: 48px;
+  border-radius: 10px;
+}
+
+.auth-password-field {
+  position: relative;
+}
+
+.auth-password-field input {
+  padding-right: 68px !important;
+}
+
+.auth-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  padding: 5px;
+  transform: translateY(-50%);
+  color: #168b55;
+  background: transparent;
+  border: 0;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.auth-card--login .auth-button {
+  height: 49px;
+  margin-top: 25px;
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+.auth-card--login .auth-button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.auth-card--login .register-text {
+  margin-top: 24px;
+  line-height: 1.6;
+}
+
+.auth-card--login .back-home {
+  margin-top: 16px;
+  font-size: 12px;
+}
+
+.registration-success {
+  padding: 8px 0 2px;
+  text-align: center;
+}
+
+.registration-success h2 {
+  color: #166534;
+  font-size: 22px;
+  line-height: 1.35;
+}
+
+.registration-success p {
+  margin-top: 10px;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.registration-success .auth-button {
+  max-width: 350px;
+  margin: 26px auto 0;
+}
+
+@media (max-width: 500px) {
+  .auth-card--login {
+    padding: 30px 22px;
+  }
+
+  .auth-card--login h1 {
+    font-size: 25px;
+  }
+
+  .registration-success h2 {
+    font-size: 20px;
+  }
+}

@@ -21,11 +21,7 @@ function serializeQuestion(question) {
         position: question.position,
         questionType: question.questionType,
         text: question.text,
-        options: question.options,
-        correctAnswer: question.correctAnswer,
-        expectedAnswer: question.expectedAnswer,
         marks: question.marks,
-        negativeMarks: question.negativeMarks,
         explanation: question.explanation,
         createdAt: question.createdAt,
         updatedAt: question.updatedAt
@@ -41,36 +37,11 @@ async function getEditableTest(testId, teacherId) {
     return test;
 }
 
-function validateTypeForTest(test, questionType) {
-    if (
-        (test.testType === "MCQ" && questionType !== "MCQ") ||
-        (["TYPING", "DESCRIPTIVE"].includes(test.testType) &&
-            questionType !== "TYPING")
-    ) {
-        const error = new Error(`This test only allows ${test.testType} questions.`);
-        error.statusCode = 400;
-        throw error;
-    }
-}
-
 function questionValues(input) {
     return {
-        questionType: input.questionType,
+        questionType: "DESCRIPTIVE",
         text: input.text.trim(),
-        options: input.questionType === "MCQ"
-            ? input.options.map(({ key, text }) => ({
-                key: key.trim().toUpperCase(),
-                text: text.trim()
-            }))
-            : [],
-        correctAnswer: input.questionType === "MCQ"
-            ? input.correctAnswer.trim().toUpperCase()
-            : "",
-        expectedAnswer: input.questionType === "TYPING"
-            ? input.expectedAnswer.trim()
-            : "",
         marks: Number(input.marks),
-        negativeMarks: Number(input.negativeMarks || 0),
         explanation: input.explanation?.trim() || ""
     };
 }
@@ -84,7 +55,6 @@ export async function listQuestions(testId, teacherId) {
 
 export async function createQuestion(testId, input, teacherId) {
     const test = await getEditableTest(testId, teacherId);
-    validateTypeForTest(test, input.questionType);
     const currentCount = await Question.countDocuments({ test: testId });
     if (currentCount >= test.totalQuestions) {
         throw conflict("The configured question count has been reached.");
@@ -99,8 +69,7 @@ export async function createQuestion(testId, input, teacherId) {
 }
 
 export async function updateQuestion(testId, questionId, input, teacherId) {
-    const test = await getEditableTest(testId, teacherId);
-    validateTypeForTest(test, input.questionType);
+    await getEditableTest(testId, teacherId);
     const question = await Question.findOne({ _id: questionId, test: testId });
     if (!question) throw notFound("Question not found for this test.");
     Object.assign(question, questionValues(input));

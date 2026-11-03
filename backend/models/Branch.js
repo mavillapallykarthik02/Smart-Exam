@@ -14,6 +14,11 @@ const branchSchema = new mongoose.Schema(
             required: true,
             select: false
         },
+        institutionKey: {
+            type: String,
+            required: true,
+            select: false
+        },
         code: {
             type: String,
             required: true,
@@ -51,8 +56,8 @@ branchSchema.pre("validate", function normalizeBranchName() {
     }
 });
 
-branchSchema.index({ code: 1 }, { unique: true });
-branchSchema.index({ normalizedName: 1 }, { unique: true });
+branchSchema.index({ institutionKey: 1, code: 1 }, { unique: true });
+branchSchema.index({ institutionKey: 1, normalizedName: 1 }, { unique: true });
 branchSchema.index({ isActive: 1, name: 1 });
 branchSchema.index({ createdBy: 1 });
 

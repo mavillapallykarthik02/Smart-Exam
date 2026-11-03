@@ -1,6 +1,9 @@
 import mongoose from "mongoose";
 import { Branch } from "../models/Branch.js";
 import { Subject } from "../models/Subject.js";
+import { User } from "../models/User.js";
+import { normalizeInstitution } from "../utils/institution.js";
+import { INSTITUTION_KEY } from "../config/institution.js";
 
 function notFound(message) {
     const error = new Error(message);
@@ -23,20 +26,26 @@ function serializeBranch(branch, user) {
 }
 
 export async function listBranches(user) {
-    const filter = user.role === "student"
-        ? { isActive: true }
-        : {
-            $or: [
-                { isActive: true },
-                { createdBy: user.id }
-            ]
-        };
+    const filter = {
+        institutionKey: INSTITUTION_KEY,
+        ...(user.role === "student"
+            ? { isActive: true }
+            : {
+                $or: [
+                    { isActive: true },
+                    { createdBy: user.id }
+                ]
+            })
+    };
     const branches = await Branch.find(filter).sort({ name: 1 });
     return branches.map((branch) => serializeBranch(branch, user));
 }
 
 export async function getBranchById(id, user) {
-    const filter = { _id: id };
+    const filter = {
+        _id: id,
+        institutionKey: INSTITUTION_KEY
+    };
     if (user.role === "student") {
         filter.isActive = true;
     } else {
@@ -54,9 +63,16 @@ export async function getBranchById(id, user) {
 }
 
 export async function createBranch(input, teacherId) {
+    const teacher = await User.findOne({ _id: teacherId, role: "teacher" })
+        .select("institution");
+    if (!teacher) {
+        throw notFound("Teacher not found.");
+    }
+    const institutionKey = normalizeInstitution(teacher.institution);
     const normalizedName = input.name.trim().toLocaleLowerCase("en");
     const code = input.code.trim().toUpperCase();
     const existingBranch = await Branch.findOne({
+        institutionKey,
         $or: [{ normalizedName }, { code }]
     }).select("name code");
     if (existingBranch) {
@@ -72,6 +88,7 @@ export async function createBranch(input, teacherId) {
     const branch = await Branch.create({
         name: input.name,
         code: input.code,
+        institutionKey,
         description: input.description || "",
         createdBy: teacherId
     });
@@ -122,17 +139,13 @@ export async function listBranchSubjects(branchId, user) {
 
     const branch = await Branch.findOne({
         _id: branchId,
+        institutionKey: normalizeInstitution(user.institution),
         ...(user.role === "student"
             ? {
                 isActive: true,
                 _id: user.branch?._id || user.branch
             }
-            : {
-                $or: [
-                    { isActive: true },
-                    { createdBy: user.id }
-                ]
-            })
+            : {})
     });
     if (!branch) {
         throw notFound("Branch not found.");

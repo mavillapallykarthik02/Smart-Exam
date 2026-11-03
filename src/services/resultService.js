@@ -22,3 +22,18 @@ export async function getResult(id) {
     const { result } = await apiRequest(`/results/${encodeURIComponent(id)}`);
     return result;
 }
+
+export async function saveAnswerEvaluation(resultId, questionId, evaluation) {
+    const { evaluation: savedEvaluation } = await apiRequest(
+        `/results/${encodeURIComponent(resultId)}/answers/${encodeURIComponent(questionId)}`,
+        { method: "PATCH", body: evaluation }
+    );
+    return savedEvaluation;
+}
+
+export async function publishResult(resultId) {
+    const { result } = await apiRequest(`/results/${encodeURIComponent(resultId)}/publish`, {
+        method: "POST"
+    });
+    return result;
+}

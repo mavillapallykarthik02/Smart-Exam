@@ -132,9 +132,6 @@ function StudentAttempt() {
         latestResponses.current = { ...latestResponses.current, [question.id]: next };
         updateUnsavedStatus(question.id, true);
         setResponses((current) => ({ ...current, [question.id]: next }));
-        if (patch.selectedOption !== undefined) {
-            void saveResponse(question, next);
-        }
     };
 
     const retryUnsavedAnswers = async () => {
@@ -189,7 +186,6 @@ function StudentAttempt() {
                                 <div className="exam-question-list">
                                     {attempt.questions.map((question) => {
                                         const response = responses[question.id] || {
-                                            selectedOption: "",
                                             textResponse: ""
                                         };
                                         return (
@@ -199,36 +195,15 @@ function StudentAttempt() {
                                                     <span>{question.marks} marks</span>
                                                 </div>
                                                 <p>{question.text}</p>
-                                                {question.questionType === "MCQ" ? (
-                                                    <div className="exam-options">
-                                                        {question.options.map((option) => (
-                                                            <label key={option.key}>
-                                                                <input
-                                                                    type="radio"
-                                                                    name={`answer-${question.id}`}
-                                                                    value={option.key}
-                                                                    checked={response.selectedOption === option.key}
-                                                                    onChange={() => changeResponse(question, {
-                                                                        selectedOption: option.key,
-                                                                        textResponse: ""
-                                                                    })}
-                                                                />
-                                                                <span><strong>{option.key}.</strong> {option.text}</span>
-                                                            </label>
-                                                        ))}
-                                                    </div>
-                                                ) : (
-                                                    <textarea
-                                                        value={response.textResponse || ""}
-                                                        maxLength={10000}
-                                                        onChange={(event) => changeResponse(question, {
-                                                            textResponse: event.target.value,
-                                                            selectedOption: ""
-                                                        })}
-                                                        onBlur={() => void saveResponse(question, response)}
-                                                        aria-label={`Response to question ${question.position}`}
-                                                    />
-                                                )}
+                                                <textarea
+                                                    value={response.textResponse || ""}
+                                                    maxLength={10000}
+                                                    onChange={(event) => changeResponse(question, {
+                                                        textResponse: event.target.value
+                                                    })}
+                                                    onBlur={() => void saveResponse(question, response)}
+                                                    aria-label={`Response to question ${question.position}`}
+                                                />
                                                 <p className="exam-save-status" aria-live="polite">
                                                     {pendingSaveCount > 0 ? "Saving answers..." : ""}
                                                 </p>
