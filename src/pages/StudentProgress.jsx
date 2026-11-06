@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import StudentNavbar from "../components/StudentNavbar";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 import { getProgress } from "../services/progressService";
 
 function StudentProgress() {

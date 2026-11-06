@@ -1,10 +1,11 @@
 import { Link, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { useAuth } from "../context/AuthContext";
-import { listAvailableBranches } from "../services/branchService";
+import { useCallback, useEffect, useState } from "react";
+import { useAuth } from "../context/useAuth";
 import BrandLogoImage from "../components/BrandLogoImage";
+import { listAvailableBranches } from "../services/branchService";
 
 const institutionName = "Government Polytechnic, Masab Tank";
+const collegeId = "MASB-001";
 
 function StudentRegister() {
   const navigate = useNavigate();
@@ -12,64 +13,54 @@ function StudentRegister() {
 
   const [formData, setFormData] = useState({
     studentId: "",
+    branchId: "",
+    academicBatch: "",
+    studyYear: "1",
+    semester: "1",
     fullName: "",
     email: "",
     mobile: "",
     username: "",
     password: "",
     confirmPassword: "",
-    branch: "",
-    institution: institutionName,
-    year: ""
+    institution: institutionName
   });
+  const [branches, setBranches] = useState([]);
+  const [isLoadingBranches, setIsLoadingBranches] = useState(true);
+  const [branchLoadError, setBranchLoadError] = useState("");
   const [error, setError] = useState("");
   const [validationErrors, setValidationErrors] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRegistered, setIsRegistered] = useState(false);
-  const [branches, setBranches] = useState([]);
-  const [isLoadingBranches, setIsLoadingBranches] = useState(true);
-  const [branchLoadError, setBranchLoadError] = useState("");
-  const [branchReloadToken, setBranchReloadToken] = useState(0);
+  const [registeredStudent, setRegisteredStudent] = useState(null);
+
+  const loadBranches = useCallback(async () => {
+    setIsLoadingBranches(true);
+    setBranchLoadError("");
+    try {
+      const availableBranches = await listAvailableBranches(institutionName);
+      setBranches(availableBranches);
+      setFormData((current) => ({
+        ...current,
+        branchId: availableBranches.some((branch) => branch.id === current.branchId)
+          ? current.branchId
+          : ""
+      }));
+    } catch (requestError) {
+      setBranches([]);
+      setBranchLoadError(requestError.message);
+    } finally {
+      setIsLoadingBranches(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const institution = formData.institution.trim();
-    let isCurrent = true;
-    if (!institution) {
-      return () => {
-        isCurrent = false;
-      };
-    }
-
-    const timeout = window.setTimeout(() => {
-      setIsLoadingBranches(true);
-      setBranchLoadError("");
-      listAvailableBranches(institution)
-        .then((items) => {
-          if (isCurrent) setBranches(items);
-        })
-        .catch((requestError) => {
-          if (isCurrent) setBranchLoadError(requestError.message);
-        })
-        .finally(() => {
-          if (isCurrent) setIsLoadingBranches(false);
-        });
-    }, 250);
-
-    return () => {
-      isCurrent = false;
-      window.clearTimeout(timeout);
-    };
-  }, [formData.institution, branchReloadToken]);
+    Promise.resolve().then(loadBranches);
+  }, [loadBranches]);
 
   const handleChange = (event) => {
-    if (event.target.name === "institution") {
-      setBranches([]);
-      setIsLoadingBranches(Boolean(event.target.value.trim()));
-      setBranchLoadError("");
-    }
     setFormData({
       ...formData,
-      ...(event.target.name === "institution" ? { branch: "" } : {}),
       [event.target.name]: event.target.value
     });
 
@@ -82,8 +73,8 @@ function StudentRegister() {
     if (isSubmitting) return;
 
     if (
-      [formData.studentId, formData.fullName, formData.email, formData.username,
-        formData.branch, formData.institution, formData.year].some((value) => !value.trim()) ||
+      [formData.studentId, formData.branchId, formData.academicBatch, formData.fullName,
+        formData.email, formData.username, formData.institution].some((value) => !String(value).trim()) ||
       !formData.password ||
       !formData.confirmPassword
     ) {
@@ -95,8 +86,8 @@ function StudentRegister() {
       setError("Password and Confirm Password do not match.");
       return;
     }
-    if (!/^[A-Za-z0-9][A-Za-z0-9-]{2,29}$/u.test(formData.studentId.trim())) {
-      setError("Student ID must be 3–30 letters, numbers, or hyphens and start with a letter or number.");
+    if (formData.studentId.trim().length < 3) {
+      setError("Student ID must be at least 3 characters.");
       return;
     }
     if (formData.username.trim().length < 3) {
@@ -110,25 +101,31 @@ function StudentRegister() {
     delete details.fullName;
     delete details.confirmPassword;
     try {
-      await register("student", {
+      const student = await register("student", {
         ...details,
-        name: formData.fullName.trim()
+        name: formData.fullName.trim(),
+        branchId: formData.branchId,
+        studyYear: Number(formData.studyYear),
+        semester: Number(formData.semester)
       });
+      setRegisteredStudent(student);
       setIsRegistered(true);
     } catch (requestError) {
       const field = requestError.errors?.[0]?.field;
       const message = field === "studentId"
-        ? "This Student ID is already registered."
+        ? "This student ID is already registered."
         : field === "email"
           ? "This email address is already registered."
           : field === "username"
             ? "This username is already taken."
-            : requestError.status >= 500 || !requestError.status
-              ? "Unable to complete registration. Please try again."
-              : requestError.message;
+            : field === "branchId"
+              ? "Select a valid active branch."
+              : requestError.status >= 500 || !requestError.status
+                ? "Unable to complete registration. Please try again."
+                : requestError.message;
       setError(message);
       setValidationErrors(
-        ["studentId", "email", "username"].includes(field) ? [] : requestError.errors || []
+        ["studentId", "email", "username", "branchId"].includes(field) ? [] : requestError.errors || []
       );
     } finally {
       setIsSubmitting(false);
@@ -136,7 +133,7 @@ function StudentRegister() {
   };
 
   return (
-    <div className="auth-page">
+    <div className="auth-page student-auth-register">
 
       <div className="auth-brand">
         <Link to="/" className="logo">
@@ -157,14 +154,23 @@ function StudentRegister() {
 
           {isRegistered ? (
             <div className="registration-success" role="status">
-              <h2>Student Registered Successfully!</h2>
-              <p>Your student account has been created successfully. You can now log in using your credentials.</p>
+              <h2>Registration submitted successfully.</h2>
+              <p>Your registration is waiting for the class incharge assigned to your selected branch and academic class to verify it. You can sign in after approval.</p>
+              {registeredStudent && (
+                <div className="registration-enrollment-notice">
+                  <strong>Submitted academic details</strong>
+                  <p>Branch: {registeredStudent.branch}</p>
+                  <p>Course year: {registeredStudent.studyYear}</p>
+                  <p>Semester: {registeredStudent.semester}</p>
+                  <p>Academic batch: {registeredStudent.academicBatch}</p>
+                </div>
+              )}
               <button
                 type="button"
                 className="auth-button"
                 onClick={() => navigate("/student/login", { replace: true })}
               >
-                Go to Login
+                Return to Login
               </button>
             </div>
           ) : (
@@ -179,6 +185,15 @@ function StudentRegister() {
                   ))}
                 </ul>
               )}
+            </div>
+          )}
+          {branchLoadError && (
+            <div className="error-message" role="alert">
+              <p>Unable to load the college branches: {branchLoadError}</p>
+              <button type="button" className="auth-button" onClick={() => void loadBranches()}
+                disabled={isLoadingBranches}>
+                {isLoadingBranches ? "Loading branches..." : "Retry loading branches"}
+              </button>
             </div>
           )}
 
@@ -199,12 +214,91 @@ function StudentRegister() {
                   autoComplete="off"
                   minLength={3}
                   maxLength={30}
-                  pattern="[A-Za-z0-9][A-Za-z0-9\-]{2,29}"
-                  title="Use 3–30 letters, numbers, or hyphens; start with a letter or number."
                   required
                   value={formData.studentId}
                   onChange={handleChange}
-                  placeholder="e.g. CSE2026001"
+                  placeholder="e.g. 2026-IT-041"
+                />
+                <small>Enter your official student ID. It is reviewed by the class incharge during approval.</small>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="student-college">College</label>
+                <input id="student-college" type="text"
+                  value={`${institutionName} (${collegeId})`} readOnly />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="student-branch">Branch *</label>
+                <select
+                  id="student-branch"
+                  name="branchId"
+                  value={formData.branchId}
+                  onChange={handleChange}
+                  required
+                  disabled={isLoadingBranches || branches.length === 0}
+                >
+                  <option value="">
+                    {isLoadingBranches
+                      ? "Loading college branches..."
+                      : branches.length === 0
+                        ? "No active branches available"
+                        : "Select your branch"}
+                  </option>
+                  {branches.map((branch) => (
+                    <option key={branch.id} value={branch.id}>
+                      {branch.name} ({branch.code})
+                    </option>
+                  ))}
+                </select>
+                {!isLoadingBranches && !branchLoadError && branches.length === 0 && (
+                  <small>No active branches are configured for {institutionName}. Contact your college administrator.</small>
+                )}
+                {!isLoadingBranches && branches.length > 0 && (
+                  <small>Choose from all active branches registered for {institutionName}.</small>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="student-course-year">Course Year *</label>
+                <select
+                  id="student-course-year"
+                  name="studyYear"
+                  value={formData.studyYear}
+                  onChange={handleChange}
+                  required
+                >
+                  {[1, 2, 3].map((year) => (
+                    <option key={year} value={String(year)}>{year}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="student-semester">Semester *</label>
+                <select
+                  id="student-semester"
+                  name="semester"
+                  value={formData.semester}
+                  onChange={handleChange}
+                  required
+                >
+                  {[1, 2, 3, 4, 5, 6].map((semester) => (
+                    <option key={semester} value={String(semester)}>{semester}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="student-academic-year">Academic Batch *</label>
+                <input
+                  id="student-academic-year"
+                  type="text"
+                  name="academicBatch"
+                  value={formData.academicBatch}
+                  onChange={handleChange}
+                  placeholder="2026-2029"
+                  required
                 />
               </div>
 
@@ -235,11 +329,14 @@ function StudentRegister() {
               </div>
 
               <div className="form-group">
-                <label>Mobile Number</label>
+                <label>Mobile Number *</label>
                 <input
                   type="tel"
                   name="mobile"
                   autoComplete="tel"
+                  required
+                  minLength={7}
+                  maxLength={30}
                   value={formData.mobile}
                   onChange={handleChange}
                   placeholder="Enter mobile number"
@@ -302,87 +399,15 @@ function StudentRegister() {
 
             </div>
 
-            <div className="form-section-title">
-              Academic Information
-            </div>
-
-            <div className="form-grid">
-
-              <div className="form-group">
-                <label>Branch *</label>
-
-                <select
-                  name="branch"
-                  required
-                  value={formData.branch}
-                  onChange={handleChange}
-                  disabled={!formData.institution.trim() || isLoadingBranches || Boolean(branchLoadError) || branches.length === 0}
-                >
-                  <option value="">
-                    {!formData.institution.trim()
-                      ? "Enter your institution first"
-                      : isLoadingBranches
-                        ? "Loading branches..."
-                        : branches.length
-                          ? "Select branch"
-                          : "No branches for this institution"}
-                  </option>
-                  {branches.map((branch) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.name} ({branch.code})
-                    </option>
-                  ))}
-                </select>
-                {branchLoadError && (
-                  <small className="error-message" role="alert">{branchLoadError}</small>
-                )}
-                {!isLoadingBranches && !branchLoadError && branches.length === 0 && (
-                  <div className="branch-empty-notice" role="status">
-                    <p>No active branches are set up yet. A teacher must create and activate a branch before students can register.</p>
-                    <Link to="/teacher/login">Teacher sign in</Link>
-                    <Link to="/teacher/register">Teacher registration</Link>
-                    <button type="button" onClick={() => {
-                      setIsLoadingBranches(true);
-                      setBranchReloadToken((token) => token + 1);
-                    }}>
-                      Refresh branches
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <div className="form-group">
-                <label>Year / Semester *</label>
-
-                <select
-                  name="year"
-                  required
-                  value={formData.year}
-                  onChange={handleChange}
-                >
-                  <option value="">Select Year</option>
-                  <option value="1-1">1st Year - 1st Semester</option>
-                  <option value="1-2">1st Year - 2nd Semester</option>
-                  <option value="2-1">2nd Year - 1st Semester</option>
-                  <option value="2-2">2nd Year - 2nd Semester</option>
-                  <option value="3-1">3rd Year - 1st Semester</option>
-                  <option value="3-2">3rd Year - 2nd Semester</option>
-                  <option value="4-1">4th Year - 1st Semester</option>
-                  <option value="4-2">4th Year - 2nd Semester</option>
-                </select>
-              </div>
-
-              <div className="form-group form-full">
-                <label>College / Institution</label>
-                <input type="text" value={institutionName} readOnly />
-              </div>
-
+            <div className="registration-enrollment-notice" role="note">
+              <strong>Class incharge approval required</strong>
+              <p>After registration, your assigned class incharge will review your account details and approve your login access before you can sign in.</p>
             </div>
 
             <button
               type="submit"
               className="auth-button"
-              disabled={isSubmitting || isLoadingBranches || Boolean(branchLoadError) || branches.length === 0}
+              disabled={isSubmitting || isLoadingBranches || branches.length === 0}
             >
               {isSubmitting ? "Registering..." : "Register"}
             </button>

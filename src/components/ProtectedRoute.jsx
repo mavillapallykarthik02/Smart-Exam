@@ -1,5 +1,5 @@
 import { Navigate, useLocation } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 
 function ProtectedRoute({ role, children }) {
     const { user, isLoading, authError, refreshUser } = useAuth();
@@ -25,7 +25,10 @@ function ProtectedRoute({ role, children }) {
     }
 
     if (user.role !== role) {
-        return <Navigate to={`/${user.role}/dashboard`} replace />;
+        return <Navigate
+            to={user.role === "admin" ? "/admin/management" : `/${user.role}/dashboard`}
+            replace
+        />;
     }
 
     return children;

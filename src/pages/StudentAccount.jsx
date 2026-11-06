@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import StudentNavbar from "../components/StudentNavbar";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 import {
     connectToTeacher,
     disconnectFromTeacher,
@@ -111,7 +111,7 @@ function StudentAccount() {
                             <span className="account-role">
                                 STUDENT
                             </span>
-                            <p><strong>Student ID:</strong> {student.studentId}</p>
+                            <p><strong>Polytechnic PIN:</strong> {student.studentId}</p>
                         </div>
 
                     </div>
@@ -120,7 +120,7 @@ function StudentAccount() {
                     <div className="profile-details">
 
                         <div>
-                            <label>Student ID</label>
+                            <label>Polytechnic PIN</label>
                             <strong>{student.studentId}</strong>
                         </div>
 
@@ -149,6 +149,16 @@ function StudentAccount() {
                             <strong>{student.year}</strong>
                         </div>
 
+                        <div>
+                            <label>Academic Batch</label>
+                            <strong>{student.academicBatch}</strong>
+                        </div>
+
+                        <div>
+                            <label>Year of Study / Semester</label>
+                            <strong>{student.studyYear} / {student.semester}</strong>
+                        </div>
+
                     </div>
 
                 </section>
@@ -158,7 +168,7 @@ function StudentAccount() {
                         <div>
                             <p className="dashboard-label">CONNECTED TEACHERS</p>
                             <h2>Manage Teacher Connections</h2>
-                            <p>Connect using a Teacher ID to see that teacher&apos;s subjects and tests.</p>
+                            <p>Teacher connections are optional. Your administrator-assigned branch and class determine which subjects and tests you can access.</p>
                         </div>
                     </div>
 

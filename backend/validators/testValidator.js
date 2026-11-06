@@ -12,6 +12,16 @@ const testFields = [
         .withMessage("Description must be 3000 characters or fewer."),
     body("branch").isMongoId().withMessage("Select a valid branch."),
     body("subject").isMongoId().withMessage("Select a valid subject."),
+    body("academicBatch").trim().matches(/^\d{4}-\d{4}$/u)
+        .withMessage("Academic batch must use the YYYY-YYYY format."),
+    body("studyYear").isInt({ min: 1, max: 3 })
+        .withMessage("Year of study must be from 1 to 3."),
+    body("semester").isInt({ min: 1, max: 6 })
+        .withMessage("Semester must be from 1 to 6."),
+    body("startAt").isISO8601().withMessage("Enter a valid exam start date and time."),
+    body("endAt").isISO8601().withMessage("Enter a valid exam end date and time.")
+        .custom((value, { req }) => new Date(value) > new Date(req.body.startAt))
+        .withMessage("Exam end time must be after its start time."),
     body("duration").isInt({ min: 1, max: 600 })
         .withMessage("Duration must be from 1 to 600 minutes."),
     body("testType").isIn(TEST_TYPES)

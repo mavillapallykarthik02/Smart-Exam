@@ -3,9 +3,9 @@ import { Attempt } from "../models/Attempt.js";
 import { Question } from "../models/Question.js";
 import { Subject } from "../models/Subject.js";
 import { Test } from "../models/Test.js";
+import { TeacherAssignment } from "../models/TeacherAssignment.js";
 import { User } from "../models/User.js";
 import { INSTITUTION_KEY } from "../config/institution.js";
-import { getActiveTeacherIds } from "./studentTeacherService.js";
 
 function notFound(message = "Test not found.") {
     const error = new Error(message);
@@ -28,6 +28,11 @@ function serializeTest(test) {
             name: test.subject.name,
             code: test.subject.code
         } : null,
+        academicBatch: test.academicBatch,
+        studyYear: test.studyYear,
+        semester: test.semester,
+        startAt: test.startAt,
+        endAt: test.endAt,
         duration: test.duration,
         testType: test.testType,
         status: test.status,
@@ -43,14 +48,26 @@ function serializeTest(test) {
             }
             : null,
         publishedAt: test.publishedAt,
+        availability: test.status !== "PUBLISHED"
+            ? test.status
+            : Date.now() < test.startAt?.getTime()
+                ? "UPCOMING"
+                : Date.now() >= test.endAt?.getTime()
+                    ? "CLOSED"
+                    : "AVAILABLE",
         createdAt: test.createdAt,
         updatedAt: test.updatedAt
     };
 }
 
-async function activeAssignment(branchId, subjectId, teacherId) {
+async function activeAssignment(branchId, subjectId, teacherId, cohort) {
     const teacher = teacherId
-        ? await User.findOne({ _id: teacherId, role: "teacher" }).select("institution teacherId")
+        ? await User.findOne({
+            _id: teacherId,
+            role: "teacher",
+            accountStatus: "active",
+            institutionKey: INSTITUTION_KEY
+        }).select("institution teacherId")
         : null;
     if (teacherId && !teacher) {
         const error = new Error("Teacher not found.");
@@ -86,6 +103,25 @@ async function activeAssignment(branchId, subjectId, teacherId) {
         error.statusCode = 400;
         throw error;
     }
+    if (Math.ceil(Number(cohort.semester) / 2) !== Number(cohort.studyYear)) {
+        const error = new Error("The selected semester does not belong to the selected study year.");
+        error.statusCode = 400;
+        throw error;
+    }
+    const assigned = await TeacherAssignment.exists({
+        teacher: teacherId,
+        branch: branchId,
+        subject: subjectId,
+        academicBatch: cohort.academicBatch,
+        studyYear: Number(cohort.studyYear),
+        semester: Number(cohort.semester),
+        isActive: true
+    });
+    if (!assigned) {
+        const error = new Error("You are not assigned to teach this subject for the selected class.");
+        error.statusCode = 403;
+        throw error;
+    }
     return { branch, subject, teacher };
 }
 
@@ -94,6 +130,11 @@ function applyChanges(test, input) {
     test.description = input.description || "";
     test.branch = input.branch;
     test.subject = input.subject;
+    test.academicBatch = input.academicBatch;
+    test.studyYear = Number(input.studyYear);
+    test.semester = Number(input.semester);
+    test.startAt = new Date(input.startAt);
+    test.endAt = new Date(input.endAt);
     test.duration = Number(input.duration);
     test.testType = input.testType;
     test.totalQuestions = Number(input.totalQuestions);
@@ -105,16 +146,34 @@ function applyChanges(test, input) {
 }
 
 export async function listTests({ user, filters }) {
-    const connectedTeacherIds = user.role === "student"
-        ? await getActiveTeacherIds(user._id || user.id)
-        : [];
     const filter = user.role === "teacher"
         ? { createdBy: user.id }
         : {
             status: "PUBLISHED",
             branch: user.branch?._id || user.branch,
-            createdBy: { $in: connectedTeacherIds }
+            academicBatch: user.academicBatch,
+            studyYear: Number(user.studyYear),
+            semester: Number(user.semester)
         };
+    if (user.role === "student") {
+        const assignedTeachers = await User.find({
+            role: "teacher",
+            accountStatus: "active"
+        }).distinct("_id");
+        const assignments = await TeacherAssignment.find({
+            teacher: { $in: assignedTeachers },
+            branch: user.branch?._id || user.branch,
+            academicBatch: user.academicBatch,
+            studyYear: Number(user.studyYear),
+            semester: Number(user.semester),
+            isActive: true
+        }).select("teacher subject").lean();
+        if (assignments.length === 0) return [];
+        filter.$or = assignments.map((assignment) => ({
+            subject: assignment.subject,
+            createdBy: assignment.teacher
+        }));
+    }
     if (filters.status && user.role === "teacher") filter.status = filters.status;
     if (filters.branch && user.role === "teacher") filter.branch = filters.branch;
     if (filters.subject) filter.subject = filters.subject;
@@ -143,7 +202,26 @@ export async function getTestById(id, user) {
     } else {
         filter.status = "PUBLISHED";
         filter.branch = user.branch?._id || user.branch;
-        filter.createdBy = { $in: await getActiveTeacherIds(user._id || user.id) };
+        filter.academicBatch = user.academicBatch;
+        filter.studyYear = Number(user.studyYear);
+        filter.semester = Number(user.semester);
+        const activeTeachers = await User.find({
+            role: "teacher",
+            accountStatus: "active"
+        }).distinct("_id");
+        const assignments = await TeacherAssignment.find({
+            teacher: { $in: activeTeachers },
+            branch: filter.branch,
+            academicBatch: user.academicBatch,
+            studyYear: Number(user.studyYear),
+            semester: Number(user.semester),
+            isActive: true
+        }).select("teacher subject").lean();
+        if (assignments.length === 0) throw notFound();
+        filter.$or = assignments.map((assignment) => ({
+            subject: assignment.subject,
+            createdBy: assignment.teacher
+        }));
     }
     const test = await Test.findOne(filter)
         .populate("branch", "name code isActive")
@@ -161,7 +239,7 @@ export async function getTestById(id, user) {
 }
 
 export async function createTest(input, teacherId) {
-    await activeAssignment(input.branch, input.subject, teacherId);
+    await activeAssignment(input.branch, input.subject, teacherId, input);
     const test = new Test({ createdBy: teacherId });
     applyChanges(test, input);
     await test.save();
@@ -186,7 +264,7 @@ export async function updateTest(id, input, teacherId) {
         error.statusCode = 409;
         throw error;
     }
-    await activeAssignment(input.branch, input.subject, teacherId);
+    await activeAssignment(input.branch, input.subject, teacherId, input);
     applyChanges(test, input);
     await test.save();
     await test.populate([
@@ -211,7 +289,7 @@ export async function setTestStatus(id, status, teacherId) {
         throw error;
     }
     if (status === "PUBLISHED") {
-        await activeAssignment(test.branch, test.subject, teacherId);
+        await activeAssignment(test.branch, test.subject, teacherId, test);
         const [questionCount, marks] = await Promise.all([
             Question.countDocuments({ test: test.id }),
             Question.aggregate([

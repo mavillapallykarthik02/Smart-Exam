@@ -18,12 +18,23 @@ export async function apiRequest(path, options = {}) {
         body = JSON.stringify(body);
     }
 
-    const response = await fetch(`${API_BASE_URL}${path}`, {
-        ...options,
-        headers,
-        body,
-        credentials: "include"
-    });
+    let response;
+    try {
+        response = await fetch(`${API_BASE_URL}${path}`, {
+            ...options,
+            headers,
+            body,
+            credentials: "include"
+        });
+    } catch (error) {
+        if (error instanceof TypeError) {
+            throw new ApiError(
+                "Unable to reach the SmartExam server. Start the backend and try again.",
+                0
+            );
+        }
+        throw error;
+    }
     const payload = await response.json().catch(() => null);
 
     if (!response.ok) {
@@ -39,4 +50,24 @@ export async function apiRequest(path, options = {}) {
     }
 
     return payload.data;
+}
+
+export async function getStudentEnrollmentPreview(pin) {
+    const query = new URLSearchParams({ pin });
+    const { enrollment } = await apiRequest(`/auth/student/enrollment-preview?${query}`);
+    return enrollment;
+}
+
+export async function requestPasswordReset(role, email) {
+    await apiRequest(`/auth/${encodeURIComponent(role)}/forgot-password`, {
+        method: "POST",
+        body: { email }
+    });
+}
+
+export async function resetPassword(role, token, password) {
+    await apiRequest(`/auth/${encodeURIComponent(role)}/reset-password`, {
+        method: "POST",
+        body: { token, password }
+    });
 }

@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
     getAttemptById,
     postAttempt,
+    postAttemptSecurityEvent,
     postAttemptSubmit,
     putAttemptAnswer
 } from "../controllers/attemptController.js";
@@ -12,7 +13,8 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import {
     validateAttemptId,
     validateAttemptStart,
-    validateAnswerSave
+    validateAnswerSave,
+    validateSecurityEvent
 } from "../validators/attemptValidator.js";
 
 const router = Router();
@@ -25,6 +27,12 @@ router.put(
     validateAnswerSave,
     validateRequest,
     asyncHandler(putAttemptAnswer)
+);
+router.post(
+    "/:id/security-events",
+    validateSecurityEvent,
+    validateRequest,
+    asyncHandler(postAttemptSecurityEvent)
 );
 router.post(
     "/:id/submit",

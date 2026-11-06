@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import LogoutButton from "../components/LogoutButton";
-import BrandLogoImage from "../components/BrandLogoImage";
-import { listBranches } from "../services/branchService";
-import { listSubjects } from "../services/subjectService";
+import TeacherNavbar from "../components/TeacherNavbar";
+import { listTeacherAssignments } from "../services/teacherAssignmentService";
 import {
     archiveTest,
     createTest,
@@ -12,11 +10,26 @@ import {
     updateTest
 } from "../services/testService";
 
+function formatLocalDateTime(value) {
+    const date = value ? new Date(value) : new Date();
+    const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+    return localDate.toISOString().slice(0, 16);
+}
+
 function createEmptyTestForm() {
+    const startAt = new Date();
+    startAt.setSeconds(0, 0);
+    const endAt = new Date(startAt.getTime() + 60 * 60_000);
     return {
         title: "",
+        assignmentId: "",
         branch: "",
         subject: "",
+        academicBatch: "",
+        studyYear: "",
+        semester: "",
+        startAt: formatLocalDateTime(startAt),
+        endAt: formatLocalDateTime(endAt),
         description: "",
         instructions: "",
         questions: "20",
@@ -29,9 +42,8 @@ function createEmptyTestForm() {
 
 function TeacherTests() {
     const [tests, setTests] = useState([]);
-    const [branches, setBranches] = useState([]);
-    const [subjects, setSubjects] = useState([]);
-    const [subjectsLoading, setSubjectsLoading] = useState(false);
+    const [assignments, setAssignments] = useState([]);
+    const [assignmentLoadError, setAssignmentLoadError] = useState("");
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState("");
     const [actionError, setActionError] = useState("");
@@ -58,43 +70,19 @@ function TeacherTests() {
         }
     }, []);
 
-    const loadBranches = useCallback(async () => {
+    const loadAssignments = useCallback(async () => {
+        setAssignmentLoadError("");
         try {
-            setBranches((await listBranches()).filter((branch) => branch.isActive));
+            setAssignments((await listTeacherAssignments()).filter((assignment) => assignment.isActive));
         } catch (error) {
+            setAssignmentLoadError(error.message);
             setLoadError(error.message);
         }
     }, []);
 
     useEffect(() => {
-        Promise.resolve().then(() => Promise.all([loadTests(), loadBranches()]));
-    }, [loadTests, loadBranches]);
-
-    useEffect(() => {
-        if (!formData.branch) {
-            return;
-        }
-        let isCurrent = true;
-        Promise.resolve()
-            .then(() => listSubjects(formData.branch))
-            .then((items) => {
-                if (isCurrent) setSubjects(items.filter((subject) => subject.isActive));
-            })
-            .catch((error) => {
-                if (isCurrent) {
-                    setValidationErrors((current) => [
-                        ...current.filter((item) => item.field !== "subject"),
-                        { field: "subject", message: error.message }
-                    ]);
-                }
-            })
-            .finally(() => {
-                if (isCurrent) setSubjectsLoading(false);
-            });
-        return () => {
-            isCurrent = false;
-        };
-    }, [formData.branch]);
+        Promise.resolve().then(() => Promise.all([loadTests(), loadAssignments()]));
+    }, [loadTests, loadAssignments]);
 
     const filteredTests = tests.filter((test) => {
         const searchText = search.toLowerCase();
@@ -137,11 +125,24 @@ function TeacherTests() {
 
     const openEditModal = (test) => {
         setEditingTest(test);
+        const assignment = assignments.find((item) => (
+            item.branch?.id === test.branchId &&
+            item.subject?.id === test.subjectId &&
+            item.academicBatch === test.academicBatch &&
+            Number(item.studyYear) === Number(test.studyYear) &&
+            Number(item.semester) === Number(test.semester)
+        ));
 
         setFormData({
             title: test.title,
+            assignmentId: assignment?.id || "",
             branch: test.branchId,
             subject: test.subjectId,
+            academicBatch: test.academicBatch,
+            studyYear: String(test.studyYear),
+            semester: String(test.semester),
+            startAt: formatLocalDateTime(test.startAt),
+            endAt: formatLocalDateTime(test.endAt),
             description: test.description || "",
             instructions: test.instructions || "",
             questions: String(test.totalQuestions),
@@ -153,8 +154,6 @@ function TeacherTests() {
         setFormError("");
         setValidationErrors([]);
         setSuccessMessage("");
-        setSubjects([]);
-        setSubjectsLoading(true);
         setShowModal(true);
     };
 
@@ -162,18 +161,29 @@ function TeacherTests() {
         setShowModal(false);
         setEditingTest(null);
         setFormData(createEmptyTestForm());
-        setSubjects([]);
-        setSubjectsLoading(false);
         setFormError("");
         setValidationErrors([]);
     };
 
     const handleChange = (event) => {
         const { name, value } = event.target;
-        setFormData((previous) => ({
-            ...previous,
-            [name]: value
-        }));
+        if (name === "assignmentId") {
+            const assignment = assignments.find((item) => item.id === value);
+            setFormData((previous) => ({
+                ...previous,
+                assignmentId: value,
+                branch: assignment?.branch?.id || "",
+                subject: assignment?.subject?.id || "",
+                academicBatch: assignment?.academicBatch || "",
+                studyYear: assignment ? String(assignment.studyYear) : "",
+                semester: assignment ? String(assignment.semester) : ""
+            }));
+        } else {
+            setFormData((previous) => ({
+                ...previous,
+                [name]: value
+            }));
+        }
         const validationField = name === "questions"
             ? "totalQuestions"
             : name === "type"
@@ -208,11 +218,19 @@ function TeacherTests() {
                 message: "Test title must be between 3 and 160 characters."
             });
         }
-        if (!formData.branch) {
-            errors.push({ field: "branch", message: "Select a branch." });
+        if (!formData.assignmentId) {
+            errors.push({ field: "assignmentId", message: "Select an active teaching assignment." });
         }
-        if (!formData.subject) {
-            errors.push({ field: "subject", message: "Select a subject." });
+        if (!formData.academicBatch || !formData.studyYear || !formData.semester) {
+            errors.push({ field: "assignmentId", message: "Select an active teaching assignment." });
+        }
+        const startAt = new Date(formData.startAt);
+        const endAt = new Date(formData.endAt);
+        if (!formData.startAt || Number.isNaN(startAt.getTime())) {
+            errors.push({ field: "startAt", message: "Enter a valid exam start date and time." });
+        }
+        if (!formData.endAt || Number.isNaN(endAt.getTime()) || endAt <= startAt) {
+            errors.push({ field: "endAt", message: "Exam end time must be after its start time." });
         }
         if (!/^\d+$/.test(formData.questions) || Number(formData.questions) < 1 || Number(formData.questions) > 500) {
             errors.push({
@@ -253,8 +271,11 @@ function TeacherTests() {
             totalQuestions: Number(formData.questions),
             totalMarks: Number(formData.totalMarks),
             passingPercentage: Number(formData.passingPercentage),
-            testType: formData.type
+            testType: formData.type,
+            startAt: startAt.toISOString(),
+            endAt: endAt.toISOString()
         };
+        delete details.assignmentId;
         delete details.questions;
         delete details.type;
         setIsSubmitting(true);
@@ -315,78 +336,18 @@ function TeacherTests() {
     return (
         <div className="teacher-page">
 
-            {/* ================= NAVBAR ================= */}
-
-            <header className="teacher-navbar">
-
-                <div className="teacher-logo">
-                    <BrandLogoImage />
-                    <strong>SmartExam</strong>
-                </div>
-
-                <nav className="teacher-nav">
-
-                    <Link to="/teacher/dashboard">
-                        Dashboard
-                    </Link>
-
-                    <Link to="/teacher/students">
-                        Students
-                    </Link>
-
-                    <Link to="/teacher/branches">
-                        Branches
-                    </Link>
-
-                    <Link to="/teacher/subjects">
-                        Subjects
-                    </Link>
-
-                    <Link
-                        to="/teacher/tests"
-                        className="teacher-nav-active"
-                    >
-                        Tests
-                    </Link>
-
-                    <Link to="/teacher/results">
-                        Results
-                    </Link>
-
-                    <Link to="/teacher/answers">
-                        Answers
-                    </Link>
-
-                    <Link to="/teacher/account">
-                        Account
-                    </Link>
-
-                </nav>
-
-                <LogoutButton role="teacher" className="teacher-logout" />
-
-            </header>
-
+            <TeacherNavbar active="Tests" />
 
             {/* ================= MAIN ================= */}
 
             <main className="teacher-dashboard">
 
                 <div className="teacher-page-heading">
-
-                    <p className="teacher-label">
-                        TEST MANAGEMENT
-                    </p>
-
-                    <h1>
-                        Tests
-                    </h1>
-
-                    <p>
-                        Create, update and manage
-                        examination tests.
-                    </p>
-
+                    <div>
+                        <p className="teacher-label">TEST MANAGEMENT</p>
+                        <h1>Tests</h1>
+                        <p>Create, update and manage examination tests.</p>
+                    </div>
                 </div>
 
 
@@ -489,12 +450,44 @@ function TeacherTests() {
                     <button
                         className="teacher-primary-button"
                         onClick={openCreateModal}
-                        disabled={isLoading || branches.length === 0}
+                        disabled={isLoading || assignments.length === 0}
                     >
                         + Create Test
                     </button>
 
                 </div>
+
+                {!isLoading && !assignmentLoadError && assignments.length === 0 && (
+                    <div className="teacher-empty-state" role="status">
+                        <h3>No active teaching assignments</h3>
+                        <p>Test creation is limited to subjects and classes assigned to you by an administrator.</p>
+                        <ol>
+                            <li>
+                                <Link to="/teacher/subjects">Create an active subject</Link> for the correct branch if you do not already have one.
+                            </li>
+                            <li>
+                                Ask your administrator to open Admin Management → Assign a subject to a teacher and assign you that subject, branch, batch, year, and semester.
+                            </li>
+                            <li>Refresh this page after the assignment is active; then Create Test will be enabled.</li>
+                        </ol>
+                        <button
+                            type="button"
+                            className="teacher-secondary-button"
+                            onClick={() => void loadAssignments()}
+                        >
+                            Refresh assignments
+                        </button>
+                    </div>
+                )}
+
+                {!isLoading && assignmentLoadError && (
+                    <div className="error-message" role="alert">
+                        <p>Unable to check your teaching assignments: {assignmentLoadError}</p>
+                        <button type="button" onClick={() => void loadAssignments()}>
+                            Retry
+                        </button>
+                    </div>
+                )}
 
                 {(loadError || actionError) && (
                     <div className="error-message" role="alert">
@@ -577,6 +570,11 @@ function TeacherTests() {
                                         {test.duration}
                                         {" min • "}
                                         {test.testType}
+                                    </div>
+                                    <div className="teacher-test-cohort">
+                                        {test.academicBatch} · Year {test.studyYear}, Semester {test.semester}
+                                        <br />
+                                        {new Date(test.startAt).toLocaleString()} – {new Date(test.endAt).toLocaleString()}
                                     </div>
                                 </div>
 
@@ -745,73 +743,76 @@ function TeacherTests() {
                                     )}
                                 </div>
 
-                                <div className="teacher-form-group">
-                                    <label htmlFor="test-branch">Branch *</label>
+                                <div className="teacher-form-group teacher-form-full">
+                                    <label htmlFor="test-assignment">Teaching Assignment *</label>
                                     <select
-                                        id="test-branch"
-                                        name="branch"
-                                        value={formData.branch}
-                                        onChange={(event) => {
-                                            const branch = event.target.value;
-                                            setFormData((current) => ({
-                                                ...current,
-                                                branch,
-                                                subject: ""
-                                            }));
-                                            setSubjects([]);
-                                            setSubjectsLoading(Boolean(branch));
-                                            setValidationErrors((current) => current.filter(
-                                                (item) => item.field !== "branch" && item.field !== "subject"
-                                            ));
-                                            setFormError("");
-                                        }}
+                                        id="test-assignment"
+                                        name="assignmentId"
+                                        value={formData.assignmentId}
+                                        onChange={handleChange}
                                         required
-                                        aria-invalid={Boolean(getFieldError("branch"))}
-                                        aria-describedby={getFieldError("branch") ? "test-branch-error" : undefined}
+                                        aria-invalid={Boolean(getFieldError("assignmentId"))}
+                                        aria-describedby={getFieldError("assignmentId") ? "test-assignment-error" : undefined}
                                     >
-                                        <option value="">Select Branch</option>
-                                        {branches.map((branch) => (
-                                            <option key={branch.id} value={branch.id}>
-                                                {branch.name} ({branch.code})
+                                        <option value="">Select a class and subject</option>
+                                        {assignments.map((assignment) => (
+                                            <option key={assignment.id} value={assignment.id}>
+                                                {assignment.branch?.name} ({assignment.branch?.code}) · {assignment.subject?.name} ({assignment.subject?.code}) · Batch {assignment.academicBatch} · Year {assignment.studyYear}, Semester {assignment.semester}
                                             </option>
                                         ))}
                                     </select>
-                                    {getFieldError("branch") && (
-                                        <p className="teacher-field-error" id="test-branch-error">{getFieldError("branch")}</p>
+                                    {getFieldError("assignmentId") && (
+                                        <p className="teacher-field-error" id="test-assignment-error">{getFieldError("assignmentId")}</p>
+                                    )}
+                                    {editingTest && !formData.assignmentId && (
+                                        <p className="teacher-field-error">
+                                            The original assignment is no longer active. Select a current assignment to update this draft.
+                                        </p>
                                     )}
                                 </div>
 
                                 <div className="teacher-form-group">
-                                    <label htmlFor="test-subject">Subject *</label>
-                                    <select
-                                        id="test-subject"
-                                        name="subject"
-                                        value={formData.subject}
+                                    <label htmlFor="test-start-at">Exam Opens *</label>
+                                    <input
+                                        id="test-start-at"
+                                        type="datetime-local"
+                                        name="startAt"
+                                        value={formData.startAt}
                                         onChange={handleChange}
                                         required
-                                        disabled={!formData.branch || subjectsLoading || subjects.length === 0}
-                                        aria-invalid={Boolean(getFieldError("subject"))}
-                                        aria-describedby={getFieldError("subject") ? "test-subject-error" : undefined}
-                                    >
-                                        <option value="">
-                                            {!formData.branch
-                                                ? "Select a branch first"
-                                                : subjectsLoading
-                                                    ? "Loading subjects..."
-                                                    : subjects.length
-                                                        ? "Select Subject"
-                                                        : "No subjects available"}
-                                        </option>
-                                        {subjects.map((subject) => (
-                                            <option key={subject.id} value={subject.id}>
-                                                {subject.name} ({subject.code})
-                                            </option>
-                                        ))}
-                                    </select>
-                                    {getFieldError("subject") && (
-                                        <p className="teacher-field-error" id="test-subject-error">{getFieldError("subject")}</p>
+                                        aria-invalid={Boolean(getFieldError("startAt"))}
+                                        aria-describedby={getFieldError("startAt") ? "test-start-at-error" : undefined}
+                                    />
+                                    {getFieldError("startAt") && (
+                                        <p className="teacher-field-error" id="test-start-at-error">{getFieldError("startAt")}</p>
                                     )}
                                 </div>
+
+                                <div className="teacher-form-group">
+                                    <label htmlFor="test-end-at">Exam Closes *</label>
+                                    <input
+                                        id="test-end-at"
+                                        type="datetime-local"
+                                        name="endAt"
+                                        value={formData.endAt}
+                                        onChange={handleChange}
+                                        required
+                                        aria-invalid={Boolean(getFieldError("endAt"))}
+                                        aria-describedby={getFieldError("endAt") ? "test-end-at-error" : undefined}
+                                    />
+                                    {getFieldError("endAt") && (
+                                        <p className="teacher-field-error" id="test-end-at-error">{getFieldError("endAt")}</p>
+                                    )}
+                                </div>
+
+                                {formData.assignmentId && (
+                                    <div className="teacher-form-group teacher-form-full">
+                                        <p>
+                                            Eligible students: {formData.academicBatch}, Year {formData.studyYear}, Semester {formData.semester}.
+                                            The branch, subject, and cohort come from this administrator-managed assignment.
+                                        </p>
+                                    </div>
+                                )}
 
                                 <div className="teacher-form-group teacher-form-full">
                                     <label htmlFor="test-description">Test Description</label>

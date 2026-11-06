@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import PaginationControls from "../components/PaginationControls";
 import TeacherNavbar from "../components/TeacherNavbar";
-import { listBranches } from "../services/branchService";
+import { listTeacherAssignments } from "../services/teacherAssignmentService";
 import { listTeacherStudents } from "../services/teacherService";
 
 function TeacherStudents() {
@@ -20,7 +20,13 @@ function TeacherStudents() {
     const loadBranches = useCallback(async () => {
         setBranchError("");
         try {
-            setBranches(await listBranches());
+            const assignments = await listTeacherAssignments();
+            const branchesById = new Map(
+                assignments
+                    .filter((assignment) => assignment.isActive)
+                    .map((assignment) => [assignment.branch.id, assignment.branch])
+            );
+            setBranches([...branchesById.values()]);
         } catch (requestError) {
             setBranchError(requestError.message);
         }
@@ -68,7 +74,7 @@ function TeacherStudents() {
                     <div>
                         <span className="page-badge">STUDENT MANAGEMENT</span>
                         <h1>Students</h1>
-                        <p>Students registered in branches you manage, with their completed exam performance.</p>
+                        <p>Students enrolled in your assigned classes, with their completed exam performance.</p>
                     </div>
                 </div>
 
@@ -106,7 +112,7 @@ function TeacherStudents() {
                     </div>
                     <select className="management-filter" value={branch}
                         onChange={changeFilter(setBranch)} aria-label="Filter by branch">
-                        <option value="">All managed branches</option>
+                        <option value="">All assigned branches</option>
                         {branches.map((item) => <option key={item.id} value={item.id}>
                             {item.name} ({item.code})
                         </option>)}
@@ -116,6 +122,9 @@ function TeacherStudents() {
                         <option value="">All account statuses</option>
                         <option value="active">Active</option>
                         <option value="inactive">Inactive</option>
+                        <option value="pending">Pending approval</option>
+                        <option value="approved">Approved</option>
+                        <option value="rejected">Rejected</option>
                         <option value="suspended">Suspended</option>
                     </select>
                     <div className="branch-count">
@@ -133,8 +142,8 @@ function TeacherStudents() {
                 ) : (
                     <div className="teacher-management-table student-id-management-table">
                         <div className="management-table-header">
-                            <div>Student ID</div><div>Student</div><div>Branch</div>
-                            <div>Year / Semester</div><div>Tests Attempted</div>
+                            <div>Polytechnic PIN</div><div>Student</div><div>Branch</div>
+                            <div>Class</div><div>Tests Attempted</div>
                             <div>Average Score</div><div>Account</div>
                         </div>
                         {students.map((student) => (
@@ -148,12 +157,13 @@ function TeacherStudents() {
                                     </div>
                                 </div>
                                 <div>{student.branch} {student.branchCode && `(${student.branchCode})`}</div>
-                                <div>{student.year || "—"}</div>
+                                <div>{student.academicBatch} · Year {student.studyYear}, Semester {student.semester}</div>
                                 <div>{student.testsAttempted}</div>
                                 <div>{student.averagePercentage === null
                                     ? "No results" : `${student.averagePercentage}%`}</div>
-                                <div><span className={student.accountStatus === "active"
-                                    ? "status-active" : "status-inactive"}>
+                                <div><span className={["active", "approved"].includes(student.accountStatus)
+                                    ? "status-active" : student.accountStatus === "pending"
+                                        ? "result-pending" : "status-inactive"}>
                                     {student.accountStatus}
                                 </span></div>
                             </div>

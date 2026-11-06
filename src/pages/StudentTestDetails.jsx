@@ -59,6 +59,19 @@ function StudentTestDetails() {
                         <p className="dashboard-label">PUBLISHED TEST</p>
                         <h1>{test.title}</h1>
                         <p>{test.subjectName} · {test.branchName}</p>
+                        <p>
+                            {test.academicBatch} · Year {test.studyYear}, Semester {test.semester}
+                        </p>
+                        <p>
+                            Opens {new Date(test.startAt).toLocaleString()} · Closes {new Date(test.endAt).toLocaleString()}
+                        </p>
+                        {test.availability !== "AVAILABLE" && (
+                            <p role="status">
+                                {test.availability === "UPCOMING"
+                                    ? "This exam is scheduled to open later."
+                                    : "The exam availability window has closed."}
+                            </p>
+                        )}
                         {test.description && <p>{test.description}</p>}
                         <div className="profile-details">
                             <div><label>Questions</label><strong>{test.totalQuestions}</strong></div>
@@ -78,10 +91,16 @@ function StudentTestDetails() {
                         <button
                             type="button"
                             className="start-test-button"
-                            disabled={isStarting}
+                            disabled={isStarting || test.availability !== "AVAILABLE"}
                             onClick={handleStart}
                         >
-                            {isStarting ? "Starting..." : "Start Official Exam"}
+                            {isStarting
+                                ? "Starting..."
+                                : test.availability === "UPCOMING"
+                                    ? "Not Open Yet"
+                                    : test.availability === "CLOSED"
+                                        ? "Window Closed"
+                                        : "Start Official Exam"}
                         </button>
                     </section>
                 )}

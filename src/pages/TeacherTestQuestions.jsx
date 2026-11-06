@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import LogoutButton from "../components/LogoutButton";
-import BrandLogoImage from "../components/BrandLogoImage";
+import TeacherNavbar from "../components/TeacherNavbar";
 import { getTest } from "../services/testService";
 import {
     createQuestion,
@@ -136,36 +135,47 @@ function TeacherTestQuestions() {
     };
 
     if (isLoading) {
-        return <main className="teacher-dashboard" aria-live="polite">Loading test questions...</main>;
+        return (
+            <div className="teacher-page">
+                <TeacherNavbar active="Tests" />
+                <main className="teacher-dashboard" aria-live="polite">
+                    <div className="teacher-empty-state">Loading test questions...</div>
+                </main>
+            </div>
+        );
     }
 
     if (loadError) {
         return (
-            <main className="teacher-dashboard">
-                <div className="error-message" role="alert">{loadError}</div>
-                <button className="teacher-primary-button" onClick={loadPage}>Retry</button>
-                <button className="teacher-secondary-button" onClick={() => navigate("/teacher/tests")}>
-                    Back to Tests
-                </button>
-            </main>
+            <div className="teacher-page">
+                <TeacherNavbar active="Tests" />
+                <main className="teacher-dashboard">
+                    <div className="teacher-page-heading">
+                        <div>
+                            <span className="page-badge">QUESTION MANAGEMENT</span>
+                            <h1>Test questions</h1>
+                        </div>
+                    </div>
+                    <div className="error-message" role="alert">{loadError}</div>
+                    <button className="teacher-primary-button" onClick={loadPage}>Retry</button>
+                    <button className="teacher-secondary-button" onClick={() => navigate("/teacher/tests")}>
+                        Back to Tests
+                    </button>
+                </main>
+            </div>
         );
     }
 
     return (
         <div className="teacher-page">
-            <header className="teacher-navbar">
-                <div className="teacher-logo"><BrandLogoImage /><strong>SmartExam</strong></div>
-                <nav className="teacher-nav">
-                    <Link to="/teacher/dashboard">Dashboard</Link>
-                    <Link to="/teacher/tests">Tests</Link>
-                </nav>
-                <LogoutButton role="teacher" className="teacher-logout" />
-            </header>
+            <TeacherNavbar active="Tests" />
             <main className="teacher-dashboard">
                 <div className="teacher-page-heading">
-                    <span className="teacher-label">QUESTION MANAGEMENT</span>
-                    <h1>{test.title}</h1>
-                    <p>{questions.length} / {test.totalQuestions} questions · {test.testType} · {test.totalMarks} marks</p>
+                    <div>
+                        <span className="teacher-label">QUESTION MANAGEMENT</span>
+                        <h1>{test.title}</h1>
+                        <p>{questions.length} / {test.totalQuestions} questions · {test.testType} · {test.totalMarks} marks</p>
+                    </div>
                     <Link to="/teacher/tests">← Back to Tests</Link>
                 </div>
                 {(actionError || formError) && (

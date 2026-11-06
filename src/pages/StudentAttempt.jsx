@@ -3,9 +3,12 @@ import { Link, useParams } from "react-router-dom";
 import StudentNavbar from "../components/StudentNavbar";
 import {
     getAttempt,
+    recordAttemptSecurityEvent,
     saveAttemptAnswer,
     submitAttempt
 } from "../services/attemptService";
+
+const SHARED_WARNING_MESSAGE = "This action is blocked while the examination is running.";
 
 function formatRemaining(milliseconds) {
     const seconds = Math.max(0, Math.ceil(milliseconds / 1000));
@@ -28,6 +31,7 @@ function StudentAttempt() {
     const unsavedQuestions = useRef(new Set());
     const [unsavedCount, setUnsavedCount] = useState(0);
     const [error, setError] = useState("");
+    const [securityWarnings, setSecurityWarnings] = useState([]);
     const submitted = useRef(false);
 
     const updateUnsavedStatus = (questionId, unsaved) => {
@@ -144,6 +148,112 @@ function StudentAttempt() {
         }));
     };
 
+    const addSecurityWarning = useCallback((message, eventType) => {
+        const warningId = `${Date.now()}-${Math.random()}`;
+        setSecurityWarnings((current) => [
+            {
+                id: warningId,
+                message
+            },
+            ...current
+        ].slice(0, 5));
+        if (eventType && attempt?.id) {
+            void recordAttemptSecurityEvent(attempt.id, eventType).catch((requestError) => {
+                setError(`Could not record this security event: ${requestError.message}`);
+            });
+        }
+    }, [attempt]);
+
+    useEffect(() => {
+        if (!attempt || attempt.status !== "IN_PROGRESS") return undefined;
+
+        const requestExamFullscreen = async () => {
+            try {
+                if (document.fullscreenElement === null && document.documentElement.requestFullscreen) {
+                    await document.documentElement.requestFullscreen();
+                }
+            } catch {
+                addSecurityWarning("Full-screen mode could not be enforced automatically in this browser.");
+            }
+        };
+
+        const handleFullscreenChange = () => {
+            if (!document.fullscreenElement) {
+                addSecurityWarning("Warning: Full-screen mode was exited.", "fullscreenExit");
+            }
+        };
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === "hidden") {
+                addSecurityWarning(
+                    "Warning: The examination tab was hidden or switched away from.",
+                    "tabSwitch"
+                );
+            }
+        };
+
+        const handleWindowBlur = () => {
+            addSecurityWarning("Warning: The browser lost focus while the exam was running.", "focusLoss");
+        };
+
+        const handleCopyPaste = (event) => {
+            const disabledAction = event.type === "copy" ? "copy" : event.type === "cut" ? "cut" : "paste";
+            event.preventDefault();
+            const eventType = event.type === "copy" ? "copyEvent"
+                : event.type === "cut" ? "cutEvent" : "pasteEvent";
+            addSecurityWarning(
+                `Warning: ${disabledAction.toUpperCase()} actions are disabled during the examination.`,
+                eventType
+            );
+        };
+
+        const handleContextMenu = (event) => {
+            event.preventDefault();
+            addSecurityWarning("Warning: The browser context menu is disabled during this exam.", "contextMenu");
+        };
+
+        const handleShortcut = (event) => {
+            const key = event.key.toLowerCase();
+            if ((event.ctrlKey || event.metaKey) && ["c", "v", "x", "p", "a", "s"].includes(key)) {
+                event.preventDefault();
+                const eventType = key === "c" ? "copyEvent"
+                    : key === "v" ? "pasteEvent"
+                        : key === "x" ? "cutEvent" : "shortcutUse";
+                addSecurityWarning(
+                    `Warning: ${key.toUpperCase()} shortcut usage is disabled during the exam. ${SHARED_WARNING_MESSAGE}`,
+                    eventType
+                );
+            }
+        };
+
+        const handleBeforeUnload = () => {
+            addSecurityWarning("Warning: The exam page was reloaded or interrupted.", "reload");
+        };
+
+        void requestExamFullscreen();
+        document.addEventListener("fullscreenchange", handleFullscreenChange);
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+        window.addEventListener("blur", handleWindowBlur);
+        document.addEventListener("copy", handleCopyPaste);
+        document.addEventListener("paste", handleCopyPaste);
+        document.addEventListener("cut", handleCopyPaste);
+        document.addEventListener("contextmenu", handleContextMenu);
+        document.addEventListener("keydown", handleShortcut);
+        window.addEventListener("beforeunload", handleBeforeUnload);
+
+        return () => {
+            document.removeEventListener("fullscreenchange", handleFullscreenChange);
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+            window.removeEventListener("blur", handleWindowBlur);
+            document.removeEventListener("copy", handleCopyPaste);
+            document.removeEventListener("paste", handleCopyPaste);
+            document.removeEventListener("cut", handleCopyPaste);
+            document.removeEventListener("contextmenu", handleContextMenu);
+            document.removeEventListener("keydown", handleShortcut);
+            window.removeEventListener("beforeunload", handleBeforeUnload);
+        };
+    }, [addSecurityWarning, attempt]);
+
     return (
         <div className="student-page">
             <StudentNavbar />
@@ -171,6 +281,16 @@ function StudentAttempt() {
                         </header>
                         {attempt.test.instructions && (
                             <p className="exam-instructions">{attempt.test.instructions}</p>
+                        )}
+                        {securityWarnings.length > 0 && (
+                            <div className="error-message" role="alert">
+                                <p>Exam security notice:</p>
+                                <ul>
+                                    {securityWarnings.map((warning) => (
+                                        <li key={warning.id}>{warning.message}</li>
+                                    ))}
+                                </ul>
+                            </div>
                         )}
                         {error && <div className="error-message" role="alert">
                             <p>{error}</p>

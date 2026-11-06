@@ -27,16 +27,16 @@ function serializeBranch(branch, user) {
 
 export async function listBranches(user) {
     const filter = {
-        institutionKey: INSTITUTION_KEY,
-        ...(user.role === "student"
-            ? { isActive: true }
-            : {
-                $or: [
-                    { isActive: true },
-                    { createdBy: user.id }
-                ]
-            })
+        institutionKey: INSTITUTION_KEY
     };
+    if (user.role === "student") {
+        filter.isActive = true;
+    } else if (user.role !== "admin") {
+        filter.$or = [
+            { isActive: true },
+            { createdBy: user.id }
+        ];
+    }
     const branches = await Branch.find(filter).sort({ name: 1 });
     return branches.map((branch) => serializeBranch(branch, user));
 }
@@ -48,7 +48,7 @@ export async function getBranchById(id, user) {
     };
     if (user.role === "student") {
         filter.isActive = true;
-    } else {
+    } else if (user.role !== "admin") {
         filter.$or = [
             { isActive: true },
             { createdBy: user.id }
@@ -93,6 +93,23 @@ export async function createBranch(input, teacherId) {
         createdBy: teacherId
     });
     return serializeBranch(branch, { role: "teacher", id: teacherId });
+}
+
+export async function createBranchForAdmin(input, teacherId) {
+    const teacher = await User.findOne({
+        _id: teacherId,
+        role: "teacher",
+        accountStatus: "active",
+        institutionKey: INSTITUTION_KEY,
+        $or: [
+            { verificationStatus: "APPROVED" },
+            { verificationStatus: { $exists: false } }
+        ]
+    }).select("_id");
+    if (!teacher) {
+        throw notFound("Active verified teacher not found.");
+    }
+    return createBranch(input, teacher.id);
 }
 
 export async function updateBranch(id, input, teacherId) {

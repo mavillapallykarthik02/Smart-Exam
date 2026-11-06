@@ -10,6 +10,7 @@
     "migrate:teacher-ids": "node scripts/migrateTeacherIds.js",
     "migrate:student-ids": "node scripts/migrateStudentIds.js",
     "migrate:user-encryption": "node scripts/migrateUserEncryption.js",
+    "create-admin": "node scripts/createAdmin.js",
     "test": "node --test"
   },
   "dependencies": {
@@ -22,7 +23,8 @@
     "express-validator": "^7.2.1",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.12.1"
+    "mongoose": "^8.12.1",
+    "nodemailer": "^10.3.1"
   },
   "devDependencies": {
     "mongodb-memory-server": "^10.1.4",

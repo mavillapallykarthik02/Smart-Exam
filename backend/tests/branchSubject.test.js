@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import bcrypt from "bcryptjs";
 import process from "node:process";
 import { after, before, test } from "node:test";
 import { MongoMemoryServer } from "mongodb-memory-server";
@@ -20,6 +21,26 @@ let migrateBranchInstitutions;
 let migrateTeacherIds;
 let migrateStudentIds;
 let migrateUserEncryption;
+
+const classAssignment = {
+    academicBatch: "2024-2027",
+    studyYear: 1,
+    semester: 1
+};
+
+function activeExamWindow() {
+    return {
+        startAt: new Date(Date.now() - 5 * 60_000).toISOString(),
+        endAt: new Date(Date.now() + 2 * 60 * 60_000).toISOString()
+    };
+}
+
+function examWindowOffsets(startMinutes, endMinutes) {
+    return {
+        startAt: new Date(Date.now() + startMinutes * 60_000).toISOString(),
+        endAt: new Date(Date.now() + endMinutes * 60_000).toISOString()
+    };
+}
 
 before(async () => {
     memoryServer = await MongoMemoryServer.create();
@@ -70,6 +91,7 @@ test("authenticated teachers manage branches and subjects; students are read-onl
 
     const teacher = request.agent(app);
     const student = request.agent(app);
+    const admin = request.agent(app);
 
     const teacherDetails = {
         name: "Test Teacher",
@@ -78,19 +100,20 @@ test("authenticated teachers manage branches and subjects; students are read-onl
         mobile: "1000000001",
         password: "secure-test-password",
         institution: "Government Polytechnic, Masab Tank",
+        departmentName: "Computer Science",
+        branchName: "Computer Science and Engineering",
+        designation: "Lecturer",
         teacherId: "P4T001",
         confirmTeacherId: "P4T001"
     };
     const studentDetails = {
-        studentId: "CSE2026001",
+        studentId: "24001-CSE-097",
         name: "Test Student",
         username: "phase4student",
         email: "phase4student@example.test",
         mobile: "1000000002",
         password: "secure-test-password",
         institution: "Government Polytechnic, Masab Tank",
-        branch: "CSE",
-        year: "1-1"
     };
 
     const teacherRegistration = await teacher.post("/api/auth/teacher/register").send(teacherDetails);
@@ -125,9 +148,32 @@ test("authenticated teachers manage branches and subjects; students are read-onl
         identifier: teacherDetails.username,
         password: teacherDetails.password
     });
-    assert.equal(teacherLogin.status, 200);
-    assert.equal(teacherLogin.body.data.user.role, "teacher");
-    assert.equal("passwordHash" in teacherLogin.body.data.user, false);
+    assert.equal(teacherLogin.status, 403);
+    assert.match(teacherLogin.body.message, /waiting for administrator verification/u);
+    assert.match(teacherLogin.headers["set-cookie"][0], /Expires=Thu, 01 Jan 1970/u);
+    const verificationWithoutReason = await admin.patch(
+        `/api/admin/teachers/${teacherRegistration.body.data.user.id}/verification`
+    ).send({ verificationStatus: "REJECTED" });
+    assert.equal(verificationWithoutReason.status, 400);
+    const teacherVerification = await admin.patch(
+        `/api/admin/teachers/${teacherRegistration.body.data.user.id}/verification`
+    ).send({ verificationStatus: "APPROVED" });
+    assert.equal(teacherVerification.status, 200, JSON.stringify(teacherVerification.body));
+    const approvedTeacherLogin = await teacher.post("/api/auth/teacher/login").send({
+        identifier: teacherDetails.username,
+        password: teacherDetails.password
+    });
+    assert.equal(approvedTeacherLogin.status, 200, JSON.stringify(approvedTeacherLogin.body));
+    assert.equal(approvedTeacherLogin.body.data.user.role, "teacher");
+    assert.equal(approvedTeacherLogin.body.data.user.verificationStatus, "APPROVED");
+    assert.equal("passwordHash" in approvedTeacherLogin.body.data.user, false);
+    await teacher.post("/api/auth/logout");
+    const teacherIdLogin = await teacher.post("/api/auth/teacher/login").send({
+        identifier: "p4t001",
+        password: teacherDetails.password
+    });
+    assert.equal(teacherIdLogin.status, 200, JSON.stringify(teacherIdLogin.body));
+    assert.equal(teacherIdLogin.body.data.user.teacherId, "P4T001");
     const profileUpdate = await teacher.put("/api/auth/me").send({
         name: "Updated Test Teacher",
         role: "student",
@@ -153,6 +199,53 @@ test("authenticated teachers manage branches and subjects; students are read-onl
     assert.equal(branchResponse.status, 201, JSON.stringify(branchResponse.body));
     assert.equal(branchResponse.body.success, true);
     const branchId = branchResponse.body.data.branch.id;
+    await UserModel.create({
+        name: "Integration Administrator",
+        username: "integrationadmin",
+        email: "integrationadmin@example.test",
+        passwordHash: await bcrypt.hash("secure-admin-test-password", 12),
+        role: "admin",
+        institution: "Government Polytechnic, Masab Tank",
+        institutionKey: "government polytechnic, masab tank"
+    });
+    const adminLogin = await admin.post("/api/auth/admin/login").send({
+        identifier: "integrationadmin",
+        password: "secure-admin-test-password"
+    });
+    assert.equal(adminLogin.status, 200, JSON.stringify(adminLogin.body));
+    const targetInstitution = await admin.get("/api/admin/target-institution");
+    assert.equal(targetInstitution.status, 200);
+    assert.equal(targetInstitution.body.data.institution.name, "Government Polytechnic, Mahabubnagar");
+    assert.equal(targetInstitution.body.data.institution.verificationStatus, "PENDING");
+    assert.equal(targetInstitution.body.data.institution.collegeCode, "");
+    assert.equal((await request(app).get("/api/admin/target-institution")).status, 401);
+    assert.equal((await teacher.get("/api/admin/target-institution")).status, 403);
+    const unverifiedInstitutionUpdate = await admin.put("/api/admin/target-institution")
+        .send({ location: "Mahabubnagar, Telangana" });
+    assert.equal(unverifiedInstitutionUpdate.status, 200);
+    assert.equal(
+        unverifiedInstitutionUpdate.body.data.institution.verificationStatus,
+        "PENDING"
+    );
+    const verificationWithoutSource = await admin.put("/api/admin/target-institution")
+        .send({ verificationStatus: "VERIFIED" });
+    assert.equal(verificationWithoutSource.status, 400);
+    const targetConfigWithUnknownField = await admin.put("/api/admin/target-institution")
+        .send({ institutionKey: "another-tenant" });
+    assert.equal(targetConfigWithUnknownField.status, 400);
+    const verifiedTargetConfig = await admin.put("/api/admin/target-institution").send({
+        name: "Government Polytechnic, Mahabubnagar",
+        verificationStatus: "VERIFIED",
+        sourceUrl: "https://example.test/college-record",
+        sourceTitle: "Synthetic integration-test source",
+        lastVerifiedAt: new Date().toISOString()
+    });
+    assert.equal(verifiedTargetConfig.status, 200, JSON.stringify(verifiedTargetConfig.body));
+    const changedVerifiedIdentity = await admin.put("/api/admin/target-institution")
+        .send({ location: "Mahabubnagar, Telangana, India" });
+    assert.equal(changedVerifiedIdentity.status, 200);
+    assert.equal(changedVerifiedIdentity.body.data.institution.verificationStatus, "PENDING");
+    assert.equal(changedVerifiedIdentity.body.data.institution.lastVerifiedAt, null);
     const publicBranches = await request(app)
         .get("/api/branches/available?institution=Government%20Polytechnic%2C%20Masab%20Tank");
     assert.equal(publicBranches.status, 200);
@@ -165,10 +258,46 @@ test("authenticated teachers manage branches and subjects; students are read-onl
             .body.data.branches,
         []
     );
+    const studentEnrollment = await admin.post("/api/admin/student-enrollments").send({
+        pin: studentDetails.studentId,
+        branch: branchId,
+        ...classAssignment
+    });
+    assert.equal(studentEnrollment.status, 201, JSON.stringify(studentEnrollment.body));
+    assert.equal((await admin.post("/api/admin/student-enrollments").send({
+        pin: studentDetails.studentId,
+        branch: branchId,
+        ...classAssignment
+    })).status, 409);
+    assert.equal((await admin.post("/api/admin/student-enrollments").send({
+        pin: "24001-MATH-001",
+        branch: branchId,
+        ...classAssignment
+    })).status, 400);
+    for (const pin of ["24001-CSE-098", "24001-CSE-099", "24001-CSE-100"]) {
+        const enrollment = await admin.post("/api/admin/student-enrollments").send({
+            pin,
+            branch: branchId,
+            ...classAssignment
+        });
+        assert.equal(enrollment.status, 201, JSON.stringify(enrollment.body));
+    }
+    const semesterTwoEnrollment = await admin.post("/api/admin/student-enrollments").send({
+        pin: "24001-CSE-102",
+        branch: branchId,
+        ...classAssignment,
+        semester: 2
+    });
+    assert.equal(semesterTwoEnrollment.status, 201, JSON.stringify(semesterTwoEnrollment.body));
 
     const invalidBranchRegistration = await request(app)
         .post("/api/auth/student/register")
-        .send({ ...studentDetails, username: "invalidbranch", email: "invalidbranch@example.test", branch: "CSE" });
+        .send({
+            ...studentDetails,
+            studentId: "24001-CSE-111",
+            username: "invalidbranch",
+            email: "invalidbranch@example.test"
+        });
     assert.equal(invalidBranchRegistration.status, 400);
     const invalidStudentId = await request(app).post("/api/auth/student/register").send({
         ...studentDetails,
@@ -178,13 +307,16 @@ test("authenticated teachers manage branches and subjects; students are read-onl
     });
     assert.equal(invalidStudentId.status, 400);
 
-    studentDetails.branch = branchId;
     const studentRegistration = await student.post("/api/auth/student/register").send(studentDetails);
     assert.equal(studentRegistration.status, 201, JSON.stringify(studentRegistration.body));
     assert.equal(studentRegistration.headers["set-cookie"], undefined);
     assert.equal(studentRegistration.body.data.user.branchId, branchId);
     assert.equal(studentRegistration.body.data.user.branch, "Computer Science");
-    assert.equal(studentRegistration.body.data.user.studentId, "CSE2026001");
+    assert.equal(studentRegistration.body.data.user.studentId, "24001-CSE-097");
+    assert.equal(studentRegistration.body.data.user.academicBatch, classAssignment.academicBatch);
+    assert.equal(studentRegistration.body.data.user.studyYear, classAssignment.studyYear);
+    assert.equal(studentRegistration.body.data.user.semester, classAssignment.semester);
+    assert.equal(studentRegistration.body.data.user.accountStatus, "pending");
     const storedStudent = await UserModel.collection.findOne({
         _id: new mongoose.Types.ObjectId(studentRegistration.body.data.user.id)
     });
@@ -192,15 +324,15 @@ test("authenticated teachers manage branches and subjects; students are read-onl
     assert.match(storedStudent.mobile, /^enc:v1:/u);
     const duplicateStudentId = await request(app).post("/api/auth/student/register").send({
         ...studentDetails,
-        studentId: "cse2026001",
+        studentId: "24001-cse-097",
         username: "differentstudent",
         email: "differentstudent@example.test"
     });
     assert.equal(duplicateStudentId.status, 409);
-    assert.equal(duplicateStudentId.body.message, "Student ID already exists.");
+    assert.equal(duplicateStudentId.body.message, "Polytechnic PIN already exists.");
     const duplicateUsername = await request(app).post("/api/auth/student/register").send({
         ...studentDetails,
-        studentId: "CSE2026009",
+        studentId: "24001-CSE-098",
         email: "different-email@example.test"
     });
     assert.equal(duplicateUsername.status, 409);
@@ -208,21 +340,115 @@ test("authenticated teachers manage branches and subjects; students are read-onl
     assert.equal(duplicateUsername.body.errors[0].message, "This username is already taken.");
     const duplicateEmail = await request(app).post("/api/auth/student/register").send({
         ...studentDetails,
-        studentId: "CSE2026010",
+        studentId: "24001-CSE-099",
         username: "differentusername"
     });
     assert.equal(duplicateEmail.status, 409);
     assert.equal(duplicateEmail.body.errors[0].field, "email");
     assert.equal(duplicateEmail.body.errors[0].message, "This email address is already registered.");
-    await student.post("/api/auth/logout");
+    const pendingStudentLogin = await student.post("/api/auth/student/login").send({
+        identifier: studentDetails.email,
+        password: studentDetails.password
+    });
+    assert.equal(pendingStudentLogin.status, 403);
+    assert.match(pendingStudentLogin.body.message, /waiting for class incharge approval/u);
+    const classInchargeAssignment = await admin.put("/api/admin/class-incharges").send({
+        teacher: teacherRegistration.body.data.user.id,
+        branch: branchId,
+        ...classAssignment
+    });
+    assert.equal(classInchargeAssignment.status, 200, JSON.stringify(classInchargeAssignment.body));
+    assert.equal(classInchargeAssignment.body.data.assignment.teacher.staffRole, "class_teacher");
+    const secondTeacher = request.agent(app);
+    const secondTeacherRegistration = await secondTeacher
+        .post("/api/auth/teacher/register")
+        .send({
+            ...teacherDetails,
+            username: "phase4teacher2",
+            email: "phase4teacher2@example.test",
+            teacherId: "P4T002",
+            confirmTeacherId: "P4T002"
+        });
+    assert.equal(secondTeacherRegistration.status, 201);
+    assert.equal((await admin.patch(
+        `/api/admin/teachers/${secondTeacherRegistration.body.data.user.id}/verification`
+    ).send({ verificationStatus: "APPROVED" })).status, 200);
+    const secondClassIncharge = await admin.put("/api/admin/class-incharges").send({
+        teacher: secondTeacherRegistration.body.data.user.id,
+        branch: branchId,
+        academicBatch: "2025-2028",
+        studyYear: 1,
+        semester: 1
+    });
+    assert.equal(secondClassIncharge.status, 200, JSON.stringify(secondClassIncharge.body));
+    const unrelatedTeacher = request.agent(app);
+    const unrelatedTeacherLogin = await unrelatedTeacher.post("/api/auth/teacher/login").send({
+        identifier: "P4T002",
+        password: teacherDetails.password
+    });
+    assert.equal(unrelatedTeacherLogin.status, 200);
+    const crossClassApproval = await unrelatedTeacher.patch(
+        `/api/teacher/students/${studentRegistration.body.data.user.id}/approve`
+    ).send({});
+    assert.equal(crossClassApproval.status, 404);
+    const pendingApprovalList = await teacher.get("/api/teacher/students/approvals?status=pending");
+    assert.equal(pendingApprovalList.status, 200, JSON.stringify(pendingApprovalList.body));
+    assert.equal(pendingApprovalList.body.data.summary.pending, 1);
+    assert.equal((await admin.get("/api/teacher/students/approvals")).status, 403);
+    const approvedStudent = await teacher.patch(
+        `/api/teacher/students/${studentRegistration.body.data.user.id}/approve`
+    ).send({});
+    assert.equal(approvedStudent.status, 200, JSON.stringify(approvedStudent.body));
+    assert.equal(approvedStudent.body.data.student.accountStatus, "approved");
     const studentLogin = await student.post("/api/auth/student/login").send({
         identifier: studentDetails.email,
         password: studentDetails.password
     });
-    assert.equal(studentLogin.status, 200);
+    assert.equal(studentLogin.status, 200, JSON.stringify(studentLogin.body));
     const initialConnections = await student.get("/api/student/connected-teachers");
     assert.equal(initialConnections.status, 200);
     assert.equal(initialConnections.body.data.connections.length, 0);
+    assert.equal((await student.get("/api/student/profile")).status, 200);
+    assert.equal((await student.get("/api/student/account-status")).body.data.accountStatus, "approved");
+    const suspendedStudent = await teacher.patch(
+        `/api/teacher/students/${studentRegistration.body.data.user.id}/suspend`
+    ).send({ reason: "Identity verification required." });
+    assert.equal(suspendedStudent.status, 200, JSON.stringify(suspendedStudent.body));
+    assert.equal(suspendedStudent.body.data.student.accountStatus, "suspended");
+    assert.equal((await student.get("/api/student/dashboard")).status, 403);
+    const reactivatedStudent = await teacher.patch(
+        `/api/teacher/students/${studentRegistration.body.data.user.id}/reactivate`
+    ).send({});
+    assert.equal(reactivatedStudent.status, 200, JSON.stringify(reactivatedStudent.body));
+    assert.equal(reactivatedStudent.body.data.student.accountStatus, "approved");
+    assert.equal((await student.get("/api/student/dashboard")).status, 200);
+    const rejectedStudentDetails = {
+        ...studentDetails,
+        studentId: "24001-CSE-098",
+        username: "rejectedstudent",
+        email: "rejectedstudent@example.test"
+    };
+    const rejectedStudentRegistration = await request(app)
+        .post("/api/auth/student/register")
+        .send(rejectedStudentDetails);
+    assert.equal(rejectedStudentRegistration.status, 201);
+    const rejectedStudent = await teacher.patch(
+        `/api/teacher/students/${rejectedStudentRegistration.body.data.user.id}/reject`
+    ).send({ reason: "The submitted identity information does not match." });
+    assert.equal(rejectedStudent.status, 200, JSON.stringify(rejectedStudent.body));
+    assert.equal(rejectedStudent.body.data.student.accountStatus, "rejected");
+    const rejectedStudentLogin = await request(app)
+        .post("/api/auth/student/login")
+        .send({
+            identifier: rejectedStudentDetails.email,
+            password: rejectedStudentDetails.password
+        });
+    assert.equal(rejectedStudentLogin.status, 403);
+    assert.match(rejectedStudentLogin.body.message, /has been rejected/u);
+    const noReasonRejection = await teacher.patch(
+        `/api/teacher/students/${rejectedStudentRegistration.body.data.user.id}/reject`
+    ).send({});
+    assert.equal(noReasonRejection.status, 400);
     assert.equal((await student.post("/api/student/connect-teacher").send({
         teacherId: "UNKNOWN001"
     })).status, 404);
@@ -236,9 +462,9 @@ test("authenticated teachers manage branches and subjects; students are read-onl
         teacherId: "P4T001"
     })).status, 409);
     assert.equal(studentLogin.body.data.user.role, "student");
-    assert.equal(studentLogin.body.data.user.studentId, "CSE2026001");
+    assert.equal(studentLogin.body.data.user.studentId, "24001-CSE-097");
     const studentIdLogin = await request(app).post("/api/auth/student/login").send({
-        identifier: "CSE2026001",
+        identifier: "24001-CSE-097",
         password: studentDetails.password
     });
     assert.equal(studentIdLogin.status, 200, JSON.stringify(studentIdLogin.body));
@@ -246,7 +472,14 @@ test("authenticated teachers manage branches and subjects; students are read-onl
         studentId: "ALTERED2026"
     });
     assert.equal(protectedStudentIdUpdate.status, 400);
-    assert.equal((await student.get("/api/auth/me")).body.data.user.studentId, "CSE2026001");
+    assert.equal((await student.put("/api/auth/me").send({
+        branch: "000000000000000000000001",
+        academicBatch: "2025-2028",
+        studyYear: 2,
+        semester: 3
+    })).status, 400);
+    assert.equal((await student.get("/api/auth/me")).body.data.user.studentId, "24001-CSE-097");
+    assert.equal((await student.post("/api/admin/student-enrollments").send({})).status, 403);
 
     const duplicateBranchCode = await teacher.post("/api/branches").send({
         name: "Information Technology",
@@ -295,6 +528,25 @@ test("authenticated teachers manage branches and subjects; students are read-onl
     const subjectId = subjectResponse.body.data.subject.id;
     assert.equal(subjectResponse.body.data.subject.branch.id, branchId);
     assert.equal(subjectResponse.body.data.subject.teacher.teacherId, "P4T001");
+    const teacherAssignment = await admin.post("/api/admin/teacher-assignments").send({
+        teacher: teacherRegistration.body.data.user.id,
+        subject: subjectId,
+        branch: branchId,
+        ...classAssignment
+    });
+    assert.equal(teacherAssignment.status, 201, JSON.stringify(teacherAssignment.body));
+    assert.equal((await teacher.post("/api/tests").send({
+        ...classAssignment,
+        ...activeExamWindow(),
+        semester: 2,
+        title: "Unassigned Class Test",
+        branch: branchId,
+        subject: subjectId,
+        duration: 30,
+        testType: "DESCRIPTIVE",
+        totalQuestions: 1,
+        totalMarks: 1
+    })).status, 403);
 
     const duplicateSubject = await teacher.post("/api/subjects").send({
         name: "Programming Basics",
@@ -321,10 +573,10 @@ test("authenticated teachers manage branches and subjects; students are read-onl
 
     assert.equal((await teacher.get(`/api/branches/${branchId}/subjects`)).body.data.subjects.length, 1);
     assert.equal((await student.get(`/api/subjects?branch=${branchId}`)).body.data.subjects.length, 1);
-    const connectedSubjects = await student.get("/api/student/subjects");
-    assert.equal(connectedSubjects.status, 200);
-    assert.equal(connectedSubjects.body.data.subjects.length, 1);
-    assert.equal(connectedSubjects.body.data.subjects[0].teacher.teacherId, "P4T001");
+    const branchSubjects = await student.get("/api/student/subjects");
+    assert.equal(branchSubjects.status, 200);
+    assert.equal(branchSubjects.body.data.subjects.length, 1);
+    assert.equal(branchSubjects.body.data.subjects[0].teacher.teacherId, "P4T001");
     assert.equal((await student.get(`/api/student/subjects/${subjectId}`)).status, 200);
 
     const deactivatedSubject = await teacher.patch(`/api/subjects/${subjectId}/status`)
@@ -336,6 +588,8 @@ test("authenticated teachers manage branches and subjects; students are read-onl
     assert.equal((await student.get("/api/branches")).body.data.branches.length, 1);
 
     const testResponse = await teacher.post("/api/tests").send({
+        ...classAssignment,
+        ...activeExamWindow(),
         title: "Phase 5 Integration Test",
         description: "Test-owned integration fixture.",
         branch: branchId,
@@ -419,16 +673,6 @@ test("authenticated teachers manage branches and subjects; students are read-onl
     assert.equal((await student.get(`/api/tests/${testId}`)).body.data.test.id, testId);
     assert.equal((await student.get(`/api/tests/${testId}/questions`)).status, 403);
 
-    const secondTeacher = request.agent(app);
-    const secondTeacherRegistration = await secondTeacher.post("/api/auth/teacher/register").send({
-        ...teacherDetails,
-        username: "phase4teacher2",
-        email: "phase4teacher2@example.test",
-        teacherId: "P4T002",
-        confirmTeacherId: "P4T002"
-    });
-    assert.equal(secondTeacherRegistration.status, 201);
-    assert.equal(secondTeacherRegistration.headers["set-cookie"], undefined);
     await secondTeacher.post("/api/auth/teacher/login").send({
         identifier: "phase4teacher2",
         password: teacherDetails.password
@@ -441,11 +685,26 @@ test("authenticated teachers manage branches and subjects; students are read-onl
     assert.equal(secondTeacherSubject.status, 201, JSON.stringify(secondTeacherSubject.body));
     assert.notEqual(secondTeacherSubject.body.data.subject.id, subjectId);
     assert.equal(secondTeacherSubject.body.data.subject.teacher.teacherId, "P4T002");
+    assert.equal((await admin.post("/api/admin/teacher-assignments").send({
+        teacher: secondTeacherRegistration.body.data.user.id,
+        subject: subjectId,
+        branch: branchId,
+        ...classAssignment
+    })).status, 403);
+    const secondTeacherAssignment = await admin.post("/api/admin/teacher-assignments").send({
+        teacher: secondTeacherRegistration.body.data.user.id,
+        subject: secondTeacherSubject.body.data.subject.id,
+        branch: branchId,
+        ...classAssignment
+    });
+    assert.equal(secondTeacherAssignment.status, 201, JSON.stringify(secondTeacherAssignment.body));
     const secondTeacherSubjectList = await secondTeacher.get("/api/teacher/subjects");
     assert.equal(secondTeacherSubjectList.status, 200);
     assert.equal(secondTeacherSubjectList.body.data.subjects.length, 1);
     assert.equal(secondTeacherSubjectList.body.data.subjects[0].id, secondTeacherSubject.body.data.subject.id);
     const secondTeacherTest = await secondTeacher.post("/api/tests").send({
+        ...classAssignment,
+        ...activeExamWindow(),
         title: "Teacher Two Draft Test",
         branch: branchId,
         subject: secondTeacherSubject.body.data.subject.id,
@@ -457,7 +716,7 @@ test("authenticated teachers manage branches and subjects; students are read-onl
     assert.equal(secondTeacherTest.status, 201, JSON.stringify(secondTeacherTest.body));
     assert.equal((await secondTeacher.get("/api/tests")).body.data.tests.length, 1);
     assert.equal((await secondTeacher.get(`/api/tests/${testId}`)).status, 404);
-    assert.equal((await student.get("/api/student/subjects")).body.data.subjects.length, 1);
+    assert.equal((await student.get("/api/student/subjects")).body.data.subjects.length, 2);
     const secondTeacherConnection = await student.post("/api/student/connect-teacher").send({
         teacherId: "P4T002"
     });
@@ -471,9 +730,9 @@ test("authenticated teachers manage branches and subjects; students are read-onl
     assert.equal(secondSubjectDetails.body.data.subject.tests.length, 0);
     const disconnectedTeacher = await student.delete("/api/student/disconnect-teacher/P4T002");
     assert.equal(disconnectedTeacher.status, 200);
-    assert.equal((await student.get("/api/student/subjects")).body.data.subjects.length, 1);
+    assert.equal((await student.get("/api/student/subjects")).body.data.subjects.length, 2);
     assert.equal((await student.get(`/api/student/subjects/${secondTeacherSubject.body.data.subject.id}`))
-        .status, 404);
+        .status, 200);
     const reconnectedTeacher = await student.post("/api/student/connect-teacher").send({
         teacherId: "P4T002"
     });
@@ -505,7 +764,7 @@ test("authenticated teachers manage branches and subjects; students are read-onl
     })).status, 401);
     const crossInstituteStudent = await request(app).post("/api/auth/student/register").send({
         ...studentDetails,
-        studentId: "CSE2026003",
+        studentId: "24001-CSE-103",
         username: "crossinstitutestudent",
         email: "crossinstitutestudent@example.test",
         institution: "Another Polytechnic",
@@ -524,8 +783,10 @@ test("authenticated teachers manage branches and subjects; students are read-onl
     assert.equal(emptyTeacherDashboard.body.data.dashboard.branches, 1);
     assert.equal(emptyTeacherDashboard.body.data.dashboard.tests.total, 1);
     assert.equal(emptyTeacherDashboard.body.data.dashboard.results.attempts, 0);
-    assert.equal((await secondTeacher.get("/api/teacher/students")).body.data.summary.totalStudents, 1);
+    assert.equal((await secondTeacher.get("/api/teacher/students")).body.data.summary.totalStudents, 3);
     assert.equal((await secondTeacher.put(`/api/tests/${testId}`).send({
+        ...classAssignment,
+        ...activeExamWindow(),
         title: "Unauthorized edit",
         branch: branchId,
         subject: subjectId,
@@ -538,6 +799,8 @@ test("authenticated teachers manage branches and subjects; students are read-onl
     assert.equal((await teacher.patch(`/api/tests/${testId}/status`)
         .send({ status: "DRAFT" })).status, 200);
     const updatedTest = await teacher.put(`/api/tests/${testId}`).send({
+        ...classAssignment,
+        ...activeExamWindow(),
         title: "Updated Phase 5 Test",
         description: "Updated fixture.",
         branch: branchId,
@@ -554,13 +817,12 @@ test("authenticated teachers manage branches and subjects; students are read-onl
     assert.equal(updatedTest.body.data.test.status, "DRAFT");
     assert.equal((await teacher.patch(`/api/tests/${testId}/status`)
         .send({ status: "PUBLISHED" })).status, 200);
-
     const attemptStart = await student.post("/api/attempts").send({ testId });
     assert.equal(attemptStart.status, 201, JSON.stringify(attemptStart.body));
     const attemptId = attemptStart.body.data.attempt.id;
     const attemptOwner = await AttemptModel.findById(attemptId).populate("student", "studentId");
     assert.equal(attemptOwner.student.id, studentLogin.body.data.user.id);
-    assert.equal(attemptOwner.student.studentId, "CSE2026001");
+    assert.equal(attemptOwner.student.studentId, "24001-CSE-097");
     const attemptQuestions = attemptStart.body.data.attempt.questions;
     assert.equal(attemptQuestions.length, 2);
     assert.equal(
@@ -571,6 +833,30 @@ test("authenticated teachers manage branches and subjects; students are read-onl
     const resumedAttempt = await student.post("/api/attempts").send({ testId });
     assert.equal(resumedAttempt.status, 201);
     assert.equal(resumedAttempt.body.data.attempt.id, attemptId);
+    assert.equal((await request(app).get("/api/proctoring/events")).status, 401);
+    assert.equal((await student.get("/api/proctoring/events")).status, 403);
+    const recordedSecurityEvent = await student.post(
+        `/api/attempts/${attemptId}/security-events`
+    ).send({ eventType: "tabSwitch" });
+    assert.equal(recordedSecurityEvent.status, 201, JSON.stringify(recordedSecurityEvent.body));
+    assert.equal(recordedSecurityEvent.body.data.event.type, "tabSwitch");
+    const storedAttempt = await AttemptModel.findById(attemptId);
+    assert.equal(storedAttempt.securityEvents.length, 1);
+    assert.equal(storedAttempt.securityEvents[0].type, "tabSwitch");
+    assert.equal((await student.post(
+        `/api/attempts/${attemptId}/security-events`
+    ).send({ eventType: "not-an-event" })).status, 400);
+    const proctoringDashboard = await teacher.get("/api/proctoring/events");
+    assert.equal(proctoringDashboard.status, 200, JSON.stringify(proctoringDashboard.body));
+    assert.equal(proctoringDashboard.body.data.dashboard.summary.activeAttempts, 1);
+    assert.equal(proctoringDashboard.body.data.dashboard.summary.securityEvents, 1);
+    assert.equal(proctoringDashboard.body.data.dashboard.incidents[0].id, attemptId);
+    const unrelatedTeacherDashboard = await secondTeacher.get("/api/proctoring/events");
+    assert.equal(unrelatedTeacherDashboard.status, 200);
+    assert.equal(unrelatedTeacherDashboard.body.data.dashboard.incidents.length, 0);
+    const storedRiskSummary = await teacher.get("/api/proctoring/risk-summary");
+    assert.equal(storedRiskSummary.status, 200);
+    assert.equal(storedRiskSummary.body.data.report.summary.totalEvents, 1);
     assert.equal("correctAnswer" in attemptQuestions[0], false);
     assert.equal("expectedAnswer" in attemptQuestions[0], false);
     assert.equal("explanation" in attemptQuestions[0], false);
@@ -589,17 +875,34 @@ test("authenticated teachers manage branches and subjects; students are read-onl
     const otherStudent = request.agent(app);
     const otherStudentRegistration = await otherStudent.post("/api/auth/student/register").send({
         ...studentDetails,
-        studentId: "CSE2026002",
+        studentId: "24001-CSE-100",
         username: "phase4student2",
         email: "phase4student2@example.test",
         mobile: "1000000003"
     });
     assert.equal(otherStudentRegistration.status, 201, JSON.stringify(otherStudentRegistration.body));
+    const approvedOtherStudent = await teacher.patch(
+        `/api/teacher/students/${otherStudentRegistration.body.data.user.id}/approve`
+    ).send({});
+    assert.equal(approvedOtherStudent.status, 200, JSON.stringify(approvedOtherStudent.body));
     await otherStudent.post("/api/auth/student/login").send({
-        identifier: "CSE2026002",
+        identifier: "24001-CSE-100",
         password: studentDetails.password
     });
+    assert.equal((await otherStudent.post(
+        `/api/attempts/${attemptId}/security-events`
+    ).send({ eventType: "tabSwitch" })).status, 404);
+    assert.equal((await otherStudent.get("/api/student/connected-teachers"))
+        .body.data.connections.length, 0);
+    assert.equal((await otherStudent.get("/api/tests")).body.data.tests.length, 1);
+    assert.equal((await otherStudent.get(`/api/tests/${testId}`)).status, 200);
+    assert.equal((await otherStudent.get("/api/student/subjects")).body.data.subjects.length, 2);
+    assert.equal((await otherStudent.get(`/api/student/subjects/${subjectId}`)).status, 200);
     assert.equal((await otherStudent.get(`/api/attempts/${attemptId}`)).status, 404);
+    const unconnectedAttempt = await otherStudent.post("/api/attempts").send({ testId });
+    assert.equal(unconnectedAttempt.status, 201, JSON.stringify(unconnectedAttempt.body));
+    assert.equal((await otherStudent.get(`/api/attempts/${unconnectedAttempt.body.data.attempt.id}`))
+        .status, 200);
 
     const secondBranchResponse = await secondTeacher.post("/api/branches").send({
         name: "Mathematics",
@@ -607,6 +910,63 @@ test("authenticated teachers manage branches and subjects; students are read-onl
     });
     assert.equal(secondBranchResponse.status, 201, JSON.stringify(secondBranchResponse.body));
     const secondBranchId = secondBranchResponse.body.data.branch.id;
+    const mathStudentEnrollment = await admin.post("/api/admin/student-enrollments").send({
+        pin: "24001-MATH-097",
+        branch: secondBranchId,
+        ...classAssignment
+    });
+    assert.equal(mathStudentEnrollment.status, 201, JSON.stringify(mathStudentEnrollment.body));
+    const otherBranchStudent = request.agent(app);
+    const otherBranchRegistration = await otherBranchStudent.post("/api/auth/student/register").send({
+        ...studentDetails,
+        studentId: "24001-MATH-097",
+        username: "mathbranchstudent",
+        email: "mathbranchstudent@example.test",
+        mobile: "1000000004"
+    });
+    assert.equal(otherBranchRegistration.status, 201, JSON.stringify(otherBranchRegistration.body));
+    assert.equal((await admin.put("/api/admin/class-incharges").send({
+        teacher: teacherRegistration.body.data.user.id,
+        branch: secondBranchId,
+        ...classAssignment
+    })).status, 200);
+    assert.equal((await teacher.patch(
+        `/api/teacher/students/${otherBranchRegistration.body.data.user.id}/approve`
+    ).send({})).status, 200);
+    await otherBranchStudent.post("/api/auth/student/login").send({
+        identifier: "mathbranchstudent",
+        password: studentDetails.password
+    });
+    assert.equal((await otherBranchStudent.get("/api/student/connected-teachers"))
+        .body.data.connections.length, 0);
+    assert.equal((await otherBranchStudent.get("/api/tests")).body.data.tests.length, 0);
+    assert.equal((await otherBranchStudent.get(`/api/tests/${testId}`)).status, 404);
+    assert.equal((await otherBranchStudent.post("/api/attempts").send({ testId })).status, 404);
+    const otherSemesterStudent = request.agent(app);
+    const otherSemesterRegistration = await otherSemesterStudent.post("/api/auth/student/register").send({
+        ...studentDetails,
+        studentId: "24001-CSE-102",
+        username: "semester2student",
+        email: "semester2student@example.test",
+        mobile: "1000000005"
+    });
+    assert.equal(otherSemesterRegistration.status, 201, JSON.stringify(otherSemesterRegistration.body));
+    assert.equal((await admin.put("/api/admin/class-incharges").send({
+        teacher: teacherRegistration.body.data.user.id,
+        branch: branchId,
+        ...classAssignment,
+        semester: 2
+    })).status, 200);
+    assert.equal((await teacher.patch(
+        `/api/teacher/students/${otherSemesterRegistration.body.data.user.id}/approve`
+    ).send({})).status, 200);
+    await otherSemesterStudent.post("/api/auth/student/login").send({
+        identifier: "semester2student",
+        password: studentDetails.password
+    });
+    assert.equal((await otherSemesterStudent.get("/api/student/tests")).body.data.tests.length, 0);
+    assert.equal((await otherSemesterStudent.get(`/api/tests/${testId}`)).status, 404);
+    assert.equal((await otherSemesterStudent.post("/api/attempts").send({ testId })).status, 404);
     const secondTeacherBranches = await secondTeacher.get("/api/branches");
     assert.deepEqual(
         secondTeacherBranches.body.data.branches.map((branch) => branch.id).sort(),
@@ -634,28 +994,35 @@ test("authenticated teachers manage branches and subjects; students are read-onl
     assert.equal((await student.get("/api/student/subjects")).body.data.subjects.length, 2);
     assert.equal((await student.get(`/api/subjects/${subjectId}`)).status, 200);
     assert.equal((await student.get(`/api/subjects?branch=${secondBranchId}`)).status, 404);
-    assert.equal((await teacher.get("/api/teacher/dashboard")).body.data.dashboard.students.total, 2);
+    assert.equal((await teacher.get("/api/teacher/dashboard")).body.data.dashboard.students.total, 3);
     const teacherStudents = await teacher.get("/api/teacher/students?search=phase4student&page=1&limit=1");
     assert.equal(teacherStudents.status, 200, JSON.stringify(teacherStudents.body));
     assert.equal(teacherStudents.body.data.pagination.totalResults, 1);
     assert.equal(teacherStudents.body.data.students.length, 1);
     assert.equal(teacherStudents.body.data.students[0].branchId, branchId);
-    const studentIdSearch = await teacher.get("/api/teacher/students?search=cse2026001");
+    const studentIdSearch = await teacher.get("/api/teacher/students?search=24001-CSE-097");
     assert.equal(studentIdSearch.body.data.pagination.totalResults, 1);
-    assert.equal(studentIdSearch.body.data.students[0].studentId, "CSE2026001");
+    assert.equal(studentIdSearch.body.data.students[0].studentId, "24001-CSE-097");
     const studentBranchSearch = await teacher.get("/api/teacher/students?search=computer%20science");
-    assert.equal(studentBranchSearch.body.data.pagination.totalResults, 2);
+    assert.equal(
+        studentBranchSearch.body.data.pagination.totalResults,
+        3,
+        JSON.stringify(studentBranchSearch.body.data.students)
+    );
     assert.equal((await teacher.get(`/api/teacher/students?branch=${secondBranchId}`))
         .body.data.pagination.totalResults, 0);
     assert.equal((await teacher.get("/api/teacher/students?status=suspended"))
         .body.data.pagination.totalResults, 0);
-    assert.equal((await secondTeacher.get("/api/teacher/students")).body.data.pagination.totalResults, 2);
+    assert.equal((await secondTeacher.get("/api/teacher/students")).body.data.pagination.totalResults, 3);
     assert.equal((await student.get("/api/teacher/dashboard")).status, 403);
     assert.equal((await teacher.get("/api/student/dashboard")).status, 403);
 
     const submittedAttempt = await student.post(`/api/attempts/${attemptId}/submit`);
     assert.equal(submittedAttempt.status, 200, JSON.stringify(submittedAttempt.body));
     assert.equal(submittedAttempt.body.data.attempt.status, "SUBMITTED");
+    assert.equal((await student.post(
+        `/api/attempts/${attemptId}/security-events`
+    ).send({ eventType: "tabSwitch" })).status, 409);
     assert.equal((await student.get(`/api/attempts/${attemptId}`)).body.data.attempt.questions
         .find((question) => question.id === firstQuestion.id).response.textResponse,
     "An explanation written by the student.");
@@ -682,7 +1049,7 @@ test("authenticated teachers manage branches and subjects; students are read-onl
     assert.equal(publishedResult.body.data.result.evaluationStatus, "PUBLISHED");
     const studentReview = await student.get(`/api/results/${resultId}`);
     assert.equal(studentReview.status, 200, JSON.stringify(studentReview.body));
-    assert.equal(studentReview.body.data.result.student.studentId, "CSE2026001");
+    assert.equal(studentReview.body.data.result.student.studentId, "24001-CSE-097");
     assert.equal(studentReview.body.data.result.answers
         .find((answer) => answer.id === firstQuestion.id).marksAwarded, 4);
     assert.equal(studentReview.body.data.result.answers
@@ -696,7 +1063,8 @@ test("authenticated teachers manage branches and subjects; students are read-onl
     assert.equal(disconnectedFirstTeacher.status, 200);
     assert.equal((await student.get("/api/results")).body.data.results.length, 1);
     assert.equal((await student.get(`/api/results/${resultId}`)).status, 200);
-    assert.equal((await student.get("/api/student/subjects")).body.data.subjects.length, 1);
+    assert.equal((await student.get("/api/student/subjects")).body.data.subjects.length, 2);
+    assert.equal((await student.get(`/api/student/subjects/${subjectId}`)).status, 200);
     const reconnectedFirstTeacher = await student.post("/api/student/connect-teacher").send({
         teacherId: "P4T001"
     });
@@ -704,6 +1072,8 @@ test("authenticated teachers manage branches and subjects; students are read-onl
     assert.equal((await teacher.patch(`/api/tests/${testId}/status`)
         .send({ status: "DRAFT" })).status, 409);
     assert.equal((await teacher.put(`/api/tests/${testId}`).send({
+        ...classAssignment,
+        ...activeExamWindow(),
         title: "Changed after official attempt",
         branch: branchId,
         subject: subjectId,
@@ -714,6 +1084,8 @@ test("authenticated teachers manage branches and subjects; students are read-onl
     })).status, 409);
 
     const timeoutTestResponse = await teacher.post("/api/tests").send({
+        ...classAssignment,
+        ...activeExamWindow(),
         title: "Server Deadline Integration Test",
         branch: branchId,
         subject: subjectId,
@@ -760,9 +1132,9 @@ test("authenticated teachers manage branches and subjects; students are read-onl
     const teacherSearchResults = await teacher.get("/api/results?search=Test%20Student");
     assert.equal(teacherSearchResults.body.data.pagination.totalResults, 2);
     assert.equal(teacherSearchResults.body.data.summary.participantCount, 1);
-    const studentIdResultSearch = await teacher.get("/api/results?search=CSE2026001");
+    const studentIdResultSearch = await teacher.get("/api/results?search=24001-CSE-097");
     assert.equal(studentIdResultSearch.body.data.pagination.totalResults, 2);
-    assert.equal(studentIdResultSearch.body.data.results[0].student.studentId, "CSE2026001");
+    assert.equal(studentIdResultSearch.body.data.results[0].student.studentId, "24001-CSE-097");
     assert.equal((await student.get("/api/student/results")).body.data.results.length, 1);
     assert.equal((await otherStudent.get("/api/student/results")).body.data.results.length, 0);
     const dateSearch = await teacher.get(
@@ -785,6 +1157,86 @@ test("authenticated teachers manage branches and subjects; students are read-onl
     assert.equal((await teacher.get("/api/student/progress")).status, 403);
     assert.equal((await teacher.get("/api/progress")).status, 403);
     assert.equal((await otherStudent.get("/api/progress")).body.data.progress.testsAttempted, 0);
+
+    const upcomingTestResponse = await teacher.post("/api/tests").send({
+        ...classAssignment,
+        ...examWindowOffsets(60, 120),
+        title: "Scheduled Future Test",
+        branch: branchId,
+        subject: subjectId,
+        duration: 30,
+        testType: "DESCRIPTIVE",
+        totalQuestions: 1,
+        totalMarks: 1
+    });
+    assert.equal(upcomingTestResponse.status, 201, JSON.stringify(upcomingTestResponse.body));
+    const upcomingTestId = upcomingTestResponse.body.data.test.id;
+    assert.equal((await teacher.post(`/api/tests/${upcomingTestId}/questions`).send({
+        questionType: "DESCRIPTIVE",
+        text: "Future test question",
+        marks: 1
+    })).status, 201);
+    assert.equal((await teacher.patch(`/api/tests/${upcomingTestId}/status`)
+        .send({ status: "PUBLISHED" })).status, 200);
+    const upcomingStudentTest = (await student.get("/api/tests")).body.data.tests
+        .find((test) => test.id === upcomingTestId);
+    assert.equal(upcomingStudentTest.availability, "UPCOMING");
+    assert.equal((await student.post("/api/attempts").send({ testId: upcomingTestId })).status, 409);
+
+    const closedTestResponse = await teacher.post("/api/tests").send({
+        ...classAssignment,
+        ...examWindowOffsets(-120, -60),
+        title: "Closed Scheduled Test",
+        branch: branchId,
+        subject: subjectId,
+        duration: 30,
+        testType: "DESCRIPTIVE",
+        totalQuestions: 1,
+        totalMarks: 1
+    });
+    assert.equal(closedTestResponse.status, 201, JSON.stringify(closedTestResponse.body));
+    const closedTestId = closedTestResponse.body.data.test.id;
+    assert.equal((await teacher.post(`/api/tests/${closedTestId}/questions`).send({
+        questionType: "DESCRIPTIVE",
+        text: "Closed test question",
+        marks: 1
+    })).status, 201);
+    assert.equal((await teacher.patch(`/api/tests/${closedTestId}/status`)
+        .send({ status: "PUBLISHED" })).status, 200);
+    const closedStudentTest = (await student.get("/api/tests")).body.data.tests
+        .find((test) => test.id === closedTestId);
+    assert.equal(closedStudentTest.availability, "CLOSED");
+    assert.equal((await student.post("/api/attempts").send({ testId: closedTestId })).status, 409);
+
+    const cappedWindow = examWindowOffsets(-5, 10);
+    const cappedTestResponse = await teacher.post("/api/tests").send({
+        ...classAssignment,
+        ...cappedWindow,
+        title: "Attempt Deadline Capped by Exam Window",
+        branch: branchId,
+        subject: subjectId,
+        duration: 30,
+        testType: "DESCRIPTIVE",
+        totalQuestions: 1,
+        totalMarks: 1
+    });
+    assert.equal(cappedTestResponse.status, 201, JSON.stringify(cappedTestResponse.body));
+    const cappedTestId = cappedTestResponse.body.data.test.id;
+    assert.equal((await teacher.post(`/api/tests/${cappedTestId}/questions`).send({
+        questionType: "DESCRIPTIVE",
+        text: "Capped deadline question",
+        marks: 1
+    })).status, 201);
+    assert.equal((await teacher.patch(`/api/tests/${cappedTestId}/status`)
+        .send({ status: "PUBLISHED" })).status, 200);
+    const cappedAttempt = await student.post("/api/attempts").send({ testId: cappedTestId });
+    assert.equal(cappedAttempt.status, 201, JSON.stringify(cappedAttempt.body));
+    assert.equal(
+        new Date(cappedAttempt.body.data.attempt.expiresAt).getTime(),
+        new Date(cappedWindow.endAt).getTime()
+    );
+    assert.equal((await teacher.delete(`/api/tests/${upcomingTestId}`)).status, 200);
+    assert.equal((await teacher.delete(`/api/tests/${closedTestId}`)).status, 200);
 
     const historicalCounts = {
         attempts: await AttemptModel.countDocuments(),
@@ -816,11 +1268,12 @@ test("authenticated teachers manage branches and subjects; students are read-onl
     }, historicalCounts);
     assert.equal((await migrateStudentIds({ currentYear: 2026 })).migrated, 0);
 
-    assert.equal((await student.get("/api/tests?status=DRAFT")).body.data.tests.length, 2);
+    assert.equal((await student.get("/api/tests?status=DRAFT")).body.data.tests.length, 3);
     assert.equal((await teacher.get("/api/tests?status=INVALID")).status, 400);
     assert.equal((await student.post("/api/tests").send({})).status, 403);
     assert.equal((await teacher.get("/api/tests/not-an-object-id")).status, 400);
     assert.equal((await teacher.delete(`/api/tests/${timeoutTestId}`)).status, 200);
+    assert.equal((await teacher.delete(`/api/tests/${cappedTestId}`)).status, 200);
     assert.equal((await student.get("/api/tests")).body.data.tests.length, 1);
     assert.equal((await teacher.delete(`/api/tests/${testId}`)).status, 200);
     assert.equal((await teacher.get(`/api/tests/${testId}`)).body.data.test.status, "ARCHIVED");
@@ -855,7 +1308,16 @@ test("authenticated teachers manage branches and subjects; students are read-onl
         branch: branchId
     });
     assert.equal(sharedBranchSubject.status, 201, JSON.stringify(sharedBranchSubject.body));
+    const sharedSubjectAssignment = await admin.post("/api/admin/teacher-assignments").send({
+        teacher: secondTeacherRegistration.body.data.user.id,
+        subject: sharedBranchSubject.body.data.subject.id,
+        branch: branchId,
+        ...classAssignment
+    });
+    assert.equal(sharedSubjectAssignment.status, 201, JSON.stringify(sharedSubjectAssignment.body));
     const descriptiveTest = await secondTeacher.post("/api/tests").send({
+        ...classAssignment,
+        ...activeExamWindow(),
         title: "Descriptive Assessment",
         branch: branchId,
         subject: sharedBranchSubject.body.data.subject.id,

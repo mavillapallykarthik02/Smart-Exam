@@ -1,6 +1,6 @@
 import { useState } from "react";
 import TeacherNavbar from "../components/TeacherNavbar";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 
 function TeacherAccount() {
     const { user, updateProfile } = useAuth();
@@ -77,9 +77,11 @@ function TeacherAccount() {
             <TeacherNavbar active="Account" />
             <main className="teacher-dashboard">
                 <div className="teacher-page-heading">
-                    <p className="teacher-label">TEACHER ACCOUNT</p>
-                    <h1>My Account</h1>
-                    <p>Manage your authenticated teacher profile.</p>
+                    <div>
+                        <p className="teacher-label">TEACHER ACCOUNT</p>
+                        <h1>My Account</h1>
+                        <p>Manage your authenticated teacher profile.</p>
+                    </div>
                 </div>
                 {error && <div className="error-message" role="alert">{error}</div>}
                 {message && <div className="success-message" role="status">{message}</div>}

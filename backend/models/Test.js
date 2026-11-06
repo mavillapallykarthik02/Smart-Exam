@@ -28,6 +28,24 @@ const testSchema = new mongoose.Schema(
             ref: "Subject",
             required: true
         },
+        academicBatch: {
+            type: String,
+            required: true,
+            trim: true,
+            maxlength: 20
+        },
+        studyYear: {
+            type: Number,
+            required: true,
+            min: 1,
+            max: 3
+        },
+        semester: {
+            type: Number,
+            required: true,
+            min: 1,
+            max: 6
+        },
         createdBy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
@@ -74,6 +92,14 @@ const testSchema = new mongoose.Schema(
             trim: true,
             maxlength: 5000,
             default: ""
+        },
+        startAt: {
+            type: Date,
+            required: true
+        },
+        endAt: {
+            type: Date,
+            required: true
         },
         publishedAt: {
             type: Date,

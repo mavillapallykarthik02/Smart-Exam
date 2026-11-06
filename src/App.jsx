@@ -12,6 +12,9 @@ import ProtectedRoute from "./components/ProtectedRoute";
 // =====================================================
 
 import Landing from "./pages/Landing";
+import AdminLogin from "./pages/AdminLogin";
+import AdminManagement from "./pages/AdminManagement";
+import PasswordRecovery from "./pages/PasswordRecovery";
 
 
 // =====================================================
@@ -36,6 +39,7 @@ import TeacherRegister from "./pages/TeacherRegister";
 
 import TeacherDashboard from "./pages/TeacherDashboard";
 import TeacherStudents from "./pages/TeacherStudents";
+import TeacherStudentApprovals from "./pages/TeacherStudentApprovals";
 import TeacherBranches from "./pages/TeacherBranches";
 import TeacherSubjects from "./pages/TeacherSubjects";
 import TeacherTests from "./pages/TeacherTests";
@@ -44,6 +48,7 @@ import TeacherResults from "./pages/TeacherResults";
 import TeacherAnswers from "./pages/TeacherAnswers";
 import ResultReview from "./pages/ResultReview";
 import TeacherAccount from "./pages/TeacherAccount";
+import ProctoringDashboard from "./pages/teacher/ProctoringDashboard";
 
 
 // =====================================================
@@ -70,6 +75,13 @@ function App() {
 
             <Routes>
 
+                <Route path="/admin/login" element={<AdminLogin />} />
+                <Route path="/forgot-password/:role" element={<PasswordRecovery />} />
+                <Route path="/password-reset/:role" element={<PasswordRecovery isReset />} />
+                <Route
+                    path="/admin/management"
+                    element={<ProtectedRoute role="admin"><AdminManagement /></ProtectedRoute>}
+                />
 
                 {/* =================================================
                     LANDING PAGE
@@ -129,6 +141,10 @@ function App() {
                     path="/teacher/students"
                     element={<ProtectedRoute role="teacher"><TeacherStudents /></ProtectedRoute>}
                 />
+                <Route
+                    path="/teacher/student-approvals"
+                    element={<ProtectedRoute role="teacher"><TeacherStudentApprovals /></ProtectedRoute>}
+                />
 
 
                 {/* =================================================
@@ -173,6 +189,11 @@ function App() {
                 <Route
                     path="/teacher/results"
                     element={<ProtectedRoute role="teacher"><TeacherResults /></ProtectedRoute>}
+                />
+
+                <Route
+                    path="/teacher/proctoring"
+                    element={<ProtectedRoute role="teacher"><ProctoringDashboard /></ProtectedRoute>}
                 />
 
 

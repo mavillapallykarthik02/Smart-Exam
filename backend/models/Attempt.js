@@ -1,4 +1,8 @@
 import mongoose from "mongoose";
+import {
+    MAX_SECURITY_EVENTS_PER_ATTEMPT,
+    SECURITY_EVENT_TYPES
+} from "../utils/securityEventTypes.js";
 
 export const ATTEMPT_STATUSES = Object.freeze([
     "IN_PROGRESS",
@@ -35,6 +39,25 @@ const attemptSchema = new mongoose.Schema(
             enum: ATTEMPT_STATUSES,
             default: "IN_PROGRESS",
             required: true
+        },
+        securityEvents: {
+            type: [{
+                type: {
+                    type: String,
+                    enum: SECURITY_EVENT_TYPES,
+                    required: true
+                },
+                occurredAt: {
+                    type: Date,
+                    default: Date.now,
+                    required: true
+                }
+            }],
+            default: [],
+            validate: {
+                validator: (events) => events.length <= MAX_SECURITY_EVENTS_PER_ATTEMPT,
+                message: `An attempt cannot contain more than ${MAX_SECURITY_EVENTS_PER_ATTEMPT} security events.`
+            }
         }
     },
     { timestamps: true }

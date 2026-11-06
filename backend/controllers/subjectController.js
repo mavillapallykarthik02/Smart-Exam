@@ -12,8 +12,11 @@ export async function getSubjects(request, response) {
     const subjects = await listSubjects({
         role: request.user.role,
         branchId: request.query.branch,
-        teacherId: request.user.id,
-        studentBranchId: request.user.branch?._id || request.user.branch
+        teacherId: request.user.role === "teacher" ? request.user.id : undefined,
+        studentBranchId: request.user.branch?._id || request.user.branch,
+        academicBatch: request.user.academicBatch,
+        studyYear: request.user.studyYear,
+        semester: request.user.semester
     });
     return sendSuccess(response, { subjects });
 }
@@ -25,7 +28,7 @@ export async function getSubject(request, response) {
         request.user.role === "student"
             ? request.user.branch?._id?.toString() || request.user.branch?.toString()
             : request.user.id,
-        request.user.role === "student" ? request.user.id : undefined
+        request.user.role === "student" ? request.user : undefined
     );
     return sendSuccess(response, { subject });
 }

@@ -1,8 +1,8 @@
 import mongoose from "mongoose";
 import { Branch } from "../models/Branch.js";
 import { Subject } from "../models/Subject.js";
+import { TeacherAssignment } from "../models/TeacherAssignment.js";
 import { User } from "../models/User.js";
-import { getActiveTeacherIds } from "./studentTeacherService.js";
 import { INSTITUTION_KEY } from "../config/institution.js";
 
 function notFound(message) {
@@ -62,7 +62,15 @@ async function requireActiveBranch(branchId, teacherId) {
     return branch;
 }
 
-export async function listSubjects({ role, branchId, teacherId, studentBranchId }) {
+export async function listSubjects({
+    role,
+    branchId,
+    teacherId,
+    studentBranchId,
+    academicBatch,
+    studyYear,
+    semester
+}) {
     const filter = {};
 
     if (role === "student") {
@@ -70,15 +78,25 @@ export async function listSubjects({ role, branchId, teacherId, studentBranchId 
         filter.branch = studentBranchId
             ? studentBranchId
             : { $in: [] };
-        filter.createdBy = {
-            $in: studentBranchId && teacherId ? await getActiveTeacherIds(teacherId) : []
-        };
         if (studentBranchId && !await Branch.exists({
             _id: studentBranchId,
             isActive: true
         })) {
             throw notFound("Your assigned branch is inactive.");
         }
+        const activeTeachers = await User.find({
+            role: "teacher",
+            accountStatus: "active"
+        }).distinct("_id");
+        const assignments = await TeacherAssignment.find({
+            teacher: { $in: activeTeachers },
+            branch: studentBranchId,
+            academicBatch,
+            studyYear: Number(studyYear),
+            semester: Number(semester),
+            isActive: true
+        }).select("subject").lean();
+        filter._id = { $in: assignments.map((assignment) => assignment.subject) };
         if (branchId && branchId !== studentBranchId?.toString()) {
             throw notFound("Subjects are only available for your assigned branch.");
         }
@@ -108,12 +126,24 @@ export async function listSubjects({ role, branchId, teacherId, studentBranchId 
     return subjects.map(serializeSubject);
 }
 
-export async function getSubjectById(id, role, userId, studentId) {
+export async function getSubjectById(id, role, userId, student) {
     const filter = { _id: id };
     if (role === "student") {
         filter.isActive = true;
         filter.branch = userId;
-        filter.createdBy = { $in: await getActiveTeacherIds(studentId) };
+        const activeTeachers = await User.find({
+            role: "teacher",
+            accountStatus: "active"
+        }).distinct("_id");
+        const assignments = await TeacherAssignment.find({
+            teacher: { $in: activeTeachers },
+            branch: userId,
+            academicBatch: student?.academicBatch,
+            studyYear: Number(student?.studyYear),
+            semester: Number(student?.semester),
+            isActive: true
+        }).select("subject").lean();
+        filter._id = { $in: assignments.map((assignment) => assignment.subject) };
     } else if (userId) {
         filter.createdBy = userId;
     }

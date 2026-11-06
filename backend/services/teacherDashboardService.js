@@ -3,13 +3,17 @@ import { Branch } from "../models/Branch.js";
 import { Result } from "../models/Result.js";
 import { Subject } from "../models/Subject.js";
 import { Test } from "../models/Test.js";
+import { TeacherAssignment } from "../models/TeacherAssignment.js";
 import { User } from "../models/User.js";
 
 export async function getTeacherDashboard(teacherId) {
     const teacherObjectId = new mongoose.Types.ObjectId(teacherId);
-    const [ownedBranchIds, subjectBranchIds] = await Promise.all([
+    const [ownedBranchIds, subjectBranchIds, assignments] = await Promise.all([
         Branch.find({ createdBy: teacherObjectId }).distinct("_id"),
-        Subject.find({ createdBy: teacherObjectId }).distinct("branch")
+        Subject.find({ createdBy: teacherObjectId }).distinct("branch"),
+        TeacherAssignment.find({ teacher: teacherObjectId, isActive: true })
+            .select("branch academicBatch studyYear semester")
+            .lean()
     ]);
     const branchIds = [...new Set(
         [...ownedBranchIds, ...subjectBranchIds].map((id) => id.toString())
@@ -32,19 +36,32 @@ export async function getTeacherDashboard(teacherId) {
         ])
     ]);
     const testStats = testRows[0] || { total: 0, published: 0, draft: 0 };
+    const studentClassFilters = assignments.map((assignment) => ({
+        branch: assignment.branch,
+        academicBatch: assignment.academicBatch,
+        studyYear: assignment.studyYear,
+        semester: assignment.semester
+    }));
     const [studentStats, resultStats] = await Promise.all([
         User.aggregate([
             {
                 $match: {
                     role: "student",
-                    branch: { $in: branchIds }
+                    branch: { $in: branchIds },
+                    $or: studentClassFilters.length
+                        ? studentClassFilters
+                        : [{ branch: { $in: [] } }]
                 }
             },
             {
                 $group: {
                     _id: null,
                     total: { $sum: 1 },
-                    active: { $sum: { $cond: [{ $eq: ["$accountStatus", "active"] }, 1, 0] } }
+                    active: {
+                        $sum: {
+                            $cond: [{ $in: ["$accountStatus", ["active", "approved"]] }, 1, 0]
+                        }
+                    }
                 }
             }
         ]),

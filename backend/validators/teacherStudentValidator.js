@@ -9,6 +9,8 @@ export const validateTeacherStudentList = [
         .withMessage("Search must be 100 characters or fewer."),
     query("branch").optional().isMongoId()
         .withMessage("Branch filter must be a valid ID."),
-    query("status").optional().isIn(["active", "inactive", "suspended"])
-        .withMessage("Status must be active, inactive, or suspended.")
+    query("status").optional().isIn([
+        "active", "inactive", "pending", "approved", "rejected", "suspended"
+    ])
+        .withMessage("Select a valid account status.")
 ];

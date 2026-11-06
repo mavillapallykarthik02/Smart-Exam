@@ -28,6 +28,10 @@ const validateBranchFields = [
 ];
 
 export const validateBranchCreate = validateBranchFields;
+export const validateAdminBranchCreate = [
+    body("teacher").isMongoId().withMessage("Select a valid verified teacher."),
+    ...validateBranchFields
+];
 export const validateBranchUpdate = [
     param("id").isMongoId().withMessage("Branch ID must be a valid MongoDB ObjectId."),
     ...validateBranchFields

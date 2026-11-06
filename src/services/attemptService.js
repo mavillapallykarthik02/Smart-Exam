@@ -21,6 +21,14 @@ export async function saveAttemptAnswer(attemptId, questionId, response) {
     return answer;
 }
 
+export async function recordAttemptSecurityEvent(attemptId, eventType) {
+    const { event } = await apiRequest(
+        `/attempts/${encodeURIComponent(attemptId)}/security-events`,
+        { method: "POST", body: { eventType }, keepalive: true }
+    );
+    return event;
+}
+
 export async function submitAttempt(id) {
     const { attempt } = await apiRequest(`/attempts/${encodeURIComponent(id)}/submit`, {
         method: "POST"

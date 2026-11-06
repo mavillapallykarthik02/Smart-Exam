@@ -1,11 +1,12 @@
 import { Branch } from "../models/Branch.js";
 import { normalizeInstitution } from "../utils/institution.js";
 import { getStudentProgress } from "./progressService.js";
-import { getActiveTeacherIds } from "./studentTeacherService.js";
 import { Attempt } from "../models/Attempt.js";
 import { Result } from "../models/Result.js";
 import { Subject } from "../models/Subject.js";
+import { TeacherAssignment } from "../models/TeacherAssignment.js";
 import { Test } from "../models/Test.js";
+import { User } from "../models/User.js";
 import { listSubjects } from "./subjectService.js";
 import { listTests } from "./testService.js";
 
@@ -14,9 +15,10 @@ export async function getStudentDashboard(user) {
         listTests({ user, filters: {} }),
         getStudentProgress(user._id)
     ]);
+    const availableTests = tests.filter((test) => test.availability === "AVAILABLE");
     return {
-        availableTestsCount: tests.length,
-        availableTests: tests.slice(0, 3),
+        availableTestsCount: availableTests.length,
+        availableTests: availableTests.slice(0, 3),
         progress
     };
 }
@@ -46,7 +48,10 @@ export async function getStudentSubjects(user) {
         role: "student",
         branchId: user.branch._id?.toString() || user.branch.toString(),
         studentBranchId: user.branch._id || user.branch,
-        teacherId: user._id || user.id
+        teacherId: user._id || user.id,
+        academicBatch: user.academicBatch,
+        studyYear: user.studyYear,
+        semester: user.semester
     });
 }
 
@@ -58,13 +63,26 @@ function resourceNotFound() {
 
 export async function getStudentSubjectDetails(subjectId, student) {
     const branchId = student.branch?._id || student.branch;
-    const connectedTeacherIds = await getActiveTeacherIds(student._id || student.id);
-    if (!branchId || connectedTeacherIds.length === 0) throw resourceNotFound();
+    if (!branchId) throw resourceNotFound();
+    const activeTeachers = await User.find({
+        role: "teacher",
+        accountStatus: "active"
+    }).distinct("_id");
+    const assignment = await TeacherAssignment.findOne({
+        teacher: { $in: activeTeachers },
+        subject: subjectId,
+        branch: branchId,
+        academicBatch: student.academicBatch,
+        studyYear: Number(student.studyYear),
+        semester: Number(student.semester),
+        isActive: true
+    });
+    if (!assignment) throw resourceNotFound();
 
     const subject = await Subject.findOne({
         _id: subjectId,
         branch: branchId,
-        createdBy: { $in: connectedTeacherIds },
+        createdBy: assignment.teacher,
         isActive: true
     })
         .populate("branch", "name code isActive")
@@ -75,6 +93,9 @@ export async function getStudentSubjectDetails(subjectId, student) {
         subject: subject._id,
         branch: subject.branch._id,
         createdBy: subject.createdBy._id,
+        academicBatch: student.academicBatch,
+        studyYear: Number(student.studyYear),
+        semester: Number(student.semester),
         status: "PUBLISHED"
     }).sort({ createdAt: -1 });
     const testIds = tests.map((test) => test._id);
@@ -99,7 +120,11 @@ export async function getStudentSubjectDetails(subjectId, student) {
             ? "COMPLETED"
             : inProgress.has(test.id)
                 ? "IN_PROGRESS"
-                : "AVAILABLE"
+                : Date.now() < test.startAt.getTime()
+                    ? "UPCOMING"
+                    : Date.now() >= test.endAt.getTime()
+                        ? "CLOSED"
+                        : "AVAILABLE"
     }));
 
     return {

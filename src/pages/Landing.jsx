@@ -88,6 +88,18 @@ function Landing() {
                 <ArrowIcon />
               </span>
             </Link>
+            <Link to="/admin/login" className="landing-role-card">
+              <span className="landing-role-icon teacher-icon">
+                <TeacherIcon />
+              </span>
+              <span className="landing-role-copy">
+                <strong>College Administrator</strong>
+                <span>Review teacher registrations and assign class incharges.</span>
+              </span>
+              <span className="landing-role-arrow">
+                <ArrowIcon />
+              </span>
+            </Link>
           </div>
         </section>
       </main>

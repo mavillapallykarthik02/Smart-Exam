@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import StudentNavbar from "../components/StudentNavbar";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 import { getStudentDashboard } from "../services/studentService";
 
 function StudentDashboard() {
@@ -37,7 +37,8 @@ function StudentDashboard() {
                         <h1>Welcome, {student.name} 👋</h1>
                         <p>Continue your learning and test your knowledge.</p>
                         <span className="branch-badge">{student.branch}</span>
-                        <p className="student-id-label">Student ID: {student.studentId}</p>
+                        <p className="student-id-label">Polytechnic PIN: {student.studentId}</p>
+                        <p>{student.academicBatch} · Year {student.studyYear}, Semester {student.semester}</p>
                     </div>
                     <div className="student-profile-circle">{student.name.charAt(0).toUpperCase()}</div>
                 </section>
@@ -62,7 +63,7 @@ function StudentDashboard() {
                 </section>
                 <section className="dashboard-section">
                     <div className="section-heading">
-                        <div><h2>Available Tests</h2><p>Published tests for your branch.</p></div>
+                        <div><h2>Available Tests</h2><p>Tests open for your assigned class.</p></div>
                         <Link to="/student/tests">View All</Link>
                     </div>
                     {isLoading ? (
@@ -121,7 +122,7 @@ function StudentDashboard() {
                 </section>
                 <section className="practice-banner">
                     <div><span>🎯</span><div><h2>Ready for an examination?</h2>
-                        <p>Browse published tests available to your branch.</p></div></div>
+                        <p>Browse tests assigned to your branch, batch, year, and semester.</p></div></div>
                     <Link to="/student/tests">Browse Tests</Link>
                 </section>
             </main>

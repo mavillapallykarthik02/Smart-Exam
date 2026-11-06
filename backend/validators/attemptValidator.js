@@ -1,4 +1,5 @@
 import { body, param } from "express-validator";
+import { SECURITY_EVENT_TYPES } from "../utils/securityEventTypes.js";
 
 export const validateAttemptStart = [
     body("testId").isMongoId().withMessage("Test ID must be a valid MongoDB ObjectId.")
@@ -22,4 +23,10 @@ export const validateAnswerSave = [
         .withMessage("Descriptive examinations do not accept selected options."),
     body("textResponse").optional().isString().trim().isLength({ max: 10000 })
         .withMessage("Response must be 10000 characters or fewer.")
+];
+
+export const validateSecurityEvent = [
+    ...validateAttemptId,
+    body("eventType").isIn(SECURITY_EVENT_TYPES)
+        .withMessage("Security event type is not supported.")
 ];

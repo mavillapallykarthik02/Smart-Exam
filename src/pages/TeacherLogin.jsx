@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 import BrandLogoImage from "../components/BrandLogoImage";
 
 function TeacherLogin() {
@@ -22,10 +22,9 @@ function TeacherLogin() {
     event.preventDefault();
 
     if (!formData.identifier.trim() || !formData.password) {
-      setError("Please enter your username or email and password.");
+      setError("Please enter your Teacher ID, username, or email and password.");
       return;
     }
-
     setError("");
     setIsSubmitting(true);
     try {
@@ -42,7 +41,7 @@ function TeacherLogin() {
   };
 
   return (
-    <main className="auth-page auth-page--login">
+    <main className="auth-page auth-page--login teacher-auth-login">
       <section className="auth-card auth-card--login" aria-labelledby="teacher-login-title">
         <Link to="/" className="auth-login-brand" aria-label="SmartExam home">
           <BrandLogoImage />
@@ -55,7 +54,7 @@ function TeacherLogin() {
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="teacher-identifier">Username / Email</label>
+            <label htmlFor="teacher-identifier">Teacher ID / Username / Email</label>
             <input
               id="teacher-identifier"
               type="text"
@@ -64,7 +63,7 @@ function TeacherLogin() {
               required
               value={formData.identifier}
               onChange={handleChange}
-              placeholder="Enter your username or email"
+              placeholder="Enter your Teacher ID, username, or email"
             />
           </div>
 
@@ -98,6 +97,9 @@ function TeacherLogin() {
           </button>
         </form>
 
+        <p className="register-text">
+          <Link to="/forgot-password/teacher">Forgot your password?</Link>
+        </p>
         <p className="register-text">
           Don&apos;t have an account? <Link to="/teacher/register">Register</Link>
         </p>

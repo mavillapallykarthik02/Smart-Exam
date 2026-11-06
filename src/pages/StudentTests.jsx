@@ -7,6 +7,11 @@ function StudentTests() {
     const [tests, setTests] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState("");
+    const availabilityLabel = {
+        AVAILABLE: "Available now",
+        UPCOMING: "Upcoming",
+        CLOSED: "Closed"
+    };
     const loadTests = useCallback(async () => {
         setError("");
         setIsLoading(true);
@@ -58,7 +63,7 @@ function StudentTests() {
                 ) : tests.length === 0 ? (
                     <div className="teacher-empty-state">
                         <h3>No published tests available</h3>
-                        <p>Published tests for your branch will appear here.</p>
+                        <p>Published tests for your assigned branch and class will appear here.</p>
                     </div>
                 ) : (
                     <div className="test-series-grid">
@@ -66,20 +71,34 @@ function StudentTests() {
                             <div className="series-test-card" key={test.id}>
                                 <div className="series-top">
                                     <span className="test-icon">📝</span>
-                                    <span className="status-available">Published</span>
+                                    <span className={test.availability === "AVAILABLE" ? "status-available" : "status-inactive"}>
+                                        {availabilityLabel[test.availability] || "Published"}
+                                    </span>
                                 </div>
                                 <h2>{test.title}</h2>
                                 <p className="series-subject">
                                     {test.subjectName} • {test.branchName}
+                                </p>
+                                <p>
+                                    {test.academicBatch} · Year {test.studyYear}, Semester {test.semester}
+                                </p>
+                                <p>
+                                    Opens {new Date(test.startAt).toLocaleString()} · Closes {new Date(test.endAt).toLocaleString()}
                                 </p>
                                 <div className="series-details">
                                     <div><strong>{test.totalQuestions}</strong><span>Questions</span></div>
                                     <div><strong>{test.duration} Minutes</strong><span>Duration</span></div>
                                     <div><strong>{test.totalMarks}</strong><span>Marks</span></div>
                                 </div>
-                                <Link className="start-test-button" to={`/student/tests/${test.id}`}>
-                                    View Test
-                                </Link>
+                                {test.availability === "AVAILABLE" ? (
+                                    <Link className="start-test-button" to={`/student/tests/${test.id}`}>
+                                        View Test
+                                    </Link>
+                                ) : (
+                                    <button className="start-test-button" type="button" disabled>
+                                        {test.availability === "UPCOMING" ? "Not Open Yet" : "Window Closed"}
+                                    </button>
+                                )}
                             </div>
                         ))}
                     </div>

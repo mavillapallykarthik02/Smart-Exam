@@ -19,10 +19,33 @@ export async function authenticate(request, response, next) {
 
         if (
             !user ||
-            user.accountStatus !== "active" ||
             user.institutionKey !== INSTITUTION_KEY
         ) {
             return sendError(response, 401, "Your session is no longer active.");
+        }
+
+        const accountIsActive = user.role === "student"
+            ? ["active", "approved"].includes(user.accountStatus)
+            : user.accountStatus === "active";
+        if (!accountIsActive) {
+            response.clearCookie(config.sessionCookieName, {
+                httpOnly: true,
+                secure: config.nodeEnv === "production",
+                sameSite: "strict",
+                path: "/api"
+            });
+            return sendError(response, 403, "Your account is not authorized to access this resource.");
+        }
+        if (user.role === "teacher" &&
+            user.verificationStatus &&
+            user.verificationStatus !== "APPROVED") {
+            response.clearCookie(config.sessionCookieName, {
+                httpOnly: true,
+                secure: config.nodeEnv === "production",
+                sameSite: "strict",
+                path: "/api"
+            });
+            return sendError(response, 403, "Your teacher account is awaiting administrator verification.");
         }
 
         request.user = user;

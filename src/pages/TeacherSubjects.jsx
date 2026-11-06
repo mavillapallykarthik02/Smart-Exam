@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import LogoutButton from "../components/LogoutButton";
-import BrandLogoImage from "../components/BrandLogoImage";
+import TeacherNavbar from "../components/TeacherNavbar";
 import {
     listBranches
 } from "../services/branchService";
@@ -298,74 +296,7 @@ function TeacherSubjects() {
 
         <div className="teacher-page">
 
-            {/* =========================
-                NAVBAR
-            ========================== */}
-
-            <header className="teacher-navbar">
-
-                <div className="teacher-logo">
-                    <BrandLogoImage />
-
-                    <div>
-
-                        <h2>
-                            SmartExam
-                        </h2>
-
-                        <p>
-                            Teacher Panel
-                        </p>
-
-                    </div>
-
-                </div>
-
-
-                <nav className="teacher-nav">
-
-                    <Link to="/teacher/dashboard">
-                        Dashboard
-                    </Link>
-
-                    <Link to="/teacher/students">
-                        Students
-                    </Link>
-
-                    <Link to="/teacher/branches">
-                        Branches
-                    </Link>
-
-                    <Link
-                        to="/teacher/subjects"
-                        className="teacher-nav-active"
-                    >
-                        Subjects
-                    </Link>
-
-                    <Link to="/teacher/tests">
-                        Tests
-                    </Link>
-
-                    <Link to="/teacher/results">
-                        Results
-                    </Link>
-
-                    <Link to="/teacher/answers">
-                        Answers
-                    </Link>
-
-                    <Link to="/teacher/account">
-                        Account
-                    </Link>
-
-                </nav>
-
-
-                <LogoutButton role="teacher" className="teacher-logout" />
-
-            </header>
-
+            <TeacherNavbar active="Subjects" />
 
             {/* =========================
                 MAIN

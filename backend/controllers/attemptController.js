@@ -1,5 +1,6 @@
 import {
     getAttempt,
+    recordSecurityEvent,
     saveAnswer,
     startAttempt,
     submitAttempt
@@ -24,6 +25,15 @@ export async function putAttemptAnswer(request, response) {
         request.user.id
     );
     return sendSuccess(response, { answer }, "Answer saved.");
+}
+
+export async function postAttemptSecurityEvent(request, response) {
+    const event = await recordSecurityEvent(
+        request.params.id,
+        request.body.eventType,
+        request.user.id
+    );
+    return sendSuccess(response, { event }, "Security event recorded.", 201);
 }
 
 export async function postAttemptSubmit(request, response) {

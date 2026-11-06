@@ -1,9 +1,23 @@
 import { Answer } from "../models/Answer.js";
 import { Attempt } from "../models/Attempt.js";
+import { Branch } from "../models/Branch.js";
 import { Question } from "../models/Question.js";
+import { Subject } from "../models/Subject.js";
 import { Test } from "../models/Test.js";
-import { getActiveTeacherIds } from "./studentTeacherService.js";
+import { TeacherAssignment } from "../models/TeacherAssignment.js";
+import { User } from "../models/User.js";
+import { MAX_SECURITY_EVENTS_PER_ATTEMPT } from "../utils/securityEventTypes.js";
 import { createPendingResult } from "./evaluationService.js";
+
+function shuffleForAttempt(items, salt) {
+    const copy = [...items];
+    const seed = Array.from(String(salt || "")).reduce((total, character) => total + character.charCodeAt(0), 0);
+    for (let index = copy.length - 1; index > 0; index -= 1) {
+        const swapIndex = (seed + index + 1) % (index + 1);
+        [copy[index], copy[swapIndex]] = [copy[swapIndex], copy[index]];
+    }
+    return copy;
+}
 
 function resourceError(statusCode, message) {
     const error = new Error(message);
@@ -15,8 +29,11 @@ function safeQuestion(question) {
     return {
         id: question.id,
         position: question.position,
+        questionType: question.questionType,
         text: question.text,
-        marks: question.marks
+        marks: question.marks,
+        options: Array.isArray(question.options) ? shuffleForAttempt(question.options, question.id) : undefined,
+        explanation: question.explanation || undefined
     };
 }
 
@@ -28,6 +45,8 @@ function safeTest(test) {
         totalQuestions: test.totalQuestions,
         totalMarks: test.totalMarks,
         instructions: test.instructions,
+        startAt: test.startAt,
+        endAt: test.endAt,
         subject: test.subject?.name || "",
         branch: test.branch?.name || ""
     };
@@ -40,6 +59,13 @@ function serializeAttempt(attempt, questions, answers) {
             updatedAt: answer.updatedAt
         }])
     );
+    const randomizedQuestions = shuffleForAttempt(questions, attempt.id.toString()).map((question, index) => ({
+        ...safeQuestion(question),
+        position: index + 1,
+        response: responseByQuestion.get(question.id) || {
+            textResponse: ""
+        }
+    }));
     return {
         id: attempt.id,
         status: attempt.status,
@@ -47,12 +73,14 @@ function serializeAttempt(attempt, questions, answers) {
         expiresAt: attempt.expiresAt,
         submittedAt: attempt.submittedAt,
         test: safeTest(attempt.test),
-        questions: questions.map((question) => ({
-            ...safeQuestion(question),
-            response: responseByQuestion.get(question.id) || {
-                textResponse: ""
-            }
-        }))
+        security: {
+            fullScreenRequired: true,
+            copyPasteBlocked: true,
+            tabSwitchMonitoring: true,
+            windowFocusMonitoring: true,
+            multipleLoginProtection: true
+        },
+        questions: randomizedQuestions
     };
 }
 
@@ -86,13 +114,35 @@ export async function startAttempt(testId, student) {
         _id: testId,
         status: "PUBLISHED",
         branch: studentBranchId,
-        createdBy: { $in: await getActiveTeacherIds(student._id || student.id) }
+        academicBatch: student.academicBatch,
+        studyYear: Number(student.studyYear),
+        semester: Number(student.semester)
     }).populate([
         { path: "branch", select: "name isActive" },
         { path: "subject", select: "name isActive branch" }
     ]);
     if (!test || !test.branch?.isActive || !test.subject?.isActive ||
         test.subject.branch.toString() !== test.branch.id) {
+        throw resourceError(404, "Published test not found.");
+    }
+    const assigned = await TeacherAssignment.exists({
+        teacher: test.createdBy,
+        subject: test.subject._id,
+        branch: studentBranchId,
+        academicBatch: student.academicBatch,
+        studyYear: Number(student.studyYear),
+        semester: Number(student.semester),
+        isActive: true
+    });
+    if (!assigned) throw resourceError(404, "Published test not found.");
+    const now = new Date();
+    if (now < test.startAt) throw resourceError(409, "This examination is not available yet.");
+    if (now >= test.endAt) throw resourceError(409, "The examination availability window has closed.");
+    if (!await User.exists({
+        _id: test.createdBy,
+        role: "teacher",
+        accountStatus: "active"
+    })) {
         throw resourceError(404, "Published test not found.");
     }
 
@@ -104,14 +154,16 @@ export async function startAttempt(testId, student) {
         throw resourceError(409, "An official attempt for this test has already been completed.");
     }
 
-    const now = new Date();
     let attempt;
     try {
         attempt = await Attempt.create({
             student: student.id,
             test: test.id,
             startedAt: now,
-            expiresAt: new Date(now.getTime() + test.duration * 60_000)
+            expiresAt: new Date(Math.min(
+                now.getTime() + test.duration * 60_000,
+                test.endAt.getTime()
+            ))
         });
     } catch (error) {
         if (error.code === 11000) {
@@ -126,12 +178,30 @@ export async function startAttempt(testId, student) {
         }
         throw error;
     }
-    const stillPublished = await Test.exists({
-        _id: test.id,
-        status: "PUBLISHED",
-        branch: studentBranchId
-    });
-    if (!stillPublished) {
+    const [stillPublished, stillAssigned, activeBranch, activeSubject, activeTeacher] = await Promise.all([
+        Test.exists({
+            _id: test.id,
+            status: "PUBLISHED",
+            branch: studentBranchId,
+            academicBatch: student.academicBatch,
+            studyYear: Number(student.studyYear),
+            semester: Number(student.semester)
+        }),
+        TeacherAssignment.exists({
+            teacher: test.createdBy,
+            subject: test.subject._id,
+            branch: studentBranchId,
+            academicBatch: student.academicBatch,
+            studyYear: Number(student.studyYear),
+            semester: Number(student.semester),
+            isActive: true
+        }),
+        Branch.exists({ _id: studentBranchId, isActive: true }),
+        Subject.exists({ _id: test.subject._id, isActive: true, branch: studentBranchId }),
+        User.exists({ _id: test.createdBy, role: "teacher", accountStatus: "active" })
+    ]);
+    if (!stillPublished || !stillAssigned || !activeBranch || !activeSubject ||
+        !activeTeacher || Date.now() >= test.endAt.getTime()) {
         await Attempt.deleteOne({ _id: attempt.id, student: student.id });
         throw resourceError(409, "This test is no longer available to start.");
     }
@@ -174,6 +244,44 @@ export async function saveAnswer(attemptId, questionId, input, studentId) {
         questionId: question.id,
         textResponse: answer.textResponse,
         updatedAt: answer.updatedAt
+    };
+}
+
+export async function recordSecurityEvent(attemptId, eventType, studentId) {
+    const occurredAt = new Date();
+    const attempt = await Attempt.findOneAndUpdate(
+        {
+            _id: attemptId,
+            student: studentId,
+            status: "IN_PROGRESS",
+            expiresAt: { $gt: occurredAt },
+            $expr: {
+                $lt: [
+                    { $size: { $ifNull: ["$securityEvents", []] } },
+                    MAX_SECURITY_EVENTS_PER_ATTEMPT
+                ]
+            }
+        },
+        { $push: { securityEvents: { type: eventType, occurredAt } } },
+        { new: true, runValidators: true, select: "securityEvents" }
+    );
+    if (!attempt) {
+        const existingAttempt = await Attempt.findOne({
+            _id: attemptId,
+            student: studentId
+        }).select("status expiresAt securityEvents");
+        if (!existingAttempt) throw resourceError(404, "Attempt not found.");
+        if (existingAttempt.securityEvents.length >= MAX_SECURITY_EVENTS_PER_ATTEMPT) {
+            throw resourceError(429, "The security event limit for this examination has been reached.");
+        }
+        throw resourceError(409, "Security events can only be recorded during an active examination.");
+    }
+
+    const event = attempt.securityEvents.at(-1);
+    return {
+        id: event.id,
+        type: event.type,
+        occurredAt: event.occurredAt
     };
 }
 

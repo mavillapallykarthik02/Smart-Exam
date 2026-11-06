@@ -7,6 +7,8 @@ import {
     getSubjects,
     getSubjectDetails,
     getTests,
+    getStudentAccountStatus,
+    getStudentProfile,
     postConnectTeacher,
     deleteTeacherConnection
 } from "../controllers/studentController.js";
@@ -26,6 +28,8 @@ import { validateResultList } from "../validators/resultValidator.js";
 const router = Router();
 
 router.use(authenticate, allowRoles("student"));
+router.get("/profile", getStudentProfile);
+router.get("/account-status", getStudentAccountStatus);
 router.get("/dashboard", asyncHandler(getDashboard));
 router.get("/progress", asyncHandler(getProgress));
 router.get("/results", validateResultList, validateRequest, asyncHandler(getResults));

@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-import LogoutButton from "../components/LogoutButton";
-import BrandLogoImage from "../components/BrandLogoImage";
+import { useAuth } from "../context/useAuth";
+import TeacherNavbar from "../components/TeacherNavbar";
 import { getTeacherDashboard } from "../services/teacherService";
 
 function TeacherDashboard() {
@@ -39,77 +38,7 @@ function TeacherDashboard() {
 
         <div className="teacher-page">
 
-            {/* =================================================
-                TEACHER NAVBAR
-            ================================================= */}
-
-            <header className="teacher-navbar">
-
-                {/* LOGO */}
-
-                <div className="teacher-logo">
-
-                    <BrandLogoImage />
-
-                    <div>
-
-                        <h2>
-                            SmartExam
-                        </h2>
-
-                    </div>
-
-                </div>
-
-
-                {/* NAVIGATION */}
-
-                <nav className="teacher-nav">
-
-                    <Link
-                        to="/teacher/dashboard"
-                        className="teacher-nav-active"
-                    >
-                        Dashboard
-                    </Link>
-
-                    <Link to="/teacher/students">
-                        Students
-                    </Link>
-
-                    <Link to="/teacher/branches">
-                        Branches
-                    </Link>
-
-                    <Link to="/teacher/subjects">
-                        Subjects
-                    </Link>
-
-                    <Link to="/teacher/tests">
-                        Tests
-                    </Link>
-
-                    <Link to="/teacher/results">
-                        Results
-                    </Link>
-
-                    <Link to="/teacher/answers">
-                        Answers
-                    </Link>
-
-                    <Link to="/teacher/account">
-                        Account
-                    </Link>
-
-                </nav>
-
-
-                {/* LOGOUT */}
-
-                <LogoutButton role="teacher" className="teacher-logout" />
-
-            </header>
-
+            <TeacherNavbar active="Dashboard" />
 
             {/* =================================================
                 MAIN DASHBOARD
@@ -146,7 +75,7 @@ function TeacherDashboard() {
                         </h1>
 
                         <p>
-                            Manage your students,
+                            Manage your assigned classes,
                             examinations, branches,
                             subjects and results
                             from one place.

@@ -1,14 +1,19 @@
 import { Link, useNavigate } from "react-router-dom";
-import { useState } from "react";
-import { useAuth } from "../context/AuthContext";
+import { useCallback, useEffect, useState } from "react";
+import { useAuth } from "../context/useAuth";
 import BrandLogoImage from "../components/BrandLogoImage";
+import { listAvailableBranches } from "../services/branchService";
 
 const institutionName = "Government Polytechnic, Masab Tank";
+const collegeId = "MASB-001";
 
 function TeacherRegister() {
   const navigate = useNavigate();
-  const { login, register } = useAuth();
+  const { register } = useAuth();
 
+  const [branches, setBranches] = useState([]);
+  const [isLoadingBranches, setIsLoadingBranches] = useState(true);
+  const [branchLoadError, setBranchLoadError] = useState("");
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -17,6 +22,9 @@ function TeacherRegister() {
     password: "",
     confirmPassword: "",
     institution: institutionName,
+    departmentName: "",
+    branchId: "",
+    designation: "",
     teacherId: "",
     confirmTeacherId: ""
   });
@@ -25,6 +33,30 @@ function TeacherRegister() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRegistered, setIsRegistered] = useState(false);
   const [registrationNotice, setRegistrationNotice] = useState("");
+
+  const loadBranches = useCallback(async () => {
+    setIsLoadingBranches(true);
+    setBranchLoadError("");
+    try {
+      const availableBranches = await listAvailableBranches(institutionName);
+      setBranches(availableBranches);
+      setFormData((current) => ({
+        ...current,
+        branchId: availableBranches.some((branch) => branch.id === current.branchId)
+          ? current.branchId
+          : ""
+      }));
+    } catch (requestError) {
+      setBranches([]);
+      setBranchLoadError(requestError.message);
+    } finally {
+      setIsLoadingBranches(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    Promise.resolve().then(loadBranches);
+  }, [loadBranches]);
 
   const handleChange = (event) => {
     setFormData({
@@ -41,7 +73,8 @@ function TeacherRegister() {
     if (isSubmitting) return;
 
     if (
-      [formData.fullName, formData.email, formData.username, formData.institution, formData.teacherId]
+      [formData.fullName, formData.email, formData.mobile, formData.username,
+        formData.departmentName, formData.branchId, formData.designation, formData.teacherId]
         .some((value) => !value.trim()) ||
       !formData.confirmTeacherId.trim() ||
       !formData.password ||
@@ -55,16 +88,22 @@ function TeacherRegister() {
       setError("Password and Confirm Password do not match.");
       return;
     }
-    if (formData.teacherId.trim() !== formData.confirmTeacherId.trim()) {
+    const normalizedTeacherId = formData.teacherId.trim().toUpperCase();
+    const normalizedConfirmTeacherId = formData.confirmTeacherId.trim().toUpperCase();
+    if (normalizedTeacherId !== normalizedConfirmTeacherId) {
       setError("Create Your ID and Confirm Your ID do not match.");
       return;
     }
-    if (!/^[A-Za-z0-9][A-Za-z0-9_-]{2,39}$/u.test(formData.teacherId.trim())) {
+    if (!/^[A-Za-z0-9][A-Za-z0-9_-]{2,39}$/u.test(normalizedTeacherId)) {
       setError("Teacher ID must be 3–40 characters using letters, numbers, hyphens or underscores.");
       return;
     }
     if (formData.username.trim().length < 3) {
       setError("Username must be at least 3 characters.");
+      return;
+    }
+    if (formData.mobile.trim().length < 7) {
+      setError("Enter a valid mobile number.");
       return;
     }
 
@@ -73,24 +112,16 @@ function TeacherRegister() {
     const details = { ...formData };
     delete details.fullName;
     delete details.confirmPassword;
-    delete details.confirmTeacherId;
+    details.branchName = branches.find((branch) => branch.id === formData.branchId)?.name || "";
     try {
       await register("teacher", {
         ...details,
+        teacherId: normalizedTeacherId,
+        confirmTeacherId: normalizedConfirmTeacherId,
         name: formData.fullName.trim()
       });
-      try {
-        await login("teacher", {
-          identifier: formData.username.trim(),
-          password: formData.password
-        });
-        navigate("/teacher/dashboard", { replace: true });
-      } catch (loginError) {
-        setRegistrationNotice(
-          `Your account was created, but automatic sign-in failed: ${loginError.message}`
-        );
-        setIsRegistered(true);
-      }
+      setRegistrationNotice("Your registration is waiting for administrator verification. You can sign in after it is approved.");
+      setIsRegistered(true);
     } catch (requestError) {
       const field = requestError.errors?.[0]?.field;
       const message = field === "teacherId"
@@ -139,14 +170,14 @@ function TeacherRegister() {
 
           {isRegistered ? (
             <div className="registration-success" role="status">
-              <h2>Teacher Registered Successfully!</h2>
-              <p>{registrationNotice || "Your teacher account has been created successfully."}</p>
+              <h2>Registration submitted successfully.</h2>
+              <p>{registrationNotice}</p>
               <button
                 type="button"
                 className="auth-button"
                 onClick={() => navigate("/teacher/login", { replace: true })}
               >
-                Go to Login
+                Return to Login
               </button>
             </div>
           ) : (
@@ -201,19 +232,20 @@ function TeacherRegister() {
               </div>
 
               <div className="form-group">
-                <label>Mobile Number</label>
+                <label>Mobile Number *</label>
                 <input
                   type="tel"
                   name="mobile"
                   autoComplete="tel"
+                  required
                   value={formData.mobile}
                   onChange={handleChange}
-                  placeholder="Enter mobile number"
+                  placeholder="Enter verified contact number"
                 />
               </div>
 
               <div className="form-group">
-                <label htmlFor="teacher-id">Create Your ID *</label>
+                <label htmlFor="teacher-id">Employee ID *</label>
 
                 <input
                   id="teacher-id"
@@ -225,12 +257,12 @@ function TeacherRegister() {
                   pattern={"[A-Za-z0-9][A-Za-z0-9_\\-]{2,39}"}
                   value={formData.teacherId}
                   onChange={handleChange}
-                  placeholder="Create your Teacher ID"
+                  placeholder="Enter your college Employee ID"
                 />
               </div>
 
               <div className="form-group">
-                <label htmlFor="confirm-teacher-id">Confirm Your ID *</label>
+                <label htmlFor="confirm-teacher-id">Confirm Employee ID *</label>
                 <input
                   id="confirm-teacher-id"
                   type="text"
@@ -241,8 +273,73 @@ function TeacherRegister() {
                   pattern={"[A-Za-z0-9][A-Za-z0-9_\\-]{2,39}"}
                   value={formData.confirmTeacherId}
                   onChange={handleChange}
-                  placeholder="Confirm your Teacher ID"
+                  placeholder="Confirm your Employee ID"
                 />
+              </div>
+              <div className="form-group">
+                <label htmlFor="teacher-department">Department *</label>
+                <input
+                  id="teacher-department"
+                  type="text"
+                  name="departmentName"
+                  required
+                  maxLength={120}
+                  value={formData.departmentName}
+                  onChange={handleChange}
+                  placeholder="Enter department"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="teacher-branch">Branch *</label>
+                <select
+                  id="teacher-branch"
+                  name="branchId"
+                  required
+                  value={formData.branchId}
+                  onChange={handleChange}
+                  disabled={isLoadingBranches || branches.length === 0}
+                >
+                  <option value="">
+                    {isLoadingBranches
+                      ? "Loading available branches..."
+                      : branches.length
+                        ? "Select your branch"
+                        : "No active branches available"}
+                  </option>
+                  {branches.map((branch) => (
+                    <option key={branch.id} value={branch.id}>
+                      {branch.name} ({branch.code})
+                    </option>
+                  ))}
+                </select>
+                {branchLoadError ? (
+                  <small role="alert">
+                    Unable to load branches: {branchLoadError}{" "}
+                    <button type="button" onClick={() => void loadBranches()}
+                      disabled={isLoadingBranches}>
+                      {isLoadingBranches ? "Loading..." : "Retry"}
+                    </button>
+                  </small>
+                ) : (
+                  <small>Only active branches configured by the administrator are listed.</small>
+                )}
+              </div>
+              <div className="form-group">
+                <label htmlFor="teacher-designation">Designation *</label>
+                <select
+                  id="teacher-designation"
+                  name="designation"
+                  required
+                  value={formData.designation}
+                  onChange={handleChange}
+                >
+                  <option value="">Select designation</option>
+                  <option value="Lecturer">Lecturer</option>
+                  <option value="Class Teacher">Class Teacher</option>
+                  <option value="HOD">HOD</option>
+                  <option value="Guest Teacher">Guest Teacher</option>
+                </select>
+                <small>This is your designation; the administrator controls staff permissions and class assignments.</small>
               </div>
 
             </div>
@@ -273,8 +370,13 @@ function TeacherRegister() {
               </div>
 
               <div className="form-group">
-                <label>Institution</label>
-                <input type="text" value={institutionName} readOnly />
+                <label>College</label>
+                <input type="text" value={`${institutionName} (${collegeId})`} readOnly />
+              </div>
+
+              <div className="registration-enrollment-notice" role="note">
+                <strong>Verification required</strong>
+                <p>Your Employee ID and college affiliation will be reviewed by an administrator. Examination-management access is enabled only after approval. Staff roles are assigned by the administrator.</p>
               </div>
 
               <div className="form-group">

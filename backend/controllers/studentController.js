@@ -6,6 +6,7 @@ import {
 } from "../services/studentService.js";
 import { getStudentProgress } from "../services/progressService.js";
 import { sendSuccess } from "../utils/apiResponse.js";
+import { serializeUser } from "../services/authService.js";
 import {
     connectStudentToTeacher,
     disconnectStudentFromTeacher,
@@ -16,6 +17,21 @@ import { getStudentSubjectDetails } from "../services/studentService.js";
 export async function getDashboard(request, response) {
     const dashboard = await getStudentDashboard(request.user);
     return sendSuccess(response, { dashboard });
+}
+
+export function getStudentProfile(request, response) {
+    return sendSuccess(response, { user: serializeUser(request.user) });
+}
+
+export function getStudentAccountStatus(request, response) {
+    return sendSuccess(response, {
+        accountStatus: request.user.accountStatus,
+        approvedAt: request.user.approvedAt || null,
+        rejectedAt: request.user.rejectedAt || null,
+        rejectionReason: request.user.rejectionReason || "",
+        suspendedAt: request.user.suspendedAt || null,
+        suspensionReason: request.user.suspensionReason || ""
+    });
 }
 
 export async function getProgress(request, response) {

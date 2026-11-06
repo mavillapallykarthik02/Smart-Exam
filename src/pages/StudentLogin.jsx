@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 import BrandLogoImage from "../components/BrandLogoImage";
 
 function StudentLogin() {
@@ -22,7 +22,7 @@ function StudentLogin() {
     event.preventDefault();
 
     if (!formData.identifier.trim() || !formData.password) {
-      setError("Please enter your Student ID or email and password.");
+      setError("Please enter your Polytechnic PIN, username, or email and password.");
       return;
     }
 
@@ -42,7 +42,7 @@ function StudentLogin() {
   };
 
   return (
-    <main className="auth-page auth-page--login">
+    <main className="auth-page auth-page--login student-auth-login">
       <section className="auth-card auth-card--login" aria-labelledby="student-login-title">
         <Link to="/" className="auth-login-brand" aria-label="SmartExam home">
           <BrandLogoImage />
@@ -55,7 +55,7 @@ function StudentLogin() {
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="student-identifier">Student ID / Email</label>
+            <label htmlFor="student-identifier">Polytechnic PIN / Username / Email</label>
             <input
               id="student-identifier"
               type="text"
@@ -64,7 +64,7 @@ function StudentLogin() {
               required
               value={formData.identifier}
               onChange={handleChange}
-              placeholder="Enter your Student ID or email"
+              placeholder="Enter your PIN, username, or email"
             />
           </div>
 
@@ -98,6 +98,9 @@ function StudentLogin() {
           </button>
         </form>
 
+        <p className="register-text">
+          <Link to="/forgot-password/student">Forgot your password?</Link>
+        </p>
         <p className="register-text">
           Don&apos;t have an account? <Link to="/student/register">Register</Link>
         </p>

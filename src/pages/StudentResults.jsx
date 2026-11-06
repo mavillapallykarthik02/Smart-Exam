@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import PaginationControls from "../components/PaginationControls";
 import StudentNavbar from "../components/StudentNavbar";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 import { listStudentResults } from "../services/resultService";
 
 function StudentResults() {

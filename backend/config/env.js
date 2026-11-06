@@ -22,6 +22,9 @@ export const config = {
     jwtSecret: process.env.JWT_SECRET,
     fieldEncryptionKey: process.env.FIELD_ENCRYPTION_KEY,
     clientOrigin: process.env.CLIENT_ORIGIN || "http://localhost:5173",
+    gmailUser: process.env.GMAIL_USER || "",
+    gmailAppPassword: process.env.GMAIL_APP_PASSWORD || "",
+    gmailFrom: process.env.GMAIL_FROM || "",
     nodeEnv: process.env.NODE_ENV || "development",
     sessionCookieName: "smartexam_session",
     sessionCookieMaxAge: 24 * 60 * 60 * 1000

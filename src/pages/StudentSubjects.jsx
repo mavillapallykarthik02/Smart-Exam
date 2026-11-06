@@ -58,7 +58,7 @@ function StudentSubjects() {
                             <div className="student-subject-section-heading">
                                 <div>
                                     <p className="dashboard-label">TEST SERIES</p>
-                                    <h2>Available and Completed Tests</h2>
+                                    <h2>Tests for This Subject</h2>
                                 </div>
                                 <span>{selectedSubject.tests.length} tests</span>
                             </div>
@@ -75,10 +75,14 @@ function StudentSubjects() {
                                             </span>
                                             {test.status === "COMPLETED" ? (
                                                 <Link to="/student/results">View Results</Link>
-                                            ) : (
+                                            ) : test.status === "AVAILABLE" || test.status === "IN_PROGRESS" ? (
                                                 <Link to={`/student/tests/${test.id}`}>
                                                     {test.status === "IN_PROGRESS" ? "Continue" : "Open Test"}
                                                 </Link>
+                                            ) : (
+                                                <button type="button" disabled>
+                                                    {test.status === "UPCOMING" ? "Not Open Yet" : "Window Closed"}
+                                                </button>
                                             )}
                                         </article>
                                     ))}
@@ -101,16 +105,15 @@ function StudentSubjects() {
                         <div className="page-title">
                             <p className="dashboard-label">SUBJECTS</p>
                             <h1>My Subjects</h1>
-                            <p>Subjects assigned by teachers you are connected with.</p>
+                            <p>Subjects assigned to your branch and academic class.</p>
                         </div>
                         {error && <div className="error-message" role="alert">{error}</div>}
                         {isLoading ? (
                             <div className="teacher-empty-state" aria-live="polite">Loading subjects...</div>
                         ) : error ? null : subjects.length === 0 ? (
                             <div className="teacher-empty-state">
-                                <h3>No connected teacher subjects</h3>
-                                <p>Connect to a teacher from your account to see their assigned subjects.</p>
-                                <Link className="branch-button" to="/student/account">Connect to Teachers</Link>
+                                <h3>No subjects assigned to your branch</h3>
+                                <p>Check back later or contact your institution administrator if you think subjects should be available.</p>
                             </div>
                         ) : (
                             <div className="student-subject-list" role="list">

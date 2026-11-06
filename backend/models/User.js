@@ -43,11 +43,94 @@ const userSchema = new mongoose.Schema(
             required: true,
             select: false
         },
+        passwordResetTokenHash: {
+            type: String,
+            select: false
+        },
+        passwordResetExpires: {
+            type: Date,
+            select: false
+        },
         role: {
             type: String,
             required: true,
-            enum: ["student", "teacher"],
+            enum: ["student", "teacher", "admin"],
             immutable: true
+        },
+        staffRole: {
+            type: String,
+            enum: ["class_teacher", "hod", "principal", "guest_lecturer"],
+            default() {
+                return this.role === "teacher" ? "guest_lecturer" : undefined;
+            },
+            required() {
+                return this.role === "teacher";
+            }
+        },
+        departmentName: {
+            type: String,
+            trim: true,
+            maxlength: 120,
+            default: ""
+        },
+        branchName: {
+            type: String,
+            trim: true,
+            maxlength: 120,
+            default: ""
+        },
+        designation: {
+            type: String,
+            trim: true,
+            maxlength: 100,
+            default: ""
+        },
+        verificationStatus: {
+            type: String,
+            enum: ["PENDING", "APPROVED", "REJECTED"],
+            default() {
+                return this.role === "teacher" ? "APPROVED" : undefined;
+            }
+        },
+        verificationReviewedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            default: null
+        },
+        verificationReviewedAt: {
+            type: Date,
+            default: null
+        },
+        verificationReason: {
+            type: String,
+            trim: true,
+            maxlength: 500,
+            default: ""
+        },
+        verificationHistory: {
+            type: [{
+                status: {
+                    type: String,
+                    enum: ["APPROVED", "REJECTED"],
+                    required: true
+                },
+                actor: {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: "User",
+                    required: true
+                },
+                reason: {
+                    type: String,
+                    maxlength: 500,
+                    default: ""
+                },
+                at: {
+                    type: Date,
+                    required: true,
+                    default: Date.now
+                }
+            }],
+            default: []
         },
         institution: {
             type: String,
@@ -99,6 +182,33 @@ const userSchema = new mongoose.Schema(
                 return this.role === "student";
             }
         },
+        academicBatch: {
+            type: String,
+            trim: true,
+            maxlength: 20,
+            default: "UNASSIGNED",
+            required() {
+                return this.role === "student";
+            }
+        },
+        studyYear: {
+            type: Number,
+            min: 1,
+            max: 3,
+            default: 1,
+            required() {
+                return this.role === "student";
+            }
+        },
+        semester: {
+            type: Number,
+            min: 1,
+            max: 6,
+            default: 1,
+            required() {
+                return this.role === "student";
+            }
+        },
         teacherId: {
             type: String,
             match: /^[A-Z0-9][A-Z0-9_-]{2,39}$/,
@@ -107,11 +217,91 @@ const userSchema = new mongoose.Schema(
                 return this.role === "teacher";
             }
         },
+        branchPin: {
+            type: String,
+            trim: true,
+            maxlength: 20,
+            match: /^\d{5}-[A-Z]{2,6}-\d{3}$/
+        },
         accountStatus: {
             type: String,
-            enum: ["active", "inactive", "suspended"],
-            default: "active",
+            enum: ["active", "inactive", "pending", "approved", "rejected", "suspended"],
+            default() {
+                return "active";
+            },
             required: true
+        },
+        approvedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            default: null
+        },
+        approvedAt: {
+            type: Date,
+            default: null
+        },
+        rejectedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            default: null
+        },
+        rejectedAt: {
+            type: Date,
+            default: null
+        },
+        rejectionReason: {
+            type: String,
+            trim: true,
+            maxlength: 500,
+            default: ""
+        },
+        suspendedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            default: null
+        },
+        suspendedAt: {
+            type: Date,
+            default: null
+        },
+        suspensionReason: {
+            type: String,
+            trim: true,
+            maxlength: 500,
+            default: ""
+        },
+        statusHistory: {
+            type: [{
+                action: {
+                    type: String,
+                    enum: ["APPROVED", "REJECTED", "SUSPENDED", "REACTIVATED"],
+                    required: true
+                },
+                fromStatus: {
+                    type: String,
+                    required: true
+                },
+                toStatus: {
+                    type: String,
+                    required: true
+                },
+                actor: {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: "User",
+                    required: true
+                },
+                reason: {
+                    type: String,
+                    maxlength: 500,
+                    default: ""
+                },
+                at: {
+                    type: Date,
+                    required: true,
+                    default: Date.now
+                }
+            }],
+            default: []
         }
     },
     {
@@ -126,7 +316,15 @@ const userSchema = new mongoose.Schema(
     }
 );
 
-const encryptedFields = ["name", "studentId", "username", "email", "mobile", "teacherId"];
+const encryptedFields = [
+    "name",
+    "studentId",
+    "username",
+    "email",
+    "mobile",
+    "teacherId",
+    "branchPin"
+];
 
 userSchema.post("init", function decryptProfileFields(user) {
     for (const field of encryptedFields) {
@@ -141,6 +339,7 @@ userSchema.pre("save", function encryptProfileFields() {
     this.mobile = this.mobile.trim();
     if (this.studentId) this.studentId = this.studentId.trim().toUpperCase();
     if (this.teacherId) this.teacherId = this.teacherId.trim().toUpperCase();
+    if (this.branchPin) this.branchPin = this.branchPin.trim().toUpperCase();
     this.nameSearchTokens = createNameSearchTokens(this.name);
     this.emailLookup = createLookupHash(this.email);
     this.usernameLookup = createLookupHash(this.username);
