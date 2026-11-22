@@ -3,19 +3,27 @@ import { ToastContext } from "./toast-context";
 
 function ToastItem({ toast, onDismiss }) {
     useEffect(() => {
-        const timer = window.setTimeout(() => onDismiss(toast.id), 4500);
+        const timer = window.setTimeout(() => onDismiss(toast.id), 2750);
         return () => window.clearTimeout(timer);
     }, [onDismiss, toast.id]);
+
+    const isLoginSuccess = toast.type === "success" && /signed in successfully/iu.test(toast.message);
+    const title = isLoginSuccess
+        ? "Login Successful"
+        : toast.type === "error"
+            ? "Unable to Complete"
+            : toast.type === "info"
+                ? "Notice"
+                : "Success";
+    const message = isLoginSuccess ? "Welcome back to your account." : toast.message;
 
     return (
         <div className={`app-toast app-toast--${toast.type}`} role={toast.type === "error" ? "alert" : "status"}>
             <span className="app-toast-icon" aria-hidden="true">
                 {toast.type === "error" ? "!" : toast.type === "success" ? "✓" : "i"}
             </span>
-            <p>{toast.message}</p>
-            <button type="button" onClick={() => onDismiss(toast.id)} aria-label="Dismiss notification">
-                ×
-            </button>
+            <strong className="app-toast-title">{title}</strong>
+            <p>{message}</p>
         </div>
     );
 }
@@ -29,7 +37,7 @@ export function ToastProvider({ children }) {
     const notify = useCallback((message, type = "success") => {
         if (!message) return;
         const id = `${Date.now()}-${Math.random()}`;
-        setToasts((current) => [...current, { id, message, type }].slice(-4));
+        setToasts([{ id, message, type }]);
     }, []);
 
     useEffect(() => {

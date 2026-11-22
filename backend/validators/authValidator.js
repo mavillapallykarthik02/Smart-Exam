@@ -91,18 +91,15 @@ export const validateTeacherRegistration = [
         .customSanitizer(normalizeTeacherId)
         .custom((value) => isValidTeacherId(value))
         .withMessage("Teacher ID must be 3–40 characters using letters, numbers, hyphens, or underscores."),
-    body("confirmTeacherId")
-        .trim()
-        .customSanitizer(normalizeTeacherId)
-        .custom((value, { req }) => normalizeTeacherId(value) === normalizeTeacherId(req.body.teacherId))
-        .withMessage("Teacher IDs do not match."),
     requiredText("departmentName", "Department", 120),
     body("branchId")
         .optional({ values: "falsy" })
         .isMongoId()
         .withMessage("Select a valid active branch."),
     requiredText("branchName", "Branch", 120),
-    requiredText("designation", "Designation", 100)
+    body("designation")
+        .isIn(["Student", "Lecturer", "HOD"])
+        .withMessage("Select Student, Lecturer, or HOD.")
 ];
 
 export const validateBranchAdminRegistration = [
@@ -125,11 +122,7 @@ export const validateBranchAdminRegistration = [
     body("administratorId")
         .trim()
         .matches(/^[A-Z0-9][A-Z0-9_-]{2,39}$/u)
-        .withMessage("Administrator ID must be 3–40 characters using letters, numbers, hyphens, or underscores."),
-    body("confirmAdministratorId")
-        .trim()
-        .custom((value, { req }) => value.toUpperCase() === String(req.body.administratorId || "").toUpperCase())
-        .withMessage("Administrator IDs do not match.")
+        .withMessage("Administrator ID must be 3–40 characters using letters, numbers, hyphens, or underscores.")
 ];
 
 export const validateLogin = [

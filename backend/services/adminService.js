@@ -7,6 +7,8 @@ import { INSTITUTION_KEY } from "../config/institution.js";
 import { createLookupHash } from "../utils/fieldEncryption.js";
 import { Sector } from "../models/Sector.js";
 import { Result } from "../models/Result.js";
+import { Test } from "../models/Test.js";
+import { ClassTeacherAssignment } from "../models/ClassTeacherAssignment.js";
 
 const COLLEGE_NAME = "Government Polytechnic - 001";
 const COLLEGE_LOCATION = "Masab Tank, Hyderabad";
@@ -242,7 +244,10 @@ export async function updateAdminBranch(id, input) {
 
 export async function setAdminBranchStatus(id, input) {
     const updates = {};
-    if (typeof input.isActive === "boolean") updates.isActive = input.isActive;
+    if (typeof input.isActive === "boolean") {
+        updates.isActive = input.isActive;
+        if (input.isActive) updates.isArchived = false;
+    }
     if (typeof input.isArchived === "boolean") updates.isArchived = input.isArchived;
     const branch = await Branch.findOneAndUpdate(
         { _id: id, institutionKey: INSTITUTION_KEY },
@@ -251,6 +256,42 @@ export async function setAdminBranchStatus(id, input) {
     ).populate("sector", "name");
     if (!branch) throw resourceError(404, "Branch not found.", "id");
     return serializeAdminBranch(branch);
+}
+
+export async function deleteAdminBranch(id) {
+    const branch = await Branch.findOne({
+        _id: id,
+        institutionKey: INSTITUTION_KEY
+    }).select("_id");
+    if (!branch) throw resourceError(404, "Branch not found.", "id");
+
+    const [hasUsers, hasSubjects, hasTests, hasEnrollments, hasTeacherAssignments, hasClassIncharges] =
+        await Promise.all([
+            User.exists({ branch: branch._id }),
+            Subject.exists({ branch: branch._id }),
+            Test.exists({ branch: branch._id }),
+            StudentEnrollment.exists({ branch: branch._id }),
+            TeacherAssignment.exists({ branch: branch._id }),
+            ClassTeacherAssignment.exists({ branch: branch._id })
+        ]);
+
+    if (
+        hasUsers || hasSubjects || hasTests || hasEnrollments ||
+        hasTeacherAssignments || hasClassIncharges
+    ) {
+        throw resourceError(
+            409,
+            "This branch is linked to users or academic records and cannot be permanently deleted. Deactivate it instead."
+        );
+    }
+
+    const deletion = await Branch.deleteOne({
+        _id: branch._id,
+        institutionKey: INSTITUTION_KEY
+    });
+    if (deletion.deletedCount !== 1) {
+        throw resourceError(404, "Branch not found.", "id");
+    }
 }
 
 function serializeAdminBranch(branch) {

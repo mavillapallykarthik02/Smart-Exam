@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
-import { ClassTeacherAssignment } from "../models/ClassTeacherAssignment.js";
+import { Branch } from "../models/Branch.js";
+import { TeacherAssignment } from "../models/TeacherAssignment.js";
 import { User } from "../models/User.js";
 import { INSTITUTION_KEY } from "../config/institution.js";
 import { createLookupHash, createNameSearchTokens } from "../utils/fieldEncryption.js";
@@ -12,36 +13,44 @@ function resourceError(statusCode, message) {
     return error;
 }
 
-async function getTeacherClasses(teacherId) {
+async function getTeacherApprovalBranch(teacherId) {
     const teacher = await User.findOne({
         _id: teacherId,
         role: "teacher",
-        staffRole: "class_teacher",
         accountStatus: "active",
         $or: [
             { verificationStatus: "APPROVED" },
             { verificationStatus: { $exists: false } }
         ]
-    }).select("_id");
+    }).select("_id branchName");
     if (!teacher) {
-        throw resourceError(403, "Only an active class teacher can manage student approvals.");
+        throw resourceError(403, "Only an active approved teacher can manage student approvals.");
     }
-    return ClassTeacherAssignment.find({
-        teacher: teacher.id,
-        isActive: true
-    }).select("branch academicBatch studyYear semester").lean();
+    let branch = teacher.branchName
+        ? await Branch.findOne({
+            name: teacher.branchName,
+            institutionKey: INSTITUTION_KEY,
+            isArchived: { $ne: true }
+        }).select("_id name code")
+        : null;
+    if (!branch) {
+        const assignment = await TeacherAssignment.findOne({
+            teacher: teacher.id,
+            isActive: true
+        }).populate("branch", "_id name code").select("branch").lean();
+        branch = assignment?.branch || null;
+    }
+    if (!branch) {
+        throw resourceError(403, "No branch is assigned to this teacher.");
+    }
+    return branch;
 }
 
-function getStudentClassFilter(classes) {
+function getStudentBranchFilter(branch) {
     return {
         role: "student",
         institutionKey: INSTITUTION_KEY,
-        $or: classes.map((item) => ({
-            branch: item.branch,
-            academicBatch: item.academicBatch,
-            studyYear: item.studyYear,
-            semester: item.semester
-        }))
+        branch: branch._id
     };
 }
 
@@ -69,21 +78,8 @@ function serializeStudent(student) {
 }
 
 export async function listClassTeacherStudents(teacherId, filters) {
-    const classes = await getTeacherClasses(teacherId);
-    if (!classes.length) {
-        return {
-            students: [],
-            pagination: {
-                page: filters.page,
-                limit: filters.limit,
-                totalResults: 0,
-                totalPages: 1
-            },
-            summary: { total: 0, pending: 0, approved: 0, rejected: 0, suspended: 0 }
-        };
-    }
-
-    const classFilter = getStudentClassFilter(classes);
+    const branch = await getTeacherApprovalBranch(teacherId);
+    const classFilter = getStudentBranchFilter(branch);
     const filter = { ...classFilter };
     if (filters.status) filter.accountStatus = filters.status;
     if (filters.search) {
@@ -137,16 +133,13 @@ export async function updateStudentApprovalStatus(
     action,
     reason = ""
 ) {
-    const classes = await getTeacherClasses(teacherId);
-    if (!classes.length) {
-        throw resourceError(403, "No class is assigned to this class teacher.");
-    }
+    const branch = await getTeacherApprovalBranch(teacherId);
     if (!mongoose.isValidObjectId(studentId)) {
         throw resourceError(404, "Student not found.");
     }
     const student = await User.findOne({
         _id: studentId,
-        ...getStudentClassFilter(classes)
+        ...getStudentBranchFilter(branch)
     }).select("_id branch academicBatch studyYear semester accountStatus");
     if (!student) throw resourceError(404, "Student not found in your assigned classes.");
 

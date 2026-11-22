@@ -18,6 +18,7 @@ import {
     listAdminSectors,
     updateAdminBranch,
     setAdminBranchStatus,
+    deleteAdminBranch,
     listAdminBranchAdministrators,
     setBranchAdministratorStatus,
     listAdminBranchPerformance
@@ -108,6 +109,11 @@ export async function putBranch(request, response) {
 export async function patchBranchStatus(request, response) {
     const branch = await setAdminBranchStatus(request.params.id, request.body);
     return sendSuccess(response, { branch }, "Branch status updated successfully.");
+}
+
+export async function deleteBranch(request, response) {
+    await deleteAdminBranch(request.params.id);
+    return sendSuccess(response, null, "Branch permanently deleted.");
 }
 
 export async function getBranchAdministrators(_request, response) {

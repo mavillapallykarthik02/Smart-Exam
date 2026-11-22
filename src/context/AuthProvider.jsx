@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AuthContext } from "./auth-context";
 import { apiRequest } from "../services/api";
 
@@ -6,6 +6,7 @@ export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [authError, setAuthError] = useState("");
+    const initialRefreshStarted = useRef(false);
 
     const refreshUser = useCallback(async () => {
         setIsLoading(true);
@@ -27,7 +28,10 @@ export function AuthProvider({ children }) {
     }, []);
 
     useEffect(() => {
-        Promise.resolve().then(refreshUser);
+        if (!initialRefreshStarted.current) {
+            initialRefreshStarted.current = true;
+            Promise.resolve().then(refreshUser);
+        }
     }, [refreshUser]);
 
     const login = useCallback(async (role, credentials) => {
@@ -63,9 +67,13 @@ export function AuthProvider({ children }) {
     }, []);
 
     const logout = useCallback(async () => {
-        await apiRequest("/auth/logout", { method: "POST" });
-        setUser(null);
-        setAuthError("");
+        try {
+            await apiRequest("/auth/logout", { method: "POST", toast: false });
+        } finally {
+            setUser(null);
+            setAuthError("");
+            setIsLoading(false);
+        }
     }, []);
 
     const value = useMemo(() => ({

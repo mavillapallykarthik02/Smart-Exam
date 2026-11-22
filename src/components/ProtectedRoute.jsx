@@ -21,7 +21,10 @@ function ProtectedRoute({ role, children }) {
     }
 
     if (!user) {
-        return <Navigate to={`/${role}/login`} replace state={{ from: location }} />;
+        const loginPath = role === "branch_admin"
+            ? "/branch-admin/login"
+            : `/${role}/login`;
+        return <Navigate to={loginPath} replace state={{ from: location }} />;
     }
 
     if (user.role !== role) {

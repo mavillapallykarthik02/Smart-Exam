@@ -15,6 +15,7 @@ import {
     postSector,
     putBranch,
     patchBranchStatus,
+    deleteBranch,
     getBranchAdministrators,
     patchBranchAdministratorStatus,
     getBranchPerformance
@@ -59,6 +60,7 @@ router.get("/sectors", asyncHandler(getSectors));
 router.post("/sectors", validateRequest, asyncHandler(postSector));
 router.put("/branches/:id", validateBranchId, validateRequest, asyncHandler(putBranch));
 router.patch("/branches/:id/status", validateBranchStatus, validateRequest, asyncHandler(patchBranchStatus));
+router.delete("/branches/:id", validateBranchId, validateRequest, asyncHandler(deleteBranch));
 router.get("/branch-admins", asyncHandler(getBranchAdministrators));
 router.patch("/branch-admins/:id/status", asyncHandler(patchBranchAdministratorStatus));
 router.get("/branch-performance", asyncHandler(getBranchPerformance));

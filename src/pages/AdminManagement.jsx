@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useMatch, useNavigate } from "react-router-dom";
 import BrandLogoImage from "../components/BrandLogoImage";
 import LogoutButton from "../components/LogoutButton";
+import { useToast } from "../context/useToast";
 import {
     createAdminBranch,
+    deleteAdminBranch,
     listAdminBranchAdministrators,
     listAdminBranches,
     listAdminBranchPerformance,
@@ -14,14 +16,17 @@ import {
 
 const sections = [
     { id: "branches", label: "Branch Creation & Management" },
-    { id: "branch-admins", label: "Branch Administrator Management" },
-    { id: "performance", label: "Branch Academic Performance" }
+    { id: "branch-admins", label: "Branch Administrator Management" }
 ];
 
 const COLLEGE_NAME = "Government Polytechnic - 001";
 const COLLEGE_LOCATION = "Masab Tank, Hyderabad";
 
 function AdminManagement() {
+    const notify = useToast();
+    const navigate = useNavigate();
+    const branchRoute = useMatch("/admin/management/branches/:branchId");
+    const branchId = branchRoute?.params.branchId;
     const [activeSection, setActiveSection] = useState("branches");
     const [branches, setBranches] = useState([]);
     const [administrators, setAdministrators] = useState([]);
@@ -38,7 +43,8 @@ function AdminManagement() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState("");
-    const [notice, setNotice] = useState("");
+    const selectedBranch = branches.find((branch) => branch.id === branchId);
+    const selectedBranchPerformance = performance.find((branch) => branch.id === branchId);
 
     const loadData = useCallback(async () => {
         setIsLoading(true);
@@ -66,13 +72,14 @@ function AdminManagement() {
     const runAction = async (action, message) => {
         setIsSaving(true);
         setError("");
-        setNotice("");
         try {
             await action();
-            setNotice(message);
+            notify(message, "success");
             await loadData();
+            return true;
         } catch (requestError) {
             setError(requestError.message);
+            return false;
         } finally {
             setIsSaving(false);
         }
@@ -116,7 +123,12 @@ function AdminManagement() {
             description: branch.description || "",
             isActive: branch.isActive ? "active" : "inactive"
         });
+        if (branchId) navigate("/admin/management");
         window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+
+    const openBranch = (branch) => {
+        navigate(`/admin/management/branches/${encodeURIComponent(branch.id)}`);
     };
 
     const reviewAdministrator = (administrator, status) => {
@@ -134,14 +146,32 @@ function AdminManagement() {
         );
     };
 
+    const removeBranch = async (branch) => {
+        const confirmed = window.confirm(
+            `Permanently delete "${branch.name}" (${branch.code})? This cannot be undone. Branches with linked users or academic records cannot be deleted.`
+        );
+        if (!confirmed) return;
+
+        const deleted = await runAction(
+            () => deleteAdminBranch(branch.id),
+            "Branch permanently deleted."
+        );
+        if (deleted && editingBranchId === branch.id) {
+            setEditingBranchId("");
+            setBranchDraft({ name: "", code: "", description: "", isActive: "active" });
+        }
+        if (deleted && branchId === branch.id) navigate("/admin/management");
+    };
+
     const filteredBranches = branches.filter((branch) => {
         const matchesSearch = `${branch.name} ${branch.code}`.toLowerCase().includes(search.toLowerCase());
+        const isBranchActive = branch.isActive && !branch.isArchived;
         const matchesStatus = statusFilter === "ALL" ||
-            (statusFilter === "ACTIVE" && branch.isActive && !branch.isArchived) ||
-            (statusFilter === "INACTIVE" && !branch.isActive) ||
-            (statusFilter === "ARCHIVED" && branch.isArchived);
+            (statusFilter === "ACTIVE" && isBranchActive) ||
+            (statusFilter === "INACTIVE" && !isBranchActive);
         return matchesSearch && matchesStatus;
     });
+    const branchPerformanceById = new Map(performance.map((branch) => [branch.id, branch]));
 
     return (
         <div className="teacher-page admin-dashboard">
@@ -170,14 +200,75 @@ function AdminManagement() {
                     <div className="teacher-page-heading">
                         <div>
                             <span className="page-badge">COLLEGE ADMINISTRATION</span>
-                            <h1>{sections.find((section) => section.id === activeSection)?.label}</h1>
+                            <h1>{selectedBranch
+                                ? `${selectedBranch.name} (${selectedBranch.code})`
+                                : sections.find((section) => section.id === activeSection)?.label}</h1>
                         </div>
                     </div>
 
                     {error && <div className="error-message" role="alert">{error}</div>}
-                    {notice && <div className="approval-notice" role="status">{notice}</div>}
 
-                    {activeSection === "branches" && (
+                    {activeSection === "branches" && branchId && (
+                        isLoading ? <div className="teacher-empty-state">Loading branch details...</div> :
+                            selectedBranch ? (
+                                <>
+                                    <section className="teacher-panel admin-section">
+                                        <div className="branch-detail-toolbar">
+                                            <button type="button" onClick={() => navigate("/admin/management")}>
+                                                Back to Branch Management
+                                            </button>
+                                            <div className="management-actions">
+                                                <button type="button" onClick={() => editBranch(selectedBranch)}>Edit</button>
+                                                <button type="button" disabled={isSaving} onClick={() => void runAction(
+                                                    () => setAdminBranchStatus(selectedBranch.id, {
+                                                        isActive: !(selectedBranch.isActive && !selectedBranch.isArchived),
+                                                        isArchived: false
+                                                    }),
+                                                    `Branch ${selectedBranch.isActive && !selectedBranch.isArchived ? "deactivated" : "activated"} successfully.`
+                                                )}>{selectedBranch.isActive && !selectedBranch.isArchived ? "Deactivate" : "Activate"}</button>
+                                                <button type="button" className="danger" disabled={isSaving} onClick={() => void removeBranch(selectedBranch)}>Delete</button>
+                                            </div>
+                                        </div>
+                                        <div className="branch-detail-summary">
+                                            <div><small>Branch name</small><strong>{selectedBranch.name}</strong></div>
+                                            <div><small>Branch code</small><strong>{selectedBranch.code}</strong></div>
+                                            <div><small>College</small><strong>{COLLEGE_NAME}</strong></div>
+                                            <div><small>Location</small><strong>{COLLEGE_LOCATION}</strong></div>
+                                            <div><small>Status</small><strong>{selectedBranch.isActive && !selectedBranch.isArchived ? "Active" : "Inactive"}</strong></div>
+                                            <div><small>Description</small><strong>{selectedBranch.description || "No description"}</strong></div>
+                                        </div>
+                                    </section>
+
+                                    <section className="teacher-panel admin-section">
+                                        <div className="teacher-panel-heading">
+                                            <div>
+                                                <h2>Academic Performance</h2>
+                                                <p>Calculated from finalized, published examination results.</p>
+                                            </div>
+                                        </div>
+                                        <div className="branch-performance-grid">
+                                            <div><small>Completed examinations</small><strong>{selectedBranchPerformance?.completedExaminations ?? 0}</strong></div>
+                                            <div><small>Average score</small><strong>{selectedBranchPerformance?.averagePercentage ?? 0}%</strong></div>
+                                            <div><small>Pass rate</small><strong>{selectedBranchPerformance?.passPercentage ?? 0}%</strong></div>
+                                            <div><small>Performance</small><strong>{selectedBranchPerformance?.performance || "No data"}</strong></div>
+                                        </div>
+                                        <div className="branch-performance-meta">
+                                            <div><small>Sector</small><strong>{selectedBranchPerformance?.sector || "Unassigned"}</strong></div>
+                                            <div><small>Branch Administrator</small><strong>{selectedBranchPerformance?.branchAdministrator || "Unassigned"}</strong></div>
+                                        </div>
+                                    </section>
+                                </>
+                            ) : (
+                                <section className="teacher-panel admin-section">
+                                    <div className="teacher-empty-state">
+                                        <strong>Branch not found.</strong>
+                                        <button type="button" onClick={() => navigate("/admin/management")}>Back to Branch Management</button>
+                                    </div>
+                                </section>
+                            )
+                    )}
+
+                    {activeSection === "branches" && !branchId && (
                         <>
                             <section className="teacher-panel admin-section">
                                 <div className="teacher-panel-heading">
@@ -220,34 +311,69 @@ function AdminManagement() {
                                     <label>Status
                                         <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
                                             <option value="ALL">All</option><option value="ACTIVE">Active</option>
-                                            <option value="INACTIVE">Inactive</option><option value="ARCHIVED">Archived</option>
+                                            <option value="INACTIVE">Inactive</option>
                                         </select>
                                     </label>
                                 </div>
                                 {isLoading ? <div className="teacher-empty-state">Loading branches...</div> : (
                                     <div className="teacher-management-table">
                                         <div className="management-table-header admin-branch-header">
-                                            <div>Branch</div><div>College</div><div>Location</div><div>Status</div><div>Actions</div>
+                                            <div>Branch</div><div>College</div><div>Location</div><div>Status</div>
+                                            <div>Exams</div><div>Average</div><div>Pass rate</div><div>Actions</div>
                                         </div>
-                                        {filteredBranches.map((branch) => (
-                                            <div className="management-table-row admin-branch-row" key={branch.id}>
-                                                <div><strong>{branch.name}</strong><small>{branch.code}</small></div>
-                                                <div>{COLLEGE_NAME}</div>
-                                                <div>{COLLEGE_LOCATION}</div>
-                                                <div>{branch.isArchived ? "Archived" : branch.isActive ? "Active" : "Inactive"}</div>
-                                                <div className="management-actions">
-                                                    <button type="button" onClick={() => editBranch(branch)}>Edit</button>
-                                                    <button type="button" onClick={() => void runAction(
-                                                        () => setAdminBranchStatus(branch.id, { isActive: !branch.isActive }),
-                                                        `Branch ${branch.isActive ? "deactivated" : "activated"} successfully.`
-                                                    )}>{branch.isActive ? "Deactivate" : "Activate"}</button>
-                                                    <button type="button" className="danger" onClick={() => void runAction(
-                                                        () => setAdminBranchStatus(branch.id, { isArchived: !branch.isArchived }),
-                                                        `Branch ${branch.isArchived ? "restored" : "archived"} successfully.`
-                                                    )}>{branch.isArchived ? "Restore" : "Archive"}</button>
+                                        {filteredBranches.map((branch) => {
+                                            const stats = branchPerformanceById.get(branch.id);
+                                            const isBranchActive = branch.isActive && !branch.isArchived;
+                                            return (
+                                                <div
+                                                    className="management-table-row admin-branch-row admin-branch-row--interactive"
+                                                    key={branch.id}
+                                                    role="link"
+                                                    tabIndex={0}
+                                                    aria-label={`View ${branch.name} performance and manage branch`}
+                                                    onClick={() => openBranch(branch)}
+                                                    onKeyDown={(event) => {
+                                                        if (event.currentTarget === event.target &&
+                                                            (event.key === "Enter" || event.key === " ")) {
+                                                            event.preventDefault();
+                                                            openBranch(branch);
+                                                        }
+                                                    }}
+                                                >
+                                                    <div><strong>{branch.name}</strong><small>{branch.code}</small></div>
+                                                    <div>{COLLEGE_NAME}</div>
+                                                    <div>{COLLEGE_LOCATION}</div>
+                                                    <div>{isBranchActive ? "Active" : "Inactive"}</div>
+                                                    <div><small>Exams</small><strong>{stats?.completedExaminations ?? 0}</strong></div>
+                                                    <div><small>Average</small><strong>{stats?.averagePercentage ?? 0}%</strong></div>
+                                                    <div><small>Pass rate</small><strong>{stats?.passPercentage ?? 0}%</strong></div>
+                                                    <div className="management-actions">
+                                                        <button type="button" onClick={(event) => {
+                                                            event.stopPropagation();
+                                                            editBranch(branch);
+                                                        }}>Edit</button>
+                                                        <button type="button" disabled={isSaving} onClick={(event) => {
+                                                            event.stopPropagation();
+                                                            void runAction(
+                                                                () => setAdminBranchStatus(branch.id, {
+                                                                    isActive: !isBranchActive,
+                                                                    isArchived: false
+                                                                }),
+                                                                `Branch ${isBranchActive ? "deactivated" : "activated"} successfully.`
+                                                            );
+                                                        }}>{isBranchActive ? "Deactivate" : "Activate"}</button>
+                                                        <button type="button" className="danger" disabled={isSaving} onClick={(event) => {
+                                                            event.stopPropagation();
+                                                            void removeBranch(branch);
+                                                        }}>Delete</button>
+                                                        <button type="button" className="admin-branch-open" aria-label={`Open ${branch.name}`} onClick={(event) => {
+                                                            event.stopPropagation();
+                                                            openBranch(branch);
+                                                        }}><span aria-hidden="true">→</span></button>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </section>
@@ -285,31 +411,6 @@ function AdminManagement() {
                         </section>
                     )}
 
-                    {activeSection === "performance" && (
-                        <section className="teacher-panel admin-section">
-                            <div className="teacher-panel-heading">
-                                <div><h2>Branch Academic Performance</h2><p>Data is calculated from finalized published examination results.</p></div>
-                            </div>
-                            {isLoading ? <div className="teacher-empty-state">Loading performance...</div> : (
-                                <div className="teacher-management-table">
-                                    <div className="management-table-header admin-performance-header">
-                                        <div>Branch</div><div>Sector</div><div>Administrator</div><div>Examinations</div><div>Average</div><div>Pass</div><div>Status</div>
-                                    </div>
-                                    {performance.map((branch) => (
-                                        <div className="management-table-row admin-performance-row" key={branch.id}>
-                                            <div><strong>{branch.name}</strong><small>{branch.code}</small></div>
-                                            <div>{branch.sector}</div>
-                                            <div>{branch.branchAdministrator}</div>
-                                            <div>{branch.completedExaminations}</div>
-                                            <div>{branch.averagePercentage}%</div>
-                                            <div>{branch.passPercentage}%</div>
-                                            <div>{branch.performance}</div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </section>
-                    )}
                 </main>
             </div>
         </div>

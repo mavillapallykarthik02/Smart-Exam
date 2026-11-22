@@ -23,17 +23,20 @@ import {
     validateBranchAdminRegistration
 } from "../validators/authValidator.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { authRateLimit } from "../middleware/rateLimitMiddleware.js";
 
 const router = Router();
 
 router.post(
     "/:role/forgot-password",
+    authRateLimit,
     validatePasswordResetRequest,
     validateRequest,
     asyncHandler(requestPasswordReset)
 );
 router.post(
     "/:role/reset-password",
+    authRateLimit,
     validatePasswordReset,
     validateRequest,
     asyncHandler(resetPassword)
@@ -46,42 +49,49 @@ router.get(
 );
 router.post(
     "/student/register",
+    authRateLimit,
     validateStudentRegistration,
     validateRequest,
     asyncHandler((request, response) => register(request, response, "student"))
 );
 router.post(
     "/teacher/register",
+    authRateLimit,
     validateTeacherRegistration,
     validateRequest,
     asyncHandler((request, response) => register(request, response, "teacher"))
 );
 router.post(
     "/branch_admin/register",
+    authRateLimit,
     validateBranchAdminRegistration,
     validateRequest,
     asyncHandler((request, response) => register(request, response, "branch_admin"))
 );
 router.post(
     "/student/login",
+    authRateLimit,
     validateLogin,
     validateRequest,
     asyncHandler((request, response) => login(request, response, "student"))
 );
 router.post(
     "/teacher/login",
+    authRateLimit,
     validateLogin,
     validateRequest,
     asyncHandler((request, response) => login(request, response, "teacher"))
 );
 router.post(
     "/branch_admin/login",
+    authRateLimit,
     validateLogin,
     validateRequest,
     asyncHandler((request, response) => login(request, response, "branch_admin"))
 );
 router.post(
     "/admin/login",
+    authRateLimit,
     validateLogin,
     validateRequest,
     asyncHandler((request, response) => login(request, response, "admin"))

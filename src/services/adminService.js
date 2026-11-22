@@ -18,7 +18,8 @@ export async function listAdminSubjects() {
 export async function createAdminBranch(branch) {
     const { branch: createdBranch } = await apiRequest("/admin/branches", {
         method: "POST",
-        body: branch
+        body: branch,
+        toast: false
     });
     return createdBranch;
 }
@@ -39,7 +40,8 @@ export async function createAdminSector(sector) {
 export async function updateAdminBranch(id, branch) {
     const { branch: updatedBranch } = await apiRequest(`/admin/branches/${encodeURIComponent(id)}`, {
         method: "PUT",
-        body: branch
+        body: branch,
+        toast: false
     });
     return updatedBranch;
 }
@@ -47,9 +49,17 @@ export async function updateAdminBranch(id, branch) {
 export async function setAdminBranchStatus(id, status) {
     const { branch } = await apiRequest(`/admin/branches/${encodeURIComponent(id)}/status`, {
         method: "PATCH",
-        body: status
+        body: status,
+        toast: false
     });
     return branch;
+}
+
+export async function deleteAdminBranch(id) {
+    await apiRequest(`/admin/branches/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        toast: false
+    });
 }
 
 export async function listAdminBranchAdministrators() {
@@ -60,7 +70,8 @@ export async function listAdminBranchAdministrators() {
 export async function setAdminBranchAdministratorStatus(id, status, reason = "") {
     const { administrator } = await apiRequest(`/admin/branch-admins/${encodeURIComponent(id)}/status`, {
         method: "PATCH",
-        body: { status, reason }
+        body: { status, reason },
+        toast: false
     });
     return administrator;
 }

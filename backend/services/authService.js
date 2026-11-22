@@ -63,12 +63,6 @@ export async function registerUser(role, input) {
             error.field = "administratorId";
             throw error;
         }
-        if (String(input.confirmAdministratorId || "").trim().toUpperCase() !== administratorId) {
-            const error = new Error("Administrator IDs do not match.");
-            error.statusCode = 400;
-            error.field = "confirmAdministratorId";
-            throw error;
-        }
         if (await User.exists({
             role: "branch_admin",
             institutionKey,

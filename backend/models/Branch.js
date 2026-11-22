@@ -67,7 +67,7 @@ const branchSchema = new mongoose.Schema(
         branchAdministrator: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
-            default: null
+            default: undefined
         }
     },
     { timestamps: true }
@@ -86,7 +86,15 @@ branchSchema.index({ institutionKey: 1, code: 1 }, { unique: true });
 branchSchema.index({ institutionKey: 1, normalizedName: 1 }, { unique: true });
 branchSchema.index({ isActive: 1, name: 1 });
 branchSchema.index({ createdBy: 1 });
-branchSchema.index({ institutionKey: 1, branchAdministrator: 1 }, { unique: true, sparse: true });
+branchSchema.index(
+    { institutionKey: 1, branchAdministrator: 1 },
+    {
+        unique: true,
+        partialFilterExpression: {
+            branchAdministrator: { $type: "objectId" }
+        }
+    }
+);
 branchSchema.index({ institutionKey: 1, sector: 1, isActive: 1 });
 
 export const Branch = mongoose.model("Branch", branchSchema);

@@ -19,6 +19,13 @@ export function errorMiddleware(error, _request, response, next) {
 
     if (error.code === 11000) {
         const keys = Object.keys(error.keyPattern || {});
+        if (keys.includes("institutionKey") && keys.includes("branchAdministrator")) {
+            return sendError(
+                response,
+                409,
+                "This Branch Administrator is already assigned to another branch."
+            );
+        }
         const field = keys.includes("studentId") || keys.includes("studentIdLookup")
             ? "studentId"
             : keys.includes("teacherId") || keys.includes("teacherIdLookup")

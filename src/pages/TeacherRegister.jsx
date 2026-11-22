@@ -25,8 +25,7 @@ function TeacherRegister() {
     departmentName: "",
     branchId: "",
     designation: "",
-    teacherId: "",
-    confirmTeacherId: ""
+    teacherId: ""
   });
   const [error, setError] = useState("");
   const [validationErrors, setValidationErrors] = useState([]);
@@ -59,9 +58,22 @@ function TeacherRegister() {
   }, [loadBranches]);
 
   const handleChange = (event) => {
+    const { name, value } = event.target;
+    if (name === "branchId") {
+      const selectedBranch = branches.find((branch) => branch.id === value);
+      setFormData((current) => ({
+        ...current,
+        branchId: value,
+        departmentName: selectedBranch?.name || "",
+        designation: current.designation
+      }));
+      setError("");
+      setValidationErrors([]);
+      return;
+    }
     setFormData({
       ...formData,
-      [event.target.name]: event.target.value
+      [name]: value
     });
 
     setError("");
@@ -76,7 +88,6 @@ function TeacherRegister() {
       [formData.fullName, formData.email, formData.mobile, formData.username,
         formData.departmentName, formData.branchId, formData.designation, formData.teacherId]
         .some((value) => !value.trim()) ||
-      !formData.confirmTeacherId.trim() ||
       !formData.password ||
       !formData.confirmPassword
     ) {
@@ -89,11 +100,6 @@ function TeacherRegister() {
       return;
     }
     const normalizedTeacherId = formData.teacherId.trim().toUpperCase();
-    const normalizedConfirmTeacherId = formData.confirmTeacherId.trim().toUpperCase();
-    if (normalizedTeacherId !== normalizedConfirmTeacherId) {
-      setError("Create Your ID and Confirm Your ID do not match.");
-      return;
-    }
     if (!/^[A-Za-z0-9][A-Za-z0-9_-]{2,39}$/u.test(normalizedTeacherId)) {
       setError("Teacher ID must be 3–40 characters using letters, numbers, hyphens or underscores.");
       return;
@@ -117,7 +123,6 @@ function TeacherRegister() {
       await register("teacher", {
         ...details,
         teacherId: normalizedTeacherId,
-        confirmTeacherId: normalizedConfirmTeacherId,
         name: formData.fullName.trim()
       });
       setRegistrationNotice("Your registration is waiting for administrator verification. You can sign in after it is approved.");
@@ -262,37 +267,9 @@ function TeacherRegister() {
               </div>
 
               <div className="form-group">
-                <label htmlFor="confirm-teacher-id">Confirm Employee ID *</label>
-                <input
-                  id="confirm-teacher-id"
-                  type="text"
-                  name="confirmTeacherId"
-                  required
-                  minLength={3}
-                  maxLength={40}
-                  pattern={"[A-Za-z0-9][A-Za-z0-9_\\-]{2,39}"}
-                  value={formData.confirmTeacherId}
-                  onChange={handleChange}
-                  placeholder="Confirm your Employee ID"
-                />
-              </div>
-              <div className="form-group">
                 <label htmlFor="teacher-department">Department *</label>
-                <input
-                  id="teacher-department"
-                  type="text"
-                  name="departmentName"
-                  required
-                  maxLength={120}
-                  value={formData.departmentName}
-                  onChange={handleChange}
-                  placeholder="Enter department"
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="teacher-branch">Branch *</label>
                 <select
-                  id="teacher-branch"
+                  id="teacher-department"
                   name="branchId"
                   required
                   value={formData.branchId}
@@ -303,7 +280,7 @@ function TeacherRegister() {
                     {isLoadingBranches
                       ? "Loading available branches..."
                       : branches.length
-                        ? "Select your branch"
+                        ? "Select your department / branch"
                         : "No active branches available"}
                   </option>
                   {branches.map((branch) => (
@@ -334,12 +311,10 @@ function TeacherRegister() {
                   onChange={handleChange}
                 >
                   <option value="">Select designation</option>
+                  <option value="Student">Student</option>
                   <option value="Lecturer">Lecturer</option>
-                  <option value="Class Teacher">Class Teacher</option>
                   <option value="HOD">HOD</option>
-                  <option value="Guest Teacher">Guest Teacher</option>
                 </select>
-                <small>This is your designation; the administrator controls staff permissions and class assignments.</small>
               </div>
 
             </div>
@@ -374,11 +349,6 @@ function TeacherRegister() {
                 <input type="text" value={`${institutionName} (${collegeId})`} readOnly />
               </div>
 
-              <div className="registration-enrollment-notice" role="note">
-                <strong>Verification required</strong>
-                <p>Your Employee ID and college affiliation will be reviewed by an administrator. Examination-management access is enabled only after approval. Staff roles are assigned by the administrator.</p>
-              </div>
-
               <div className="form-group">
                 <label>Password *</label>
 
@@ -409,6 +379,10 @@ function TeacherRegister() {
                 />
               </div>
 
+            </div>
+
+            <div className="registration-enrollment-notice" role="note">
+              <p>Your Employee ID and college affiliation will be reviewed by an administrator. Examination-management access is enabled only after approval.</p>
             </div>
 
             <button

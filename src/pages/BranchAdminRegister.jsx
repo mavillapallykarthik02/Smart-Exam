@@ -22,8 +22,7 @@ function BranchAdminRegister() {
         branchId: "",
         branchName: "",
         branchCode: "",
-        administratorId: "",
-        confirmAdministratorId: ""
+        administratorId: ""
     });
     const [error, setError] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -66,7 +65,7 @@ function BranchAdminRegister() {
         if (isSubmitting) return;
         if (!formData.name.trim() || !formData.email.trim() || !formData.username.trim() ||
             !formData.password || !formData.confirmPassword || !formData.branchId ||
-            !formData.administratorId.trim() || !formData.confirmAdministratorId.trim()) {
+            !formData.administratorId.trim()) {
             setError("Please fill in all required fields.");
             return;
         }
@@ -75,11 +74,6 @@ function BranchAdminRegister() {
             return;
         }
         const administratorId = formData.administratorId.trim().toUpperCase();
-        const confirmAdministratorId = formData.confirmAdministratorId.trim().toUpperCase();
-        if (administratorId !== confirmAdministratorId) {
-            setError("Administrator IDs do not match.");
-            return;
-        }
         if (!/^[A-Za-z0-9][A-Za-z0-9_-]{2,39}$/u.test(administratorId)) {
             setError("Administrator ID must be 3–40 characters using letters, numbers, hyphens or underscores.");
             return;
@@ -90,8 +84,7 @@ function BranchAdminRegister() {
             await register("branch_admin", {
                 ...formData,
                 name: formData.name.trim(),
-                administratorId,
-                confirmAdministratorId
+                administratorId
             });
             setIsRegistered(true);
         } catch (requestError) {
@@ -155,12 +148,8 @@ function BranchAdminRegister() {
                             {branchLoadError && <small role="alert">Unable to load branches: {branchLoadError}</small>}
                         </div>
                         <div className="form-group">
-                            <label htmlFor="branch-admin-id">Create Administrator ID *</label>
+                            <label htmlFor="branch-admin-id">Enter Your ID *</label>
                             <input id="branch-admin-id" name="administratorId" required minLength={3} maxLength={40} value={formData.administratorId} onChange={handleChange} />
-                        </div>
-                        <div className="form-group">
-                            <label htmlFor="branch-admin-confirm-id">Confirm Administrator ID *</label>
-                            <input id="branch-admin-confirm-id" name="confirmAdministratorId" required minLength={3} maxLength={40} value={formData.confirmAdministratorId} onChange={handleChange} />
                         </div>
                         <div className="form-group">
                             <label htmlFor="branch-admin-password">Password *</label>

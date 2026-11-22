@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { useAuth } from "../context/useAuth";
 import PaginationControls from "../components/PaginationControls";
 import TeacherNavbar from "../components/TeacherNavbar";
 import {
@@ -10,7 +9,6 @@ import {
 const statuses = ["pending", "approved", "rejected", "suspended"];
 
 function TeacherStudentApprovals() {
-    const { user } = useAuth();
     const [students, setStudents] = useState([]);
     const [summary, setSummary] = useState(null);
     const [pagination, setPagination] = useState(null);
@@ -43,9 +41,8 @@ function TeacherStudentApprovals() {
     }, [page, search, status]);
 
     useEffect(() => {
-        if (user?.staffRole !== "class_teacher") return;
         Promise.resolve().then(loadApprovals);
-    }, [loadApprovals, user?.staffRole]);
+    }, [loadApprovals]);
 
     const changeStatus = (nextStatus) => {
         setStatus(nextStatus);
@@ -92,29 +89,15 @@ function TeacherStudentApprovals() {
         }
     };
 
-    if (user?.staffRole !== "class_teacher") {
-        return (
-            <div className="teacher-page">
-                <TeacherNavbar />
-                <main className="teacher-dashboard">
-                    <div className="teacher-empty-state" role="alert">
-                        <h2>Class incharge access required</h2>
-                        <p>Student approval actions are available only to teachers assigned as class incharge.</p>
-                    </div>
-                </main>
-            </div>
-        );
-    }
-
     return (
         <div className="teacher-page">
             <TeacherNavbar active="Approvals" />
             <main className="teacher-dashboard">
                 <div className="teacher-page-heading">
                     <div>
-                        <span className="page-badge">CLASS INCHARGE</span>
+                        <span className="page-badge">BRANCH APPROVALS</span>
                         <h1>Student approvals</h1>
-                        <p>Review and manage students assigned to your classes.</p>
+                        <p>Review and manage student registration requests for your assigned branch. Approved branch teachers can approve the same requests.</p>
                     </div>
                 </div>
 

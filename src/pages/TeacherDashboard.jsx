@@ -169,30 +169,6 @@ function TeacherDashboard() {
 
                     </div>
 
-
-                    {/* BRANCHES */}
-
-                    <div className="teacher-stat-card">
-
-                        <div className="stat-icon">
-                            🏫
-                        </div>
-
-                        <div>
-
-                            <h3>
-                                {dashboard?.branches ?? "—"}
-                            </h3>
-
-                            <p>
-                                Branches
-                            </p>
-
-                        </div>
-
-                    </div>
-
-
                     {/* SUBJECTS */}
 
                     <div className="teacher-stat-card">
@@ -280,6 +256,22 @@ function TeacherDashboard() {
 
                         </Link>
 
+                        {/* STUDENT APPROVALS */}
+
+                        <Link
+                            to="/teacher/student-approvals"
+                            className="teacher-action-card"
+                        >
+                            <div className="action-card-icon">
+                                ✅
+                            </div>
+                            <div>
+                                <h3>Student Approvals</h3>
+                                <p>Review and approve registration requests for your branch.</p>
+                            </div>
+                            <span className="action-arrow">→</span>
+                        </Link>
+
 
                         {/* STUDENTS */}
 
@@ -301,37 +293,6 @@ function TeacherDashboard() {
                                 <p>
                                     View and manage
                                     registered students.
-                                </p>
-
-                            </div>
-
-                            <span className="action-arrow">
-                                →
-                            </span>
-
-                        </Link>
-
-
-                        {/* BRANCHES */}
-
-                        <Link
-                            to="/teacher/branches"
-                            className="teacher-action-card"
-                        >
-
-                            <div className="action-card-icon">
-                                🏫
-                            </div>
-
-                            <div>
-
-                                <h3>
-                                    Manage Branches
-                                </h3>
-
-                                <p>
-                                    Add and manage academic
-                                    branches.
                                 </p>
 
                             </div>

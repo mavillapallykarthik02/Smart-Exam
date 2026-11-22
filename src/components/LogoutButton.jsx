@@ -1,19 +1,22 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 
-function LogoutButton({ role, className }) {
-    const navigate = useNavigate();
+function LogoutButton({ className }) {
     const { logout } = useAuth();
     const [error, setError] = useState("");
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
 
     const handleLogout = async () => {
+        if (isLoggingOut) return;
         setError("");
+        setIsLoggingOut(true);
         try {
             await logout();
-            navigate(`/${role}/login`, { replace: true });
         } catch (requestError) {
             setError(requestError.message);
+        } finally {
+            setIsLoggingOut(false);
+            window.location.replace("/");
         }
     };
 
@@ -23,9 +26,10 @@ function LogoutButton({ role, className }) {
                 type="button"
                 className={className}
                 onClick={handleLogout}
+                disabled={isLoggingOut}
                 aria-label="Log out"
             >
-                Logout
+                {isLoggingOut ? "Logging out..." : "Logout"}
             </button>
             {error && <span className="logout-error" role="alert">{error}</span>}
         </>

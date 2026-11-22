@@ -14,7 +14,7 @@ function TeacherNavbar({ active }) {
     const links = [
         ["Dashboard", "/teacher/dashboard"],
         ["Students", "/teacher/students"],
-        ["Branches", "/teacher/branches"],
+        ["Approvals", "/teacher/student-approvals"],
         ["Subjects", "/teacher/subjects"],
         ["Tests", "/teacher/tests"],
         ["Results", "/teacher/results"],
@@ -22,10 +22,6 @@ function TeacherNavbar({ active }) {
         ["Answers", "/teacher/answers"],
         ["Account", "/teacher/account"]
     ];
-    if (user?.staffRole === "class_teacher") {
-        links.splice(2, 0, ["Approvals", "/teacher/student-approvals"]);
-    }
-
     return (
         <header className="teacher-navbar">
             <div className="teacher-logo">

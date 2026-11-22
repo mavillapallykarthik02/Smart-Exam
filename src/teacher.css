@@ -827,6 +827,101 @@
   font-size: 13px;
 }
 
+.admin-branch-row--interactive {
+  cursor: pointer;
+}
+
+.admin-branch-row--interactive:focus-visible {
+  outline: 3px solid #93c5fd;
+  outline-offset: -3px;
+}
+
+.admin-branch-open {
+  min-width: 34px;
+  padding: 0 8px !important;
+  color: var(--teacher-primary) !important;
+  font-size: 18px !important;
+}
+
+.branch-detail-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.branch-detail-toolbar > button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--teacher-line);
+  border-radius: 8px;
+  color: var(--teacher-primary);
+  background: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.branch-detail-summary,
+.branch-performance-grid,
+.branch-performance-meta {
+  display: grid;
+  gap: 12px;
+}
+
+.branch-detail-summary {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.branch-performance-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.branch-performance-meta {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 16px;
+}
+
+.branch-detail-summary > div,
+.branch-performance-grid > div,
+.branch-performance-meta > div {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  padding: 15px;
+  border: 1px solid var(--teacher-line);
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.branch-detail-summary small,
+.branch-performance-grid small,
+.branch-performance-meta small {
+  color: var(--teacher-muted);
+  font-size: 11px;
+}
+
+.branch-detail-summary strong,
+.branch-performance-grid strong,
+.branch-performance-meta strong {
+  overflow-wrap: anywhere;
+  color: var(--teacher-ink);
+  font-size: 14px;
+}
+
+@media (max-width: 700px) {
+  .branch-detail-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .branch-performance-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .approval-table .management-table-header,
 .approval-table .management-table-row {
   min-width: 990px;
@@ -879,6 +974,63 @@
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.admin-dashboard-layout {
+  min-height: calc(100vh - 76px);
+  background: var(--teacher-canvas);
+}
+
+.admin-dashboard-nav {
+  display: flex;
+  min-height: 62px;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  position: sticky;
+  top: 76px;
+  z-index: 90;
+  padding: 10px clamp(20px, 4vw, 56px);
+  border-bottom: 1px solid var(--teacher-line);
+  background: rgba(255, 255, 255, 0.96);
+  scrollbar-width: none;
+  box-shadow: 0 4px 16px rgba(22, 38, 71, 0.025);
+}
+
+.admin-dashboard-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.admin-dashboard-nav button {
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 9px;
+  color: #53617a;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 160ms ease, background-color 160ms ease;
+}
+
+.admin-dashboard-nav button:hover {
+  color: var(--teacher-primary);
+  background: #f4f6fb;
+}
+
+.admin-dashboard-nav button.active {
+  color: var(--teacher-primary);
+  background: var(--teacher-primary-soft);
+}
+
+.admin-dashboard-content {
+  width: min(100%, 1480px);
+  margin: 0 auto;
+  padding: 34px clamp(20px, 4vw, 56px) 68px;
+  background: transparent;
 }
 
 .admin-section {
@@ -2059,51 +2211,50 @@
 .app-toast-region {
   position: fixed;
   z-index: 10000;
-  top: max(16px, env(safe-area-inset-top));
-  right: max(16px, env(safe-area-inset-right));
   display: grid;
-  width: min(390px, calc(100vw - 32px));
-  gap: 10px;
+  inset: 0;
+  place-items: center;
+  padding: 20px;
+  background: rgba(32, 48, 70, 0.16);
   pointer-events: none;
 }
 
 .app-toast {
-  display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) 28px;
+  display: flex;
+  width: min(320px, calc(100vw - 40px));
+  min-height: 205px;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
-  min-height: 58px;
-  padding: 11px 12px;
-  border: 1px solid #cfe7d8;
-  border-radius: 13px;
-  color: #155d3c;
-  background: #f3fbf6;
-  box-shadow: 0 12px 36px rgba(20, 33, 61, 0.18);
+  justify-content: center;
+  gap: 8px;
+  padding: 28px 24px;
+  border: 1px solid #e7eaf0;
+  border-radius: 9px;
+  color: #111827;
+  background: #ffffff;
+  box-shadow: 0 16px 38px rgba(20, 33, 61, 0.18);
   animation: app-toast-enter 180ms ease-out;
   pointer-events: auto;
 }
 
 .app-toast--error {
-  border-color: #f1cdd1;
-  color: #963541;
-  background: #fff5f6;
+  border-color: #f1d6d9;
 }
 
 .app-toast--info {
   border-color: #d7e1ff;
-  color: #28479f;
-  background: #f5f7ff;
 }
 
 .app-toast-icon {
   display: grid;
-  width: 26px;
-  height: 26px;
+  width: 38px;
+  height: 38px;
+  margin-bottom: 2px;
   place-items: center;
   border-radius: 50%;
   color: #ffffff;
   background: #218354;
-  font-size: 13px;
+  font-size: 19px;
   font-weight: 800;
 }
 
@@ -2115,47 +2266,37 @@
   background: #4263bd;
 }
 
+.app-toast-title {
+  color: #111827;
+  font-size: 14px;
+  font-weight: 750;
+  text-align: center;
+}
+
 .app-toast p {
   margin: 0;
-  font-size: 12px;
-  font-weight: 650;
-  line-height: 1.45;
+  color: #7a8495;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.5;
+  text-align: center;
   overflow-wrap: anywhere;
-}
-
-.app-toast > button {
-  display: grid;
-  width: 28px;
-  height: 28px;
-  place-items: center;
-  border: 0;
-  border-radius: 7px;
-  color: inherit;
-  background: transparent;
-  font-size: 19px;
-  cursor: pointer;
-}
-
-.app-toast > button:hover {
-  background: rgba(0, 0, 0, 0.06);
 }
 
 @keyframes app-toast-enter {
   from {
     opacity: 0;
-    transform: translateY(-7px);
+    transform: scale(0.96);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: scale(1);
   }
 }
 
 @media (max-width: 600px) {
   .app-toast-region {
-    top: max(10px, env(safe-area-inset-top));
-    right: max(10px, env(safe-area-inset-right));
-    width: calc(100vw - 20px);
+    padding: 16px;
   }
 }
 

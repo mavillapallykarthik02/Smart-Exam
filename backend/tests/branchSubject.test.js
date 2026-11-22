@@ -103,8 +103,7 @@ test("authenticated teachers manage branches and subjects; students are read-onl
         departmentName: "Computer Science",
         branchName: "Computer Science and Engineering",
         designation: "Lecturer",
-        teacherId: "P4T001",
-        confirmTeacherId: "P4T001"
+        teacherId: "P4T001"
     };
     const studentDetails = {
         studentId: "24001-CSE-097",
@@ -132,8 +131,7 @@ test("authenticated teachers manage branches and subjects; students are read-onl
         ...teacherDetails,
         username: "mismatchedteacher",
         email: "mismatchedteacher@example.test",
-        teacherId: "MISMATCH001",
-        confirmTeacherId: "MISMATCH002"
+        teacherId: "X"
     });
     assert.equal(mismatchedTeacherId.status, 400);
     const duplicateTeacherId = await request(app).post("/api/auth/teacher/register").send({
@@ -366,8 +364,7 @@ test("authenticated teachers manage branches and subjects; students are read-onl
             ...teacherDetails,
             username: "phase4teacher2",
             email: "phase4teacher2@example.test",
-            teacherId: "P4T002",
-            confirmTeacherId: "P4T002"
+            teacherId: "P4T002"
         });
     assert.equal(secondTeacherRegistration.status, 201);
     assert.equal((await admin.patch(
@@ -750,7 +747,6 @@ test("authenticated teachers manage branches and subjects; students are read-onl
             email: "otherinstituteteacher@example.test",
             institution: "Another Polytechnic",
             teacherId: "P4T003",
-            confirmTeacherId: "P4T003"
         });
     assert.equal(otherInstituteRegistration.status, 400);
     assert.deepEqual(

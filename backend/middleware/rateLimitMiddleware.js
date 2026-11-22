@@ -4,7 +4,8 @@ import { sendError } from "../utils/apiResponse.js";
 
 export const authRateLimit = rateLimit({
     windowMs: 15 * 60 * 1000,
-    limit: config.nodeEnv === "test" ? 100 : 20,
+    limit: config.nodeEnv === "test" ? 100 : 30,
+    skipSuccessfulRequests: true,
     standardHeaders: "draft-8",
     legacyHeaders: false,
     handler(_request, response) {

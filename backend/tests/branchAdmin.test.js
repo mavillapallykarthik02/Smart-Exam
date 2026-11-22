@@ -74,8 +74,7 @@ test("branch administrator registration remains pending and cannot log in", asyn
         branchId: branch.id,
         branchName: branch.name,
         branchCode: branch.code,
-        administratorId: "BADMIN001",
-        confirmAdministratorId: "BADMIN001"
+        administratorId: "BADMIN001"
     });
 
     assert.equal(registered.role, "branch_admin");

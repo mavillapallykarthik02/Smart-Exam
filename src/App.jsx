@@ -1,7 +1,8 @@
 import {
     BrowserRouter,
     Routes,
-    Route
+    Route,
+    Navigate
 } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { ToastProvider } from "./context/ToastContext";
@@ -44,7 +45,6 @@ import TeacherRegister from "./pages/TeacherRegister";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import TeacherStudents from "./pages/TeacherStudents";
 import TeacherStudentApprovals from "./pages/TeacherStudentApprovals";
-import TeacherBranches from "./pages/TeacherBranches";
 import TeacherSubjects from "./pages/TeacherSubjects";
 import TeacherTests from "./pages/TeacherTests";
 import TeacherTestQuestions from "./pages/TeacherTestQuestions";
@@ -83,6 +83,7 @@ function App() {
                 <Route path="/admin/login" element={<AdminLogin />} />
                 <Route path="/branch-admin/register" element={<BranchAdminRegister />} />
                 <Route path="/branch-admin/login" element={<BranchAdminLogin />} />
+                <Route path="/branch_admin/login" element={<Navigate to="/branch-admin/login" replace />} />
                 <Route
                     path="/branch-admin/home"
                     element={<ProtectedRoute role="branch_admin"><BranchAdminHome /></ProtectedRoute>}
@@ -90,7 +91,7 @@ function App() {
                 <Route path="/forgot-password/:role" element={<PasswordRecovery />} />
                 <Route path="/password-reset/:role" element={<PasswordRecovery isReset />} />
                 <Route
-                    path="/admin/management"
+                    path="/admin/management/*"
                     element={<ProtectedRoute role="admin"><AdminManagement /></ProtectedRoute>}
                 />
 
@@ -157,15 +158,6 @@ function App() {
                     element={<ProtectedRoute role="teacher"><TeacherStudentApprovals /></ProtectedRoute>}
                 />
 
-
-                {/* =================================================
-                    TEACHER BRANCHES
-                ================================================== */}
-
-                <Route
-                    path="/teacher/branches"
-                    element={<ProtectedRoute role="teacher"><TeacherBranches /></ProtectedRoute>}
-                />
 
 
                 {/* =================================================
