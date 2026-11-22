@@ -209,11 +209,59 @@ const userSchema = new mongoose.Schema(
         studyYear: {
             type: Number,
             min: 1,
-            max: 3,
+            max: 4,
             default: 1,
             required() {
                 return this.role === "student";
             }
+        },
+        currentAcademicYear: {
+            type: Number,
+            min: 1,
+            max: 4,
+            required() {
+                return this.role === "student";
+            }
+        },
+        academicAdmissionYear: {
+            type: Number,
+            min: 1900,
+            max: 2100,
+            required() {
+                return this.role === "student";
+            }
+        },
+        academicCompletionYear: {
+            type: Number,
+            min: 1900,
+            max: 2100,
+            default: null
+        },
+        academicSession: {
+            type: String,
+            trim: true,
+            maxlength: 30,
+            default: ""
+        },
+        academicStatus: {
+            type: String,
+            enum: ["ACTIVE", "COMPLETED", "WITHDRAWN"],
+            default: "ACTIVE"
+        },
+        academicYearUpdatedAt: {
+            type: Date,
+            default: null
+        },
+        sectorId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Sector",
+            default: null
+        },
+        collegeId: {
+            type: String,
+            trim: true,
+            maxlength: 100,
+            default: ""
         },
         semester: {
             type: Number,
@@ -346,6 +394,20 @@ userSchema.post("init", function decryptProfileFields(user) {
     for (const field of encryptedFields) {
         if (typeof user[field] === "string") user[field] = decryptField(user[field]);
     }
+});
+
+userSchema.pre("validate", function synchronizeStudentAcademicFields() {
+    if (this.role !== "student") return;
+    if (!this.currentAcademicYear) this.currentAcademicYear = this.studyYear || 1;
+    if (!this.studyYear) this.studyYear = this.currentAcademicYear || 1;
+    if (!this.academicAdmissionYear) {
+        const admissionYear = Number(String(this.academicBatch || "").split("-")[0]);
+        this.academicAdmissionYear = Number.isInteger(admissionYear) && admissionYear >= 1900
+            ? admissionYear
+            : new Date().getFullYear();
+    }
+    if (!this.academicSession) this.academicSession = this.academicBatch || "";
+    if (!this.academicStatus) this.academicStatus = "ACTIVE";
 });
 
 userSchema.pre("save", function encryptProfileFields() {

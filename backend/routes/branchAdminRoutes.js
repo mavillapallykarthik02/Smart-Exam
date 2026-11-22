@@ -10,6 +10,8 @@ import {
     getBranchStudentPerformance,
     listBranchStudents,
     listBranchTeachers,
+    listBranchTeacherRequests,
+    reviewBranchTeacherRequest,
     setBranchTeacherVerification
 } from "../services/branchAdminService.js";
 
@@ -18,6 +20,25 @@ router.use(authenticate, allowRoles("branch_admin"));
 
 router.get("/overview", asyncHandler(async (request, response) => {
     return sendSuccess(response, { overview: await getBranchAdminOverview(request.user) });
+}));
+
+router.get("/branch-requests", asyncHandler(async (request, response) => {
+    return sendSuccess(response, {
+        requests: await listBranchTeacherRequests(request.user)
+    });
+}));
+
+router.patch("/branch-requests/:id/status", asyncHandler(async (request, response) => {
+    if (!mongoose.isValidObjectId(request.params.id)) {
+        return sendError(response, 400, "Branch request ID is invalid.");
+    }
+    const branchRequest = await reviewBranchTeacherRequest(
+        request.user,
+        request.params.id,
+        request.body.status,
+        request.body.reason || ""
+    );
+    return sendSuccess(response, { request: branchRequest }, "Branch request updated.");
 }));
 
 router.get("/teachers", asyncHandler(async (request, response) => {

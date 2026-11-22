@@ -52,3 +52,11 @@ export async function authenticate(request, response, next) {
         return next(error);
     }
 }
+
+export function authenticateOptional(request, response, next) {
+    if (!request.cookies[config.sessionCookieName]) {
+        request.user = null;
+        return next();
+    }
+    return authenticate(request, response, next);
+}

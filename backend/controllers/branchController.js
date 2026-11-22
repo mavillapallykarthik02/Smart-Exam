@@ -4,6 +4,8 @@ import {
     getBranchById,
     listBranchSubjects,
     listBranches,
+    listTeacherBranchRequests,
+    requestBranchAccess,
     setBranchStatus,
     updateBranch
 } from "../services/branchService.js";
@@ -17,6 +19,24 @@ export async function getBranches(request, response) {
 export async function getBranch(request, response) {
     const branch = await getBranchById(request.params.id, request.user);
     return sendSuccess(response, { branch });
+}
+
+export async function postBranchRequest(request, response) {
+    const branchRequest = await requestBranchAccess(
+        request.params.id,
+        request.user.id
+    );
+    return sendSuccess(
+        response,
+        { request: branchRequest },
+        "Branch access request submitted.",
+        201
+    );
+}
+
+export async function getBranchRequests(request, response) {
+    const requests = await listTeacherBranchRequests(request.user.id);
+    return sendSuccess(response, { requests });
 }
 
 export async function postBranch(request, response) {

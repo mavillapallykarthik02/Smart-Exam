@@ -9,7 +9,7 @@ import {
     resetPassword,
     updateCurrentUser
 } from "../controllers/authController.js";
-import { authenticate } from "../middleware/authMiddleware.js";
+import { authenticate, authenticateOptional } from "../middleware/authMiddleware.js";
 import { allowRoles } from "../middleware/roleMiddleware.js";
 import { validateRequest } from "../middleware/validationMiddleware.js";
 import {
@@ -97,7 +97,7 @@ router.post(
     asyncHandler((request, response) => login(request, response, "admin"))
 );
 
-router.get("/me", authenticate, getCurrentUser);
+router.get("/me", authenticateOptional, getCurrentUser);
 router.put(
     "/me",
     authenticate,

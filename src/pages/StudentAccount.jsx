@@ -156,7 +156,7 @@ function StudentAccount() {
 
                         <div>
                             <label>Year of Study / Semester</label>
-                            <strong>{student.studyYear} / {student.semester}</strong>
+                            <strong>{["", "1st", "2nd", "3rd", "4th"][student.currentAcademicYear || student.studyYear] || student.studyYear} Year / Semester {student.semester}</strong>
                         </div>
 
                     </div>

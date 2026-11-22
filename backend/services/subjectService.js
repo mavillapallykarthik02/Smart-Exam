@@ -4,6 +4,7 @@ import { Subject } from "../models/Subject.js";
 import { TeacherAssignment } from "../models/TeacherAssignment.js";
 import { User } from "../models/User.js";
 import { INSTITUTION_KEY } from "../config/institution.js";
+import { TeacherBranchRequest } from "../models/TeacherBranchRequest.js";
 
 function notFound(message) {
     const error = new Error(message);
@@ -58,6 +59,16 @@ async function requireActiveBranch(branchId, teacherId) {
         : null;
     if (!branch) {
         throw notFound("The selected branch does not exist or is inactive.");
+    }
+    const branchAccess = await TeacherBranchRequest.findOne({
+        teacher: teacherId,
+        branch: branchId,
+        status: "APPROVED"
+    }).select("_id");
+    if (!branchAccess) {
+        const error = new Error("You need approval from this branch administrator before managing it.");
+        error.statusCode = 403;
+        throw error;
     }
     return branch;
 }
@@ -123,7 +134,25 @@ export async function listSubjects({
         .populate("branch", "name code isActive")
         .populate("createdBy", "name teacherId institution")
         .sort({ name: 1 });
-    return subjects.map(serializeSubject);
+    const serialized = subjects.map(serializeSubject);
+    if (teacherId) {
+        const assignments = await TeacherAssignment.find({
+            teacher: teacherId,
+            subject: { $in: subjects.map((subject) => subject._id) },
+            isActive: true
+        }).sort({ studyYear: 1, semester: 1 }).lean();
+        for (const subject of serialized) {
+            const assignment = assignments.find((item) =>
+                item.subject.toString() === subject.id
+            );
+            if (assignment) {
+                subject.academicBatch = assignment.academicBatch;
+                subject.studyYear = assignment.studyYear;
+                subject.semester = assignment.semester;
+            }
+        }
+    }
+    return serialized;
 }
 
 export async function getSubjectById(id, role, userId, student) {
@@ -160,6 +189,19 @@ export async function getSubjectById(id, role, userId, student) {
 
 export async function createSubject(input, teacherId) {
     await requireActiveBranch(input.branch, teacherId);
+    const academicBatch = String(input.academicBatch || "").trim();
+    const studyYear = Number(input.studyYear);
+    const semester = Number(input.semester);
+    if (!/^\d{4}-\d{4}$/u.test(academicBatch)) {
+        const error = new Error("Academic batch must use the YYYY-YYYY format.");
+        error.statusCode = 400;
+        throw error;
+    }
+    if (Math.ceil(semester / 2) !== studyYear) {
+        const error = new Error("The selected semester does not belong to the selected study year.");
+        error.statusCode = 400;
+        throw error;
+    }
     const subject = await Subject.create({
         name: input.name,
         code: input.code,
@@ -167,6 +209,23 @@ export async function createSubject(input, teacherId) {
         branch: input.branch,
         createdBy: teacherId
     });
+    await TeacherAssignment.findOneAndUpdate(
+        {
+            teacher: teacherId,
+            subject: subject._id,
+            academicBatch,
+            studyYear,
+            semester
+        },
+        {
+            $set: {
+                branch: subject.branch,
+                isActive: true
+            },
+            $setOnInsert: { assignedBy: teacherId }
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
     await subject.populate("branch", "name code isActive");
     await subject.populate("createdBy", "name teacherId institution");
     return serializeSubject(subject);
@@ -179,11 +238,38 @@ export async function updateSubject(id, input, teacherId) {
     }
 
     await requireActiveBranch(input.branch, teacherId);
+    const academicBatch = String(input.academicBatch || "").trim();
+    const studyYear = Number(input.studyYear);
+    const semester = Number(input.semester);
+    if (!/^\d{4}-\d{4}$/u.test(academicBatch)) {
+        const error = new Error("Academic batch must use the YYYY-YYYY format.");
+        error.statusCode = 400;
+        throw error;
+    }
+    if (Math.ceil(semester / 2) !== studyYear) {
+        const error = new Error("The selected semester does not belong to the selected study year.");
+        error.statusCode = 400;
+        throw error;
+    }
     subject.name = input.name;
     subject.code = input.code;
     subject.description = input.description || "";
     subject.branch = input.branch;
     await subject.save();
+    await TeacherAssignment.findOneAndUpdate(
+        {
+            teacher: teacherId,
+            subject: subject._id,
+            academicBatch,
+            studyYear,
+            semester
+        },
+        {
+            $set: { branch: subject.branch, isActive: true },
+            $setOnInsert: { assignedBy: teacherId }
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
     await subject.populate("branch", "name code isActive");
     await subject.populate("createdBy", "name teacherId institution");
     return serializeSubject(subject);

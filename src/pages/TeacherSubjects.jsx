@@ -64,7 +64,10 @@ function TeacherSubjects() {
         name: "",
         code: "",
         branchCode: "",
-        description: ""
+        description: "",
+        academicBatch: "",
+        studyYear: "",
+        semester: ""
     });
 
 
@@ -72,7 +75,8 @@ function TeacherSubjects() {
         setIsLoadingBranches(true);
         setBranchError("");
         try {
-            setBranches(await listBranches());
+            const branchList = await listBranches();
+            setBranches(branchList.filter((branch) => branch.canManage));
         } catch (error) {
             setBranchError(error.message);
         } finally {
@@ -129,7 +133,7 @@ function TeacherSubjects() {
     ========================== */
 
     const resetForm = () => {
-        setFormData({ name: "", code: "", branchCode: "", description: "" });
+        setFormData({ name: "", code: "", branchCode: "", description: "", academicBatch: "", studyYear: "", semester: "" });
         setEditingSubject(null);
         setFormError("");
         setValidationErrors([]);
@@ -146,7 +150,10 @@ function TeacherSubjects() {
             name: subject.name,
             code: subject.code,
             branchCode: subject.branchCode,
-            description: subject.description
+            description: subject.description,
+            academicBatch: subject.academicBatch || "",
+            studyYear: subject.studyYear ? String(subject.studyYear) : "",
+            semester: subject.semester ? String(subject.semester) : ""
         });
         setFormError("");
         setValidationErrors([]);
@@ -164,13 +171,28 @@ function TeacherSubjects() {
             setFormError("Select an active branch.");
             return;
         }
+        if (!/^\d{4}-\d{4}$/u.test(formData.academicBatch.trim())) {
+            setFormError("Academic batch must use the YYYY-YYYY format.");
+            return;
+        }
+        if (!formData.studyYear || !formData.semester) {
+            setFormError("Select the study year and semester.");
+            return;
+        }
+        if (Math.ceil(Number(formData.semester) / 2) !== Number(formData.studyYear)) {
+            setFormError("The selected semester does not belong to the selected study year.");
+            return;
+        }
 
         setIsSubmitting(true);
         const details = {
             name: formData.name.trim(),
             code: formData.code.trim().toUpperCase(),
             branch: branch.id,
-            description: formData.description.trim()
+            description: formData.description.trim(),
+            academicBatch: formData.academicBatch.trim(),
+            studyYear: Number(formData.studyYear),
+            semester: Number(formData.semester)
         };
         try {
             if (editingSubject) {
@@ -905,6 +927,43 @@ function TeacherSubjects() {
 
                                 </select>
 
+                            </div>
+
+
+                            {/* ACADEMIC COHORT */}
+
+                            <div className="teacher-form-group">
+                                <label className="teacher-label">Academic Batch</label>
+                                <input
+                                    type="text"
+                                    name="academicBatch"
+                                    value={formData.academicBatch}
+                                    onChange={handleChange}
+                                    placeholder="2025-2026"
+                                    pattern="\d{4}-\d{4}"
+                                    required
+                                />
+                            </div>
+
+                            <div className="teacher-form-group">
+                                <label className="teacher-label">Study Year</label>
+                                <select name="studyYear" value={formData.studyYear} onChange={handleChange} required>
+                                    <option value="">Select year</option>
+                                    <option value="1">Year 1</option>
+                                    <option value="2">Year 2</option>
+                                    <option value="3">Year 3</option>
+                                    <option value="4">Year 4</option>
+                                </select>
+                            </div>
+
+                            <div className="teacher-form-group">
+                                <label className="teacher-label">Semester</label>
+                                <select name="semester" value={formData.semester} onChange={handleChange} required>
+                                    <option value="">Select semester</option>
+                                    {[1, 2, 3, 4, 5, 6].map((semester) => (
+                                        <option key={semester} value={semester}>Semester {semester}</option>
+                                    ))}
+                                </select>
                             </div>
 
 

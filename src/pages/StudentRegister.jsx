@@ -155,7 +155,7 @@ function StudentRegister() {
           {isRegistered ? (
             <div className="registration-success" role="status">
               <h2>Registration submitted successfully.</h2>
-              <p>Your registration is waiting for the class incharge assigned to your selected branch and academic class to verify it. You can sign in after approval.</p>
+              <p>Your registration is waiting for approval from a teacher in your selected branch. You can sign in after approval.</p>
               {registeredStudent && (
                 <div className="registration-enrollment-notice">
                   <strong>Submitted academic details</strong>
@@ -219,7 +219,7 @@ function StudentRegister() {
                   onChange={handleChange}
                   placeholder="e.g. 2026-IT-041"
                 />
-                <small>Enter your official student ID. It is reviewed by the class incharge during approval.</small>
+                <small>Enter your official student ID. It is reviewed by a branch teacher during approval.</small>
               </div>
 
               <div className="form-group">
@@ -268,8 +268,8 @@ function StudentRegister() {
                   onChange={handleChange}
                   required
                 >
-                  {[1, 2, 3].map((year) => (
-                    <option key={year} value={String(year)}>{year}</option>
+                  {[1, 2, 3, 4].map((year) => (
+                    <option key={year} value={String(year)}>{["", "1st Year", "2nd Year", "3rd Year", "4th Year"][year]}</option>
                   ))}
                 </select>
               </div>
@@ -400,8 +400,8 @@ function StudentRegister() {
             </div>
 
             <div className="registration-enrollment-notice" role="note">
-              <strong>Class incharge approval required</strong>
-              <p>After registration, your assigned class incharge will review your account details and approve your login access before you can sign in.</p>
+              <strong>Branch teacher approval required</strong>
+              <p>After registration, a teacher from your selected branch will review your account details and approve your login access before you can sign in.</p>
             </div>
 
             <button

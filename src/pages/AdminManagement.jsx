@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useMatch, useNavigate } from "react-router-dom";
 import BrandLogoImage from "../components/BrandLogoImage";
 import LogoutButton from "../components/LogoutButton";
+import { useAuth } from "../context/useAuth";
 import { useToast } from "../context/useToast";
 import {
     createAdminBranch,
@@ -16,13 +17,15 @@ import {
 
 const sections = [
     { id: "branches", label: "Branch Creation & Management" },
-    { id: "branch-admins", label: "Branch Administrator Management" }
+    { id: "branch-admins", label: "Branch Administrator Management" },
+    { id: "account", label: "College Administrator Account" }
 ];
 
 const COLLEGE_NAME = "Government Polytechnic - 001";
 const COLLEGE_LOCATION = "Masab Tank, Hyderabad";
 
 function AdminManagement() {
+    const { user, updateProfile } = useAuth();
     const notify = useToast();
     const navigate = useNavigate();
     const branchRoute = useMatch("/admin/management/branches/:branchId");
@@ -43,8 +46,25 @@ function AdminManagement() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState("");
+    const [accountDraft, setAccountDraft] = useState({
+        name: "",
+        username: "",
+        email: "",
+        mobile: ""
+    });
+    const [isEditingAccount, setIsEditingAccount] = useState(false);
+    const [isSavingAccount, setIsSavingAccount] = useState(false);
     const selectedBranch = branches.find((branch) => branch.id === branchId);
     const selectedBranchPerformance = performance.find((branch) => branch.id === branchId);
+
+    useEffect(() => {
+        setAccountDraft({
+            name: user?.name || "",
+            username: user?.username || "",
+            email: user?.email || "",
+            mobile: user?.mobile || ""
+        });
+    }, [user]);
 
     const loadData = useCallback(async () => {
         setIsLoading(true);
@@ -83,6 +103,38 @@ function AdminManagement() {
         } finally {
             setIsSaving(false);
         }
+    };
+
+    const saveAdminAccount = async (event) => {
+        event.preventDefault();
+        setIsSavingAccount(true);
+        setError("");
+        try {
+            await updateProfile({
+                name: accountDraft.name.trim(),
+                username: accountDraft.username.trim(),
+                email: accountDraft.email.trim(),
+                mobile: accountDraft.mobile.trim()
+            });
+            setIsEditingAccount(false);
+            notify("College Administrator account updated successfully.", "success");
+        } catch (requestError) {
+            const validationMessages = requestError.errors?.map((item) => item.message) || [];
+            setError([requestError.message, ...validationMessages].join(" "));
+        } finally {
+            setIsSavingAccount(false);
+        }
+    };
+
+    const cancelAdminAccountEdit = () => {
+        setAccountDraft({
+            name: user?.name || "",
+            username: user?.username || "",
+            email: user?.email || "",
+            mobile: user?.mobile || ""
+        });
+        setIsEditingAccount(false);
+        setError("");
     };
 
     const handleBranchSubmit = (event) => {
@@ -408,6 +460,95 @@ function AdminManagement() {
                                     ))}
                                 </div>
                             )}
+                        </section>
+                    )}
+
+                    {activeSection === "account" && (
+                        <section className="teacher-panel admin-section">
+                            <div className="teacher-panel-heading">
+                                <div>
+                                    <h2>College Administrator Account</h2>
+                                    <p>View and update the profile saved to your administrator account.</p>
+                                </div>
+                                {!isEditingAccount && (
+                                    <button
+                                        type="button"
+                                        className="teacher-primary-button"
+                                        onClick={() => setIsEditingAccount(true)}
+                                    >
+                                        Edit Account
+                                    </button>
+                                )}
+                            </div>
+
+                            <div className="branch-detail-summary">
+                                <div><small>Role</small><strong>College Administrator</strong></div>
+                                <div><small>College</small><strong>{user?.institution || COLLEGE_NAME}</strong></div>
+                                {user?.administratorId && (
+                                    <div><small>Administrator ID</small><strong>{user.administratorId}</strong></div>
+                                )}
+                                <div><small>Account status</small><strong>{user?.accountStatus || "Active"}</strong></div>
+                            </div>
+
+                            <form className="admin-assignment-form" onSubmit={saveAdminAccount}>
+                                <div className="form-group">
+                                    <label htmlFor="college-admin-name">Full Name</label>
+                                    <input
+                                        id="college-admin-name"
+                                        value={accountDraft.name}
+                                        onChange={(event) => setAccountDraft((current) => ({ ...current, name: event.target.value }))}
+                                        disabled={!isEditingAccount || isSavingAccount}
+                                        required
+                                        maxLength={100}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label htmlFor="college-admin-username">Username</label>
+                                    <input
+                                        id="college-admin-username"
+                                        value={accountDraft.username}
+                                        onChange={(event) => setAccountDraft((current) => ({ ...current, username: event.target.value }))}
+                                        disabled={!isEditingAccount || isSavingAccount}
+                                        required
+                                        minLength={3}
+                                        maxLength={32}
+                                        pattern="[A-Za-z0-9._\-]+"
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label htmlFor="college-admin-email">Email</label>
+                                    <input
+                                        id="college-admin-email"
+                                        type="email"
+                                        value={accountDraft.email}
+                                        onChange={(event) => setAccountDraft((current) => ({ ...current, email: event.target.value }))}
+                                        disabled={!isEditingAccount || isSavingAccount}
+                                        required
+                                        maxLength={254}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label htmlFor="college-admin-mobile">Mobile</label>
+                                    <input
+                                        id="college-admin-mobile"
+                                        type="tel"
+                                        value={accountDraft.mobile}
+                                        onChange={(event) => setAccountDraft((current) => ({ ...current, mobile: event.target.value }))}
+                                        disabled={!isEditingAccount || isSavingAccount}
+                                        maxLength={30}
+                                    />
+                                </div>
+                                {isEditingAccount && (
+                                    <div className="modal-actions">
+                                        <button type="button" onClick={cancelAdminAccountEdit} disabled={isSavingAccount}>
+                                            Cancel
+                                        </button>
+                                        <button type="submit" className="teacher-primary-button" disabled={isSavingAccount}>
+                                            {isSavingAccount ? "Saving..." : "Save Changes"}
+                                        </button>
+                                    </div>
+                                )}
+                            </form>
                         </section>
                     )}
 

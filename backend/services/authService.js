@@ -36,6 +36,14 @@ export function serializeUser(user) {
         year: user.year,
         academicBatch: user.academicBatch,
         studyYear: user.studyYear,
+        currentAcademicYear: user.currentAcademicYear || user.studyYear,
+        academicAdmissionYear: user.academicAdmissionYear,
+        academicCompletionYear: user.academicCompletionYear,
+        academicSession: user.academicSession,
+        academicStatus: user.academicStatus,
+        academicYearUpdatedAt: user.academicYearUpdatedAt,
+        sectorId: user.sectorId?.toString?.() || user.sectorId || "",
+        collegeId: user.collegeId,
         semester: user.semester,
         teacherId: user.teacherId,
         administratorId: user.administratorId,
@@ -177,14 +185,20 @@ export async function registerUser(role, input) {
         const academicBatch = String(input.academicBatch || enrollment?.academicBatch || "").trim();
         const studyYear = Number(input.studyYear ?? enrollment?.studyYear ?? 1);
         const semester = Number(input.semester ?? enrollment?.semester ?? 1);
+        const academicAdmissionYear = Number(
+            input.academicAdmissionYear || academicBatch.split("-")[0] || new Date().getFullYear()
+        );
+        const academicCompletionYear = studyYear === 4
+            ? academicAdmissionYear + 3
+            : Number(input.academicCompletionYear || academicBatch.split("-")[1] || 0) || null;
         if (!academicBatch || !/^(\d{4})-(\d{4})$/u.test(academicBatch)) {
             const error = new Error("Enter a valid academic batch such as 2026-2029.");
             error.statusCode = 400;
             error.field = "academicBatch";
             throw error;
         }
-        if (!Number.isInteger(studyYear) || studyYear < 1 || studyYear > 3) {
-            const error = new Error("Course year must be between 1 and 3.");
+        if (!Number.isInteger(studyYear) || studyYear < 1 || studyYear > 4) {
+            const error = new Error("Course year must be between 1 and 4.");
             error.statusCode = 400;
             error.field = "studyYear";
             throw error;
@@ -211,6 +225,14 @@ export async function registerUser(role, input) {
             year: `${studyYear}-${semester - ((studyYear - 1) * 2)}`,
             academicBatch,
             studyYear,
+            currentAcademicYear: studyYear,
+            academicAdmissionYear,
+            academicCompletionYear,
+            academicSession: String(input.academicSession || academicBatch).trim(),
+            academicStatus: studyYear === 4 ? "ACTIVE" : "ACTIVE",
+            academicYearUpdatedAt: new Date(),
+            sectorId: branch.sector || null,
+            collegeId: institutionKey,
             semester
         });
         if (enrollment) {
@@ -291,8 +313,8 @@ export async function authenticateUser(role, identifier, password) {
 
     if (role === "student") {
         const statusMessages = {
-            pending: "Your registration is waiting for class incharge approval.",
-            rejected: "Your registration has been rejected. Contact your class incharge.",
+            pending: "Your registration is waiting for branch teacher approval.",
+            rejected: "Your registration has been rejected. Contact a teacher from your branch.",
             suspended: "Your account is currently suspended.",
             inactive: "Your account is inactive. Contact your institution."
         };

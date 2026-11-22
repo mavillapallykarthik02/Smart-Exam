@@ -4,7 +4,9 @@ import {
     getBranch,
     getBranches,
     getSubjectsForBranch,
+    getBranchRequests,
     patchBranchStatus,
+    postBranchRequest,
     postBranch,
     putBranch
 } from "../controllers/branchController.js";
@@ -45,6 +47,18 @@ router.get(
 
 router.use(authenticate);
 router.get("/", asyncHandler(getBranches));
+router.get(
+    "/requests",
+    allowRoles("teacher"),
+    asyncHandler(getBranchRequests)
+);
+router.post(
+    "/:id/request",
+    allowRoles("teacher"),
+    validateBranchId,
+    validateRequest,
+    asyncHandler(postBranchRequest)
+);
 router.post(
     "/",
     allowRoles("teacher"),

@@ -3,7 +3,7 @@ import { ToastContext } from "./toast-context";
 
 function ToastItem({ toast, onDismiss }) {
     useEffect(() => {
-        const timer = window.setTimeout(() => onDismiss(toast.id), 2750);
+        const timer = window.setTimeout(() => onDismiss(toast.id), 3000);
         return () => window.clearTimeout(timer);
     }, [onDismiss, toast.id]);
 

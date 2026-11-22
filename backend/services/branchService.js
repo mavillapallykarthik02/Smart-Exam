@@ -5,6 +5,7 @@ import { User } from "../models/User.js";
 import { normalizeInstitution } from "../utils/institution.js";
 import { INSTITUTION_KEY } from "../config/institution.js";
 import { Sector } from "../models/Sector.js";
+import { TeacherBranchRequest } from "../models/TeacherBranchRequest.js";
 
 const COLLEGE_NAME = "Government Polytechnic - 001";
 const COLLEGE_LOCATION = "Masab Tank, Hyderabad";
@@ -43,6 +44,7 @@ export async function listBranches(user) {
     };
     if (user.role === "student") {
         filter.isActive = true;
+        filter.isArchived = { $ne: true };
     } else if (user.role !== "admin") {
         filter.$or = [
             { isActive: true },
@@ -52,7 +54,103 @@ export async function listBranches(user) {
     const branches = await Branch.find(filter)
         .populate("sector", "name")
         .sort({ name: 1 });
-    return branches.map((branch) => serializeBranch(branch, user));
+    const serialized = branches.map((branch) => serializeBranch(branch, user));
+    if (user.role === "teacher") {
+        const requests = await TeacherBranchRequest.find({
+            teacher: user.id
+        }).lean();
+        const requestByBranch = new Map(
+            requests.map((request) => [request.branch.toString(), request])
+        );
+        return serialized.map((branch) => {
+            const request = requestByBranch.get(branch.id);
+            return {
+                ...branch,
+                requestStatus: request?.status || "",
+                requestId: request?.id?.toString() || "",
+                requestReason: request?.reason || "",
+                canManage: request?.status === "APPROVED"
+            };
+        });
+    }
+    return serialized;
+}
+
+export async function requestBranchAccess(branchId, teacherId) {
+    if (!mongoose.isValidObjectId(branchId)) {
+        const error = new Error("Branch ID is invalid.");
+        error.statusCode = 400;
+        throw error;
+    }
+    const branch = await Branch.findOne({
+        _id: branchId,
+        institutionKey: INSTITUTION_KEY,
+        isActive: true,
+        isArchived: { $ne: true }
+    });
+    if (!branch) throw notFound("Active branch not found.");
+    if (!branch.branchAdministrator || !await User.exists({
+        _id: branch.branchAdministrator,
+        role: "branch_admin",
+        accountStatus: "active",
+        verificationStatus: "APPROVED"
+    })) {
+        const error = new Error("This branch does not have an active Branch Administrator to review requests.");
+        error.statusCode = 409;
+        throw error;
+    }
+
+    const existingRequest = await TeacherBranchRequest.findOne({
+        teacher: teacherId,
+        branch: branchId
+    }).select("status");
+    if (existingRequest && ["PENDING", "APPROVED"].includes(existingRequest.status)) {
+        const error = new Error(existingRequest.status === "PENDING"
+            ? "Your request is already awaiting this branch administrator's review."
+            : "You already have approved access to this branch.");
+        error.statusCode = 409;
+        throw error;
+    }
+
+    const request = await TeacherBranchRequest.findOneAndUpdate(
+        { teacher: teacherId, branch: branchId },
+        {
+            $set: {
+                status: "PENDING",
+                reason: "",
+                reviewedBy: null,
+                reviewedAt: null
+            }
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+    return {
+        id: request.id,
+        status: request.status,
+        branch: { id: branch.id, name: branch.name, code: branch.code },
+        createdAt: request.createdAt,
+        updatedAt: request.updatedAt
+    };
+}
+
+export async function listTeacherBranchRequests(teacherId) {
+    const requests = await TeacherBranchRequest.find({ teacher: teacherId })
+        .populate("branch", "name code isActive isArchived")
+        .sort({ updatedAt: -1 });
+    return requests.map((request) => ({
+        id: request.id,
+        status: request.status,
+        reason: request.reason,
+        reviewedAt: request.reviewedAt,
+        branch: request.branch ? {
+            id: request.branch.id,
+            name: request.branch.name,
+            code: request.branch.code,
+            isActive: request.branch.isActive
+        } : null,
+        createdAt: request.createdAt,
+        updatedAt: request.updatedAt
+    }));
 }
 
 export async function getBranchById(id, user) {
@@ -62,6 +160,7 @@ export async function getBranchById(id, user) {
     };
     if (user.role === "student") {
         filter.isActive = true;
+        filter.isArchived = { $ne: true };
     } else if (user.role !== "admin") {
         filter.$or = [
             { isActive: true },
@@ -194,6 +293,7 @@ export async function listBranchSubjects(branchId, user) {
         ...(user.role === "student"
             ? {
                 isActive: true,
+                isArchived: { $ne: true },
                 _id: user.branch?._id || user.branch
             }
             : {})

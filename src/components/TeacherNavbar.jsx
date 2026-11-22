@@ -6,7 +6,6 @@ import BrandLogoImage from "./BrandLogoImage";
 function TeacherNavbar({ active }) {
     const { user } = useAuth();
     const staffRoleLabels = {
-        class_teacher: "Class Teacher",
         hod: "HOD",
         principal: "Principal",
         guest_lecturer: "Guest Lecturer"
@@ -15,6 +14,7 @@ function TeacherNavbar({ active }) {
         ["Dashboard", "/teacher/dashboard"],
         ["Students", "/teacher/students"],
         ["Approvals", "/teacher/student-approvals"],
+        ["Branches", "/teacher/branches"],
         ["Subjects", "/teacher/subjects"],
         ["Tests", "/teacher/tests"],
         ["Results", "/teacher/results"],

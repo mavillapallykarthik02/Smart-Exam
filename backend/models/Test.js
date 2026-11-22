@@ -38,7 +38,7 @@ const testSchema = new mongoose.Schema(
             type: Number,
             required: true,
             min: 1,
-            max: 3
+            max: 4
         },
         semester: {
             type: Number,

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import PaginationControls from "../components/PaginationControls";
 import TeacherNavbar from "../components/TeacherNavbar";
-import { listTeacherAssignments } from "../services/teacherAssignmentService";
+import { listBranches } from "../services/branchService";
 import { listTeacherStudents } from "../services/teacherService";
 
 function TeacherStudents() {
@@ -11,6 +11,7 @@ function TeacherStudents() {
     const [summary, setSummary] = useState(null);
     const [search, setSearch] = useState("");
     const [branch, setBranch] = useState("");
+    const [studyYear, setStudyYear] = useState("");
     const [status, setStatus] = useState("");
     const [page, setPage] = useState(1);
     const [isLoading, setIsLoading] = useState(true);
@@ -20,13 +21,8 @@ function TeacherStudents() {
     const loadBranches = useCallback(async () => {
         setBranchError("");
         try {
-            const assignments = await listTeacherAssignments();
-            const branchesById = new Map(
-                assignments
-                    .filter((assignment) => assignment.isActive)
-                    .map((assignment) => [assignment.branch.id, assignment.branch])
-            );
-            setBranches([...branchesById.values()]);
+            const availableBranches = await listBranches();
+            setBranches(availableBranches.filter((item) => item.canManage));
         } catch (requestError) {
             setBranchError(requestError.message);
         }
@@ -41,6 +37,7 @@ function TeacherStudents() {
                 limit: 10,
                 search,
                 branch,
+                studyYear,
                 status
             });
             setStudents(studentPage.students);
@@ -51,7 +48,7 @@ function TeacherStudents() {
         } finally {
             setIsLoading(false);
         }
-    }, [page, search, branch, status]);
+    }, [page, search, branch, studyYear, status]);
 
     useEffect(() => {
         Promise.resolve().then(loadStudents);
@@ -74,7 +71,7 @@ function TeacherStudents() {
                     <div>
                         <span className="page-badge">STUDENT MANAGEMENT</span>
                         <h1>Students</h1>
-                        <p>Students enrolled in your assigned classes, with their completed exam performance.</p>
+                        <p>Students in your assigned classes and Branch Administrator-approved branches, with their exam performance.</p>
                     </div>
                 </div>
 
@@ -112,10 +109,18 @@ function TeacherStudents() {
                     </div>
                     <select className="management-filter" value={branch}
                         onChange={changeFilter(setBranch)} aria-label="Filter by branch">
-                        <option value="">All assigned branches</option>
+                        <option value="">All approved branches</option>
                         {branches.map((item) => <option key={item.id} value={item.id}>
                             {item.name} ({item.code})
                         </option>)}
+                    </select>
+                    <select className="management-filter" value={studyYear}
+                        onChange={changeFilter(setStudyYear)} aria-label="Filter by academic year">
+                        <option value="">All academic years</option>
+                        <option value="1">1st Year</option>
+                        <option value="2">2nd Year</option>
+                        <option value="3">3rd Year</option>
+                        <option value="4">4th Year</option>
                     </select>
                     <select className="management-filter" value={status}
                         onChange={changeFilter(setStatus)} aria-label="Filter by account status">

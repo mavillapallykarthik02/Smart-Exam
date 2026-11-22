@@ -15,6 +15,7 @@ export async function getStudents(request, response) {
         limit: Number(request.query.limit || 10),
         search: request.query.search || "",
         branch: request.query.branch || "",
+        studyYear: request.query.studyYear || "",
         status: request.query.status || ""
     });
     return sendSuccess(response, result);

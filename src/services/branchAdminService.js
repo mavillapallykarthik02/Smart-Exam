@@ -33,3 +33,20 @@ export async function listBranchAdminStudentPerformance() {
     const { students } = await apiRequest("/branch-admin/performance");
     return students;
 }
+
+export async function listBranchAdminBranchRequests() {
+    const { requests } = await apiRequest("/branch-admin/branch-requests");
+    return requests;
+}
+
+export async function reviewBranchAdminBranchRequest(id, status, reason = "") {
+    const { request } = await apiRequest(
+        `/branch-admin/branch-requests/${encodeURIComponent(id)}/status`,
+        {
+            method: "PATCH",
+            body: { status, reason },
+            toast: false
+        }
+    );
+    return request;
+}

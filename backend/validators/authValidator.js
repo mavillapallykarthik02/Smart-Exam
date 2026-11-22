@@ -61,8 +61,8 @@ export const validateStudentRegistration = [
         .withMessage("Enter a valid academic batch such as 2026-2029."),
     body("studyYear")
         .optional({ values: "falsy" })
-        .isInt({ min: 1, max: 3 })
-        .withMessage("Course year must be between 1 and 3."),
+        .isInt({ min: 1, max: 4 })
+        .withMessage("Course year must be between 1 and 4."),
     body("semester")
         .optional({ values: "falsy" })
         .isInt({ min: 1, max: 6 })

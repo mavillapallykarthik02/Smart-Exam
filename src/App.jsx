@@ -7,6 +7,7 @@ import {
 import { AuthProvider } from "./context/AuthContext";
 import { ToastProvider } from "./context/ToastContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import AutoDismissMessages from "./components/AutoDismissMessages";
 
 
 // =====================================================
@@ -46,6 +47,7 @@ import TeacherDashboard from "./pages/TeacherDashboard";
 import TeacherStudents from "./pages/TeacherStudents";
 import TeacherStudentApprovals from "./pages/TeacherStudentApprovals";
 import TeacherSubjects from "./pages/TeacherSubjects";
+import TeacherBranches from "./pages/TeacherBranches";
 import TeacherTests from "./pages/TeacherTests";
 import TeacherTestQuestions from "./pages/TeacherTestQuestions";
 import TeacherResults from "./pages/TeacherResults";
@@ -76,6 +78,7 @@ function App() {
 
         <AuthProvider>
           <ToastProvider>
+          <AutoDismissMessages />
           <BrowserRouter>
 
             <Routes>
@@ -167,6 +170,10 @@ function App() {
                 <Route
                     path="/teacher/subjects"
                     element={<ProtectedRoute role="teacher"><TeacherSubjects /></ProtectedRoute>}
+                />
+                <Route
+                    path="/teacher/branches"
+                    element={<ProtectedRoute role="teacher"><TeacherBranches /></ProtectedRoute>}
                 />
 
 

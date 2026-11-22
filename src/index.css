@@ -928,6 +928,10 @@ a {
   font-size: 12px;
 }
 
+.message-auto-dismissed {
+  display: none !important;
+}
+
 
 /* =========================================================
    REGISTRATION PAGE

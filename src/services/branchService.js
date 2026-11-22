@@ -23,6 +23,18 @@ export async function listStudentBranches() {
     return branches.map(toBranchView);
 }
 
+export async function requestBranchAccess(id) {
+    const { request } = await apiRequest(`/branches/${encodeURIComponent(id)}/request`, {
+        method: "POST"
+    });
+    return request;
+}
+
+export async function listBranchRequests() {
+    const { requests } = await apiRequest("/branches/requests");
+    return requests;
+}
+
 export async function createBranch(details) {
     const { branch } = await apiRequest("/branches", {
         method: "POST",

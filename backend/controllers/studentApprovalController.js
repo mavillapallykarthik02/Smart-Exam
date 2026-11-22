@@ -9,6 +9,7 @@ export async function getClassTeacherStudents(request, response) {
         page: Number(request.query.page || 1),
         limit: Number(request.query.limit || 10),
         search: request.query.search || "",
+        branch: request.query.branch || "",
         status: request.query.status || ""
     });
     return sendSuccess(response, result);

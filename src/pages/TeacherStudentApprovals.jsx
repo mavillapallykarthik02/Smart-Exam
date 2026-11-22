@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import PaginationControls from "../components/PaginationControls";
 import TeacherNavbar from "../components/TeacherNavbar";
+import { listBranches } from "../services/branchService";
 import {
     listStudentApprovals,
     updateStudentApproval
@@ -10,10 +11,12 @@ const statuses = ["pending", "approved", "rejected", "suspended"];
 
 function TeacherStudentApprovals() {
     const [students, setStudents] = useState([]);
+    const [branches, setBranches] = useState([]);
     const [summary, setSummary] = useState(null);
     const [pagination, setPagination] = useState(null);
     const [status, setStatus] = useState("pending");
     const [search, setSearch] = useState("");
+    const [branch, setBranch] = useState("");
     const [page, setPage] = useState(1);
     const [isLoading, setIsLoading] = useState(true);
     const [actioningStudent, setActioningStudent] = useState("");
@@ -28,7 +31,8 @@ function TeacherStudentApprovals() {
                 page,
                 limit: 10,
                 status,
-                search
+                search,
+                branch
             });
             setStudents(result.students);
             setSummary(result.summary);
@@ -38,11 +42,26 @@ function TeacherStudentApprovals() {
         } finally {
             setIsLoading(false);
         }
-    }, [page, search, status]);
+    }, [page, search, status, branch]);
 
     useEffect(() => {
         Promise.resolve().then(loadApprovals);
     }, [loadApprovals]);
+
+    useEffect(() => {
+        let isMounted = true;
+        Promise.resolve()
+            .then(listBranches)
+            .then((branchList) => {
+                if (isMounted) setBranches(branchList.filter((item) => item.canManage));
+            })
+            .catch((requestError) => {
+                if (isMounted) setError(requestError.message);
+            });
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     const changeStatus = (nextStatus) => {
         setStatus(nextStatus);
@@ -97,7 +116,7 @@ function TeacherStudentApprovals() {
                     <div>
                         <span className="page-badge">BRANCH APPROVALS</span>
                         <h1>Student approvals</h1>
-                        <p>Review and manage student registration requests for your assigned branch. Approved branch teachers can approve the same requests.</p>
+                        <p>Review student registration requests in branches assigned to you or approved by their Branch Administrators.</p>
                     </div>
                 </div>
 
@@ -135,6 +154,22 @@ function TeacherStudentApprovals() {
                             aria-label="Search by student name or PIN"
                         />
                     </div>
+                    <select
+                        className="management-filter"
+                        value={branch}
+                        onChange={(event) => {
+                            setBranch(event.target.value);
+                            setPage(1);
+                        }}
+                        aria-label="Filter by approved branch"
+                    >
+                        <option value="">All approved branches</option>
+                        {branches.map((item) => (
+                            <option key={item.id} value={item.id}>
+                                {item.name} ({item.code})
+                            </option>
+                        ))}
+                    </select>
                     <select
                         className="management-filter"
                         value={status}

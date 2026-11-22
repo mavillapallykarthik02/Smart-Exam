@@ -31,7 +31,7 @@ const teacherAssignmentSchema = new mongoose.Schema(
             type: Number,
             required: true,
             min: 1,
-            max: 3,
+            max: 4,
             immutable: true
         },
         semester: {

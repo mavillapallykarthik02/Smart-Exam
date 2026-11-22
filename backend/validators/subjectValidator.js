@@ -27,7 +27,17 @@ const validateSubjectFields = [
         .bail()
         .trim()
         .isLength({ max: 1000 })
-        .withMessage("Description must be 1000 characters or fewer.")
+        .withMessage("Description must be 1000 characters or fewer."),
+    body("academicBatch")
+        .trim()
+        .matches(/^\d{4}-\d{4}$/)
+        .withMessage("Academic batch must use the YYYY-YYYY format."),
+    body("studyYear")
+        .isInt({ min: 1, max: 4 })
+        .withMessage("Year of study must be from 1 to 4."),
+    body("semester")
+        .isInt({ min: 1, max: 6 })
+        .withMessage("Semester must be from 1 to 6.")
 ];
 
 export const validateSubjectCreate = validateSubjectFields;

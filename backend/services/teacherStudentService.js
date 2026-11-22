@@ -4,6 +4,7 @@ import { Branch } from "../models/Branch.js";
 import { ClassTeacherAssignment } from "../models/ClassTeacherAssignment.js";
 import { Result } from "../models/Result.js";
 import { TeacherAssignment } from "../models/TeacherAssignment.js";
+import { TeacherBranchRequest } from "../models/TeacherBranchRequest.js";
 import { User } from "../models/User.js";
 import { createLookupHash, createNameSearchTokens } from "../utils/fieldEncryption.js";
 
@@ -12,18 +13,27 @@ function escapeRegex(value) {
 }
 
 export async function listTeacherStudents(teacherId, filters) {
-    const [subjectAssignments, classAssignments] = await Promise.all([
+    const teacherObjectId = new mongoose.Types.ObjectId(teacherId);
+    const [subjectAssignments, classAssignments, approvedBranchRequests] = await Promise.all([
         TeacherAssignment.find({
-            teacher: new mongoose.Types.ObjectId(teacherId),
+            teacher: teacherObjectId,
             isActive: true
         }).select("branch academicBatch studyYear semester").lean(),
         ClassTeacherAssignment.find({
-            teacher: new mongoose.Types.ObjectId(teacherId),
+            teacher: teacherObjectId,
             isActive: true
-        }).select("branch academicBatch studyYear semester").lean()
+        }).select("branch academicBatch studyYear semester").lean(),
+        TeacherBranchRequest.find({
+            teacher: teacherObjectId,
+            status: "APPROVED"
+        }).select("branch").lean()
     ]);
     const assignments = [...subjectAssignments, ...classAssignments];
-    const branchIds = [...new Set(assignments.map((assignment) => assignment.branch.toString()))]
+    const approvedBranchIds = approvedBranchRequests.map((request) => request.branch);
+    const branchIds = [...new Set([
+        ...assignments.map((assignment) => assignment.branch.toString()),
+        ...approvedBranchIds.map((branchId) => branchId.toString())
+    ])]
         .map((id) => new mongoose.Types.ObjectId(id));
     const uniqueClassFilters = [];
     const classFilterKeys = new Set();
@@ -41,7 +51,10 @@ export async function listTeacherStudents(teacherId, filters) {
             studyYear: assignment.studyYear
         });
     }
-    const classFilters = uniqueClassFilters;
+    const classFilters = [
+        ...uniqueClassFilters,
+        ...approvedBranchIds.map((branch) => ({ branch }))
+    ];
     const filter = {
         role: "student",
         accountStatus: filters.status ? filters.status : { $in: ["active", "approved"] },
@@ -54,6 +67,11 @@ export async function listTeacherStudents(teacherId, filters) {
                 : [{ branch: { $in: [] } }]
         }]
     };
+    if (filters.studyYear) {
+        const studyYear = Number(filters.studyYear);
+        filter.studyYear = studyYear;
+        filter.$and.push({ $or: [{ studyYear }, { currentAcademicYear: studyYear }] });
+    }
     if (filters.search) {
         const pattern = new RegExp(escapeRegex(filters.search), "i");
         const lookupHash = createLookupHash(filters.search);

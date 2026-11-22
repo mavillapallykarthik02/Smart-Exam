@@ -58,7 +58,7 @@ export async function getClassIncharges(_request, response) {
 
 export async function putClassIncharge(request, response) {
     const assignment = await assignClassTeacher(request.body, request.user.id);
-    return sendSuccess(response, { assignment }, "Class incharge assigned successfully.");
+    return sendSuccess(response, { assignment }, "Branch teacher assignment created successfully.");
 }
 
 export async function patchClassInchargeStatus(request, response) {
@@ -67,7 +67,7 @@ export async function patchClassInchargeStatus(request, response) {
             request.params.id,
             request.body.isActive
         )
-    }, "Class incharge assignment status updated.");
+    }, "Branch teacher assignment status updated.");
 }
 
 export async function getTeachers(_request, response) {

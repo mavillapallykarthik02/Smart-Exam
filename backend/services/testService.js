@@ -6,6 +6,7 @@ import { Test } from "../models/Test.js";
 import { TeacherAssignment } from "../models/TeacherAssignment.js";
 import { User } from "../models/User.js";
 import { INSTITUTION_KEY } from "../config/institution.js";
+import { TeacherBranchRequest } from "../models/TeacherBranchRequest.js";
 
 function notFound(message = "Test not found.") {
     const error = new Error(message);
@@ -103,25 +104,35 @@ async function activeAssignment(branchId, subjectId, teacherId, cohort) {
         error.statusCode = 400;
         throw error;
     }
+    if (teacherId && !await TeacherBranchRequest.exists({
+        teacher: teacherId,
+        branch: branchId,
+        status: "APPROVED"
+    })) {
+        const error = new Error("You need approval from this branch administrator before creating tests.");
+        error.statusCode = 403;
+        throw error;
+    }
     if (Math.ceil(Number(cohort.semester) / 2) !== Number(cohort.studyYear)) {
         const error = new Error("The selected semester does not belong to the selected study year.");
         error.statusCode = 400;
         throw error;
     }
-    const assigned = await TeacherAssignment.exists({
-        teacher: teacherId,
-        branch: branchId,
-        subject: subjectId,
-        academicBatch: cohort.academicBatch,
-        studyYear: Number(cohort.studyYear),
-        semester: Number(cohort.semester),
-        isActive: true
-    });
-    if (!assigned) {
-        const error = new Error("You are not assigned to teach this subject for the selected class.");
-        error.statusCode = 403;
-        throw error;
-    }
+    await TeacherAssignment.findOneAndUpdate(
+        {
+            teacher: teacherId,
+            branch: branchId,
+            subject: subjectId,
+            academicBatch: cohort.academicBatch,
+            studyYear: Number(cohort.studyYear),
+            semester: Number(cohort.semester)
+        },
+        {
+            $set: { isActive: true },
+            $setOnInsert: { assignedBy: teacherId }
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
     return { branch, subject, teacher };
 }
 

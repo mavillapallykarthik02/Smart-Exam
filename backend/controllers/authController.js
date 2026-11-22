@@ -32,7 +32,7 @@ function clearSessionCookie(response) {
 export async function register(request, response, role) {
     const user = await registerUser(role, request.body);
     const message = role === "student"
-        ? "Registration submitted successfully. Waiting for class incharge approval."
+        ? "Registration submitted successfully. Waiting for branch teacher approval."
         : role === "branch_admin"
             ? "Branch Administrator Registration Submitted Successfully!"
         : "Registration submitted successfully. Waiting for administrator verification.";
@@ -81,7 +81,8 @@ export async function resetPassword(request, response) {
 }
 
 export function getCurrentUser(request, response) {
-    return sendSuccess(response, { user: serializeUser(request.user) });
+    const user = request.user ? serializeUser(request.user) : null;
+    return sendSuccess(response, { user });
 }
 
 export async function updateCurrentUser(request, response) {

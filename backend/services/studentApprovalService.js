@@ -1,6 +1,8 @@
 import mongoose from "mongoose";
 import { Branch } from "../models/Branch.js";
+import { ClassTeacherAssignment } from "../models/ClassTeacherAssignment.js";
 import { TeacherAssignment } from "../models/TeacherAssignment.js";
+import { TeacherBranchRequest } from "../models/TeacherBranchRequest.js";
 import { User } from "../models/User.js";
 import { INSTITUTION_KEY } from "../config/institution.js";
 import { createLookupHash, createNameSearchTokens } from "../utils/fieldEncryption.js";
@@ -13,7 +15,7 @@ function resourceError(statusCode, message) {
     return error;
 }
 
-async function getTeacherApprovalBranch(teacherId) {
+async function getTeacherApprovalBranches(teacherId) {
     const teacher = await User.findOne({
         _id: teacherId,
         role: "teacher",
@@ -26,31 +28,51 @@ async function getTeacherApprovalBranch(teacherId) {
     if (!teacher) {
         throw resourceError(403, "Only an active approved teacher can manage student approvals.");
     }
-    let branch = teacher.branchName
-        ? await Branch.findOne({
+    const [branchByName, subjectAssignments, classAssignments, branchRequests] = await Promise.all([
+        teacher.branchName
+            ? Branch.findOne({
             name: teacher.branchName,
             institutionKey: INSTITUTION_KEY,
             isArchived: { $ne: true }
-        }).select("_id name code")
-        : null;
-    if (!branch) {
-        const assignment = await TeacherAssignment.findOne({
+            }).select("_id name code")
+            : null,
+        TeacherAssignment.find({
             teacher: teacher.id,
             isActive: true
-        }).populate("branch", "_id name code").select("branch").lean();
-        branch = assignment?.branch || null;
-    }
-    if (!branch) {
+        }).select("branch").lean(),
+        ClassTeacherAssignment.find({
+            teacher: teacher.id,
+            isActive: true
+        }).select("branch").lean(),
+        TeacherBranchRequest.find({
+            teacher: teacher.id,
+            status: "APPROVED"
+        }).select("branch").lean()
+    ]);
+    const branchIds = new Set([
+        ...(branchByName ? [branchByName.id] : []),
+        ...subjectAssignments.map((assignment) => assignment.branch.toString()),
+        ...classAssignments.map((assignment) => assignment.branch.toString()),
+        ...branchRequests.map((request) => request.branch.toString())
+    ]);
+    const branches = branchIds.size
+        ? await Branch.find({
+            _id: { $in: [...branchIds] },
+            institutionKey: INSTITUTION_KEY,
+            isArchived: { $ne: true }
+        }).select("_id name code")
+        : [];
+    if (!branches.length) {
         throw resourceError(403, "No branch is assigned to this teacher.");
     }
-    return branch;
+    return branches;
 }
 
-function getStudentBranchFilter(branch) {
+function getStudentBranchFilter(branches) {
     return {
         role: "student",
         institutionKey: INSTITUTION_KEY,
-        branch: branch._id
+        branch: { $in: branches.map((branch) => branch._id) }
     };
 }
 
@@ -78,8 +100,13 @@ function serializeStudent(student) {
 }
 
 export async function listClassTeacherStudents(teacherId, filters) {
-    const branch = await getTeacherApprovalBranch(teacherId);
-    const classFilter = getStudentBranchFilter(branch);
+    const branches = await getTeacherApprovalBranches(teacherId);
+    const allowedBranchIds = branches.map((branch) => branch._id);
+    if (filters.branch && !allowedBranchIds.some((id) => id.toString() === filters.branch)) {
+        throw resourceError(403, "You are not approved to manage students in this branch.");
+    }
+    const classFilter = getStudentBranchFilter(branches);
+    if (filters.branch) classFilter.branch = filters.branch;
     const filter = { ...classFilter };
     if (filters.status) filter.accountStatus = filters.status;
     if (filters.search) {
@@ -133,13 +160,13 @@ export async function updateStudentApprovalStatus(
     action,
     reason = ""
 ) {
-    const branch = await getTeacherApprovalBranch(teacherId);
+    const branches = await getTeacherApprovalBranches(teacherId);
     if (!mongoose.isValidObjectId(studentId)) {
         throw resourceError(404, "Student not found.");
     }
     const student = await User.findOne({
         _id: studentId,
-        ...getStudentBranchFilter(branch)
+        ...getStudentBranchFilter(branches)
     }).select("_id branch academicBatch studyYear semester accountStatus");
     if (!student) throw resourceError(404, "Student not found in your assigned classes.");
 

@@ -5,14 +5,17 @@ import LogoutButton from "../components/LogoutButton";
 import BrandLogoImage from "../components/BrandLogoImage";
 import {
     getBranchAdminTeacherDetails,
+    listBranchAdminBranchRequests,
     listBranchAdminStudentPerformance,
     listBranchAdminStudents,
     listBranchAdminTeachers,
-    reviewBranchAdminTeacher
+    reviewBranchAdminTeacher,
+    reviewBranchAdminBranchRequest
 } from "../services/branchAdminService";
 
 const sections = [
     { id: "teachers", label: "Teacher Approval & Management" },
+    { id: "branch-requests", label: "Teacher Branch Requests" },
     { id: "performance", label: "Student Progress & Performance" },
     { id: "account", label: "Administrator Account" }
 ];
@@ -23,6 +26,7 @@ function BranchAdminHome() {
     const [teachers, setTeachers] = useState([]);
     const [students, setStudents] = useState([]);
     const [performance, setPerformance] = useState([]);
+    const [branchRequests, setBranchRequests] = useState([]);
     const [selectedTeacherId, setSelectedTeacherId] = useState("");
     const [selectedTeacherDetails, setSelectedTeacherDetails] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -49,14 +53,16 @@ function BranchAdminHome() {
         setIsLoading(true);
         setError("");
         try {
-            const [teacherList, studentList, studentPerformance] = await Promise.all([
+            const [teacherList, studentList, studentPerformance, teacherBranchRequests] = await Promise.all([
                 listBranchAdminTeachers(),
                 listBranchAdminStudents(),
-                listBranchAdminStudentPerformance()
+                listBranchAdminStudentPerformance(),
+                listBranchAdminBranchRequests()
             ]);
             setTeachers(teacherList);
             setStudents(studentList);
             setPerformance(studentPerformance);
+            setBranchRequests(teacherBranchRequests);
         } catch (requestError) {
             setError(requestError.message);
         } finally {
@@ -82,6 +88,28 @@ function BranchAdminHome() {
         try {
             await reviewBranchAdminTeacher(teacher.id, status, reason);
             setNotice(`Teacher ${status.toLowerCase()} successfully.`);
+            await loadData();
+        } catch (requestError) {
+            setError(requestError.message);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const reviewBranchRequest = async (branchRequest, status) => {
+        let reason = "";
+        if (status === "REJECTED") {
+            reason = window.prompt(`Why are you rejecting ${branchRequest.teacher?.name}'s branch request?`)?.trim() || "";
+            if (reason.length < 3) {
+                setError("Enter a rejection reason with at least 3 characters.");
+                return;
+            }
+        }
+        setIsSaving(true);
+        setError("");
+        try {
+            await reviewBranchAdminBranchRequest(branchRequest.id, status, reason);
+            setNotice(`Branch request ${status.toLowerCase()} successfully.`);
             await loadData();
         } catch (requestError) {
             setError(requestError.message);
@@ -242,6 +270,45 @@ function BranchAdminHome() {
                                     </article>
                                 )}
                             </>
+                        )}
+                        {activeSection === "branch-requests" && (
+                            <article className="teacher-panel admin-section">
+                                <div className="teacher-panel-heading"><div><h2>Teacher Branch Requests</h2></div></div>
+                                <div className="teacher-management-table">
+                                    <div className="management-table-header" style={{ gridTemplateColumns: "1.4fr 1fr 0.7fr 1fr" }}>
+                                        <div>Teacher</div><div>Department</div><div>Status</div><div>Actions</div>
+                                    </div>
+                                    {branchRequests.map((branchRequest) => (
+                                        <div className="management-table-row" style={{ gridTemplateColumns: "1.4fr 1fr 0.7fr 1fr" }} key={branchRequest.id}>
+                                            <div>
+                                                <strong>{branchRequest.teacher?.name || "Unknown teacher"}</strong>
+                                                <small>{branchRequest.teacher?.teacherId}</small>
+                                                <small>{branchRequest.teacher?.email}</small>
+                                            </div>
+                                            <div>{branchRequest.teacher?.departmentName || "-"}<small>{branchRequest.teacher?.designation || ""}</small></div>
+                                            <div>
+                                                {branchRequest.status === "APPROVED" && <span className="status-active">Approved</span>}
+                                                {branchRequest.status === "PENDING" && <span className="result-pending">Pending</span>}
+                                                {branchRequest.status === "REJECTED" && <span className="status-inactive">Rejected</span>}
+                                                {branchRequest.reason && <small>{branchRequest.reason}</small>}
+                                            </div>
+                                            <div>
+                                                {branchRequest.status === "PENDING" ? (
+                                                    <>
+                                                        <button type="button" className="teacher-primary-button" disabled={isSaving}
+                                                            onClick={() => reviewBranchRequest(branchRequest, "APPROVED")}>Approve</button>
+                                                        <button type="button" className="danger" disabled={isSaving}
+                                                            onClick={() => reviewBranchRequest(branchRequest, "REJECTED")}>Reject</button>
+                                                    </>
+                                                ) : (
+                                                    <span>{branchRequest.status}</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {!branchRequests.length && <div className="teacher-empty-state">No teachers have requested access to this branch.</div>}
+                                </div>
+                            </article>
                         )}
                         {activeSection === "performance" && (
                             <>

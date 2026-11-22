@@ -96,7 +96,7 @@ export async function assignClassTeacher(input, adminId) {
             .populate("branch", "name code");
     } catch (error) {
         if (error.code === 11000) {
-            throw resourceError(409, "A class incharge is already assigned to this class.");
+            throw resourceError(409, "A branch teacher is already assigned to this class.");
         }
         throw error;
     }
@@ -116,7 +116,7 @@ export async function assignClassTeacher(input, adminId) {
 
 export async function setClassTeacherAssignmentStatus(id, isActive) {
     const existing = await ClassTeacherAssignment.findById(id).select("teacher");
-    if (!existing) throw resourceError(404, "Class incharge assignment not found.");
+    if (!existing) throw resourceError(404, "Branch teacher assignment not found.");
     if (isActive) {
         const teacher = await User.findOne({
             _id: existing.teacher,
@@ -128,7 +128,7 @@ export async function setClassTeacherAssignmentStatus(id, isActive) {
                 { verificationStatus: { $exists: false } }
             ]
         });
-        if (!teacher) throw resourceError(409, "Only an active teacher can be assigned as class incharge.");
+        if (!teacher) throw resourceError(409, "Only an active teacher can be assigned to this branch.");
         teacher.staffRole = "class_teacher";
         await teacher.save();
     }
@@ -219,7 +219,7 @@ export async function setTeacherStaffRole(id, staffRole) {
         teacher: id,
         isActive: true
     })) {
-        throw resourceError(409, "Reassign or deactivate this teacher's class incharge assignments first.");
+        throw resourceError(409, "Deactivate this teacher's branch assignments before changing their role.");
     }
     if (staffRole === "class_teacher" && !await User.exists({
         _id: id,
@@ -230,7 +230,7 @@ export async function setTeacherStaffRole(id, staffRole) {
             { verificationStatus: { $exists: false } }
         ]
     })) {
-        throw resourceError(409, "Verify and activate this teacher before assigning the class teacher role.");
+        throw resourceError(409, "Verify and activate this teacher before assigning a branch teacher role.");
     }
     const teacher = await User.findOneAndUpdate(
         { _id: id, role: "teacher" },

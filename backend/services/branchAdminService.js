@@ -4,6 +4,7 @@ import { User } from "../models/User.js";
 import { Result } from "../models/Result.js";
 import { TeacherAssignment } from "../models/TeacherAssignment.js";
 import { Test } from "../models/Test.js";
+import { TeacherBranchRequest } from "../models/TeacherBranchRequest.js";
 
 function resourceError(statusCode, message) {
     const error = new Error(message);
@@ -19,6 +20,68 @@ async function getBranchForAdministrator(administrator) {
     });
     if (!branch) throw resourceError(404, "Your assigned branch was not found.");
     return branch;
+}
+
+export async function listBranchTeacherRequests(administrator) {
+    const branch = await getBranchForAdministrator(administrator);
+    const requests = await TeacherBranchRequest.find({ branch: branch._id })
+        .populate("teacher", "name username email mobile teacherId departmentName designation branchName verificationStatus accountStatus")
+        .populate("reviewedBy", "name username")
+        .sort({ status: 1, createdAt: -1 });
+    return requests.map((request) => ({
+        id: request.id,
+        status: request.status,
+        reason: request.reason,
+        reviewedAt: request.reviewedAt,
+        reviewedBy: request.reviewedBy ? {
+            id: request.reviewedBy.id,
+            name: request.reviewedBy.name
+        } : null,
+        teacher: request.teacher ? {
+            id: request.teacher.id,
+            name: request.teacher.name,
+            username: request.teacher.username,
+            email: request.teacher.email,
+            mobile: request.teacher.mobile,
+            teacherId: request.teacher.teacherId,
+            departmentName: request.teacher.departmentName,
+            designation: request.teacher.designation,
+            accountStatus: request.teacher.accountStatus
+        } : null,
+        createdAt: request.createdAt,
+        updatedAt: request.updatedAt
+    }));
+}
+
+export async function reviewBranchTeacherRequest(administrator, requestId, status, reason = "") {
+    if (!["APPROVED", "REJECTED"].includes(status)) {
+        throw resourceError(400, "Choose APPROVED or REJECTED.");
+    }
+    if (status === "REJECTED" && reason.trim().length < 3) {
+        throw resourceError(400, "Enter a rejection reason with at least 3 characters.");
+    }
+    const branch = await getBranchForAdministrator(administrator);
+    const request = await TeacherBranchRequest.findOne({
+        _id: requestId,
+        branch: branch._id
+    }).populate("teacher", "name username email teacherId");
+    if (!request) throw resourceError(404, "Branch request not found.");
+
+    request.status = status;
+    request.reason = status === "REJECTED" ? reason.trim() : "";
+    request.reviewedBy = administrator._id;
+    request.reviewedAt = new Date();
+    await request.save();
+
+    return {
+        id: request.id,
+        status: request.status,
+        reason: request.reason,
+        teacher: request.teacher ? {
+            id: request.teacher.id,
+            name: request.teacher.name
+        } : null
+    };
 }
 
 export async function getBranchAdminOverview(administrator) {

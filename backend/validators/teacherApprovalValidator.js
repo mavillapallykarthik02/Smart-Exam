@@ -7,6 +7,8 @@ export const validateApprovalList = [
         .withMessage("Page size must be from 1 to 100."),
     query("search").optional().isString().trim().isLength({ max: 100 })
         .withMessage("Search must be 100 characters or fewer."),
+    query("branch").optional().isMongoId()
+        .withMessage("Branch filter must be a valid ID."),
     query("status").optional().isIn(["pending", "approved", "rejected", "suspended"])
         .withMessage("Select a valid student status.")
 ];
