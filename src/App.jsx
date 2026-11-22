@@ -4,6 +4,7 @@ import {
     Route
 } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
+import { ToastProvider } from "./context/ToastContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 
@@ -15,6 +16,9 @@ import Landing from "./pages/Landing";
 import AdminLogin from "./pages/AdminLogin";
 import AdminManagement from "./pages/AdminManagement";
 import PasswordRecovery from "./pages/PasswordRecovery";
+import BranchAdminRegister from "./pages/BranchAdminRegister";
+import BranchAdminLogin from "./pages/BranchAdminLogin";
+import BranchAdminHome from "./pages/BranchAdminHome";
 
 
 // =====================================================
@@ -71,11 +75,18 @@ function App() {
     return (
 
         <AuthProvider>
+          <ToastProvider>
           <BrowserRouter>
 
             <Routes>
 
                 <Route path="/admin/login" element={<AdminLogin />} />
+                <Route path="/branch-admin/register" element={<BranchAdminRegister />} />
+                <Route path="/branch-admin/login" element={<BranchAdminLogin />} />
+                <Route
+                    path="/branch-admin/home"
+                    element={<ProtectedRoute role="branch_admin"><BranchAdminHome /></ProtectedRoute>}
+                />
                 <Route path="/forgot-password/:role" element={<PasswordRecovery />} />
                 <Route path="/password-reset/:role" element={<PasswordRecovery isReset />} />
                 <Route
@@ -314,6 +325,7 @@ function App() {
             </Routes>
 
           </BrowserRouter>
+          </ToastProvider>
         </AuthProvider>
     );
 }

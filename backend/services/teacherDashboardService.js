@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { Branch } from "../models/Branch.js";
+import { ClassTeacherAssignment } from "../models/ClassTeacherAssignment.js";
 import { Result } from "../models/Result.js";
 import { Subject } from "../models/Subject.js";
 import { Test } from "../models/Test.js";
@@ -8,15 +9,20 @@ import { User } from "../models/User.js";
 
 export async function getTeacherDashboard(teacherId) {
     const teacherObjectId = new mongoose.Types.ObjectId(teacherId);
-    const [ownedBranchIds, subjectBranchIds, assignments] = await Promise.all([
+    const [ownedBranchIds, subjectBranchIds, subjectAssignments, classAssignments] = await Promise.all([
         Branch.find({ createdBy: teacherObjectId }).distinct("_id"),
         Subject.find({ createdBy: teacherObjectId }).distinct("branch"),
         TeacherAssignment.find({ teacher: teacherObjectId, isActive: true })
             .select("branch academicBatch studyYear semester")
+            .lean(),
+        ClassTeacherAssignment.find({ teacher: teacherObjectId, isActive: true })
+            .select("branch academicBatch studyYear semester")
             .lean()
     ]);
+    const assignments = [...subjectAssignments, ...classAssignments];
     const branchIds = [...new Set(
-        [...ownedBranchIds, ...subjectBranchIds].map((id) => id.toString())
+        [...ownedBranchIds, ...subjectBranchIds, ...assignments.map((assignment) => assignment.branch.toString())]
+            .map((id) => id.toString())
     )].map((id) => new mongoose.Types.ObjectId(id));
     const [branches, subjects, testRows] = await Promise.all([
         branchIds.length
@@ -36,17 +42,29 @@ export async function getTeacherDashboard(teacherId) {
         ])
     ]);
     const testStats = testRows[0] || { total: 0, published: 0, draft: 0 };
-    const studentClassFilters = assignments.map((assignment) => ({
-        branch: assignment.branch,
-        academicBatch: assignment.academicBatch,
-        studyYear: assignment.studyYear,
-        semester: assignment.semester
-    }));
+    const uniqueClassFilters = [];
+    const classFilterKeys = new Set();
+    for (const assignment of assignments) {
+        const key = [
+            assignment.branch.toString(),
+            assignment.academicBatch,
+            assignment.studyYear
+        ].join(":");
+        if (classFilterKeys.has(key)) continue;
+        classFilterKeys.add(key);
+        uniqueClassFilters.push({
+            branch: assignment.branch,
+            academicBatch: assignment.academicBatch,
+            studyYear: assignment.studyYear
+        });
+    }
+    const studentClassFilters = uniqueClassFilters;
     const [studentStats, resultStats] = await Promise.all([
         User.aggregate([
             {
                 $match: {
                     role: "student",
+                    accountStatus: { $in: ["active", "approved"] },
                     branch: { $in: branchIds },
                     $or: studentClassFilters.length
                         ? studentClassFilters
@@ -107,9 +125,10 @@ export async function getTeacherDashboard(teacherId) {
     ]);
     const result = resultStats[0];
     const students = studentStats[0];
+    const totalStudents = students?.total || 0;
     return {
         students: {
-            total: students?.total || 0,
+            total: totalStudents,
             active: students?.active || 0,
             participants: result?.participants || 0
         },

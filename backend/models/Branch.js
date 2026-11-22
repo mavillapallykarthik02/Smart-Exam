@@ -33,6 +33,27 @@ const branchSchema = new mongoose.Schema(
             maxlength: 1000,
             default: ""
         },
+        sector: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Sector",
+            default: null
+        },
+        collegeName: {
+            type: String,
+            trim: true,
+            maxlength: 150,
+            default: ""
+        },
+        location: {
+            type: String,
+            trim: true,
+            maxlength: 200,
+            default: ""
+        },
+        isArchived: {
+            type: Boolean,
+            default: false
+        },
         isActive: {
             type: Boolean,
             default: true,
@@ -42,6 +63,11 @@ const branchSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
             required: true
+        },
+        branchAdministrator: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            default: null
         }
     },
     { timestamps: true }
@@ -60,5 +86,7 @@ branchSchema.index({ institutionKey: 1, code: 1 }, { unique: true });
 branchSchema.index({ institutionKey: 1, normalizedName: 1 }, { unique: true });
 branchSchema.index({ isActive: 1, name: 1 });
 branchSchema.index({ createdBy: 1 });
+branchSchema.index({ institutionKey: 1, branchAdministrator: 1 }, { unique: true, sparse: true });
+branchSchema.index({ institutionKey: 1, sector: 1, isActive: 1 });
 
 export const Branch = mongoose.model("Branch", branchSchema);

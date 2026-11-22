@@ -11,8 +11,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "katex": "^0.19.1",
+    "konva": "^10.10.0",
+    "mathlive": "^0.111.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "react-konva": "^19.3.2",
     "react-router-dom": "^7.18.4"
   },
   "devDependencies": {

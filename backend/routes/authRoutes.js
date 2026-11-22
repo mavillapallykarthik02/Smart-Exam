@@ -19,7 +19,8 @@ import {
     validatePasswordReset,
     validatePasswordResetRequest,
     validateStudentRegistration,
-    validateTeacherRegistration
+    validateTeacherRegistration,
+    validateBranchAdminRegistration
 } from "../validators/authValidator.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
@@ -56,6 +57,12 @@ router.post(
     asyncHandler((request, response) => register(request, response, "teacher"))
 );
 router.post(
+    "/branch_admin/register",
+    validateBranchAdminRegistration,
+    validateRequest,
+    asyncHandler((request, response) => register(request, response, "branch_admin"))
+);
+router.post(
     "/student/login",
     validateLogin,
     validateRequest,
@@ -66,6 +73,12 @@ router.post(
     validateLogin,
     validateRequest,
     asyncHandler((request, response) => login(request, response, "teacher"))
+);
+router.post(
+    "/branch_admin/login",
+    validateLogin,
+    validateRequest,
+    asyncHandler((request, response) => login(request, response, "branch_admin"))
 );
 router.post(
     "/admin/login",

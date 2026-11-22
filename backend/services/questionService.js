@@ -21,6 +21,19 @@ function serializeQuestion(question) {
         position: question.position,
         questionType: question.questionType,
         text: question.text,
+        options: question.options,
+        correctAnswer: question.correctAnswer,
+        title: question.title,
+        instructions: question.instructions,
+        contentMethods: question.contentMethods,
+        englishContent: question.englishContent,
+        equationSource: question.equationSource,
+        equationEntries: question.equationEntries,
+        drawingPages: question.drawingPages,
+        imageUrl: question.imageUrl,
+        expectedAnswer: question.expectedAnswer,
+        markingScheme: question.markingScheme,
+        evaluationInstructions: question.evaluationInstructions,
         marks: question.marks,
         explanation: question.explanation,
         createdAt: question.createdAt,
@@ -37,10 +50,31 @@ async function getEditableTest(testId, teacherId) {
     return test;
 }
 
-function questionValues(input) {
+function questionValues(input, testType) {
+    if (testType === "MCQ") {
+        return {
+            questionType: "MCQ",
+            text: input.text.trim(),
+            options: input.options,
+            correctAnswer: input.correctAnswer,
+            marks: Number(input.marks),
+            explanation: input.explanation?.trim() || ""
+        };
+    }
     return {
         questionType: "DESCRIPTIVE",
         text: input.text.trim(),
+        title: input.title?.trim() || "",
+        instructions: input.instructions?.trim() || "",
+        contentMethods: Array.isArray(input.contentMethods) ? input.contentMethods : ["ENGLISH"],
+        englishContent: input.englishContent?.trim() || "",
+        equationSource: input.equationSource?.trim() || "",
+        equationEntries: Array.isArray(input.equationEntries) ? input.equationEntries : [],
+        drawingPages: Array.isArray(input.drawingPages) ? input.drawingPages : [],
+        imageUrl: input.imageUrl?.trim() || "",
+        expectedAnswer: input.expectedAnswer?.trim() || "",
+        markingScheme: input.markingScheme?.trim() || "",
+        evaluationInstructions: input.evaluationInstructions?.trim() || "",
         marks: Number(input.marks),
         explanation: input.explanation?.trim() || ""
     };
@@ -59,7 +93,12 @@ export async function createQuestion(testId, input, teacherId) {
     if (currentCount >= test.totalQuestions) {
         throw conflict("The configured question count has been reached.");
     }
-    const values = questionValues(input);
+    if (input.questionType && input.questionType !== test.testType) {
+        const error = new Error("Question type must match the examination type.");
+        error.statusCode = 400;
+        throw error;
+    }
+    const values = questionValues(input, test.testType);
     const question = await Question.create({
         ...values,
         test: testId,
@@ -69,10 +108,15 @@ export async function createQuestion(testId, input, teacherId) {
 }
 
 export async function updateQuestion(testId, questionId, input, teacherId) {
-    await getEditableTest(testId, teacherId);
+    const test = await getEditableTest(testId, teacherId);
     const question = await Question.findOne({ _id: questionId, test: testId });
     if (!question) throw notFound("Question not found for this test.");
-    Object.assign(question, questionValues(input));
+    if (input.questionType && input.questionType !== test.testType) {
+        const error = new Error("Question type must match the examination type.");
+        error.statusCode = 400;
+        throw error;
+    }
+    Object.assign(question, questionValues(input, test.testType));
     await question.save();
     return serializeQuestion(question);
 }

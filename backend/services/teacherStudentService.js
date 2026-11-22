@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { Attempt } from "../models/Attempt.js";
 import { Branch } from "../models/Branch.js";
+import { ClassTeacherAssignment } from "../models/ClassTeacherAssignment.js";
 import { Result } from "../models/Result.js";
 import { TeacherAssignment } from "../models/TeacherAssignment.js";
 import { User } from "../models/User.js";
@@ -11,20 +12,39 @@ function escapeRegex(value) {
 }
 
 export async function listTeacherStudents(teacherId, filters) {
-    const assignments = await TeacherAssignment.find({
-        teacher: new mongoose.Types.ObjectId(teacherId),
-        isActive: true
-    }).select("branch academicBatch studyYear semester").lean();
+    const [subjectAssignments, classAssignments] = await Promise.all([
+        TeacherAssignment.find({
+            teacher: new mongoose.Types.ObjectId(teacherId),
+            isActive: true
+        }).select("branch academicBatch studyYear semester").lean(),
+        ClassTeacherAssignment.find({
+            teacher: new mongoose.Types.ObjectId(teacherId),
+            isActive: true
+        }).select("branch academicBatch studyYear semester").lean()
+    ]);
+    const assignments = [...subjectAssignments, ...classAssignments];
     const branchIds = [...new Set(assignments.map((assignment) => assignment.branch.toString()))]
         .map((id) => new mongoose.Types.ObjectId(id));
-    const classFilters = assignments.map((assignment) => ({
-        branch: assignment.branch,
-        academicBatch: assignment.academicBatch,
-        studyYear: assignment.studyYear,
-        semester: assignment.semester
-    }));
+    const uniqueClassFilters = [];
+    const classFilterKeys = new Set();
+    for (const assignment of assignments) {
+        const key = [
+            assignment.branch.toString(),
+            assignment.academicBatch,
+            assignment.studyYear
+        ].join(":");
+        if (classFilterKeys.has(key)) continue;
+        classFilterKeys.add(key);
+        uniqueClassFilters.push({
+            branch: assignment.branch,
+            academicBatch: assignment.academicBatch,
+            studyYear: assignment.studyYear
+        });
+    }
+    const classFilters = uniqueClassFilters;
     const filter = {
         role: "student",
+        accountStatus: filters.status ? filters.status : { $in: ["active", "approved"] },
         branch: filters.branch && branchIds.some((id) => id.toString() === filters.branch)
             ? new mongoose.Types.ObjectId(filters.branch)
             : { $in: filters.branch ? [] : branchIds },
@@ -34,7 +54,6 @@ export async function listTeacherStudents(teacherId, filters) {
                 : [{ branch: { $in: [] } }]
         }]
     };
-    if (filters.status) filter.accountStatus = filters.status;
     if (filters.search) {
         const pattern = new RegExp(escapeRegex(filters.search), "i");
         const lookupHash = createLookupHash(filters.search);
@@ -53,18 +72,15 @@ export async function listTeacherStudents(teacherId, filters) {
         ] });
     }
 
+    const rosterScope = {
+        role: "student",
+        accountStatus: { $in: ["active", "approved"] },
+        branch: { $in: branchIds },
+        $or: classFilters.length ? classFilters : [{ branch: { $in: [] } }]
+    };
     const [totalStudents, activeStudents, totalFiltered, students] = await Promise.all([
-        User.countDocuments({
-            role: "student",
-            branch: { $in: branchIds },
-            $or: classFilters.length ? classFilters : [{ branch: { $in: [] } }]
-        }),
-        User.countDocuments({
-            role: "student",
-            accountStatus: { $in: ["active", "approved"] },
-            branch: { $in: branchIds },
-            $or: classFilters.length ? classFilters : [{ branch: { $in: [] } }]
-        }),
+        User.countDocuments(rosterScope),
+        User.countDocuments(rosterScope),
         User.countDocuments(filter),
         User.find(filter)
             .select("studentId name username email mobile branch year academicBatch studyYear semester accountStatus createdAt")
@@ -73,6 +89,7 @@ export async function listTeacherStudents(teacherId, filters) {
             .skip((filters.page - 1) * filters.limit)
             .limit(filters.limit)
     ]);
+    const summaryTotalStudents = totalStudents;
     const studentIds = students.map((student) => student._id);
     const [performance, attemptCounts] = studentIds.length
         ? await Promise.all([
@@ -133,7 +150,7 @@ export async function listTeacherStudents(teacherId, filters) {
             totalPages: Math.max(1, Math.ceil(totalFiltered / filters.limit))
         },
         summary: {
-            totalStudents,
+            totalStudents: summaryTotalStudents,
             activeStudents
         }
     };

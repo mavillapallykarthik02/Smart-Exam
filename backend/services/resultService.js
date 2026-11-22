@@ -201,13 +201,37 @@ export async function getResult(id, user) {
         return {
             id: question.id,
             position: question.position,
+            questionType: question.questionType,
             text: question.text,
+            options: question.options,
+            correctAnswer: question.correctAnswer,
+            explanation: question.explanation,
+            title: question.title,
+            instructions: question.instructions,
+            contentMethods: question.contentMethods,
+            englishContent: question.englishContent,
+            equationSourceQuestion: question.equationSource,
+            equationEntriesQuestion: question.equationEntries,
+            drawingPagesQuestion: question.drawingPages,
             textResponse: answer?.textResponse || "",
+            selectedOption: answer?.selectedOption || "",
+            selectedMethods: answer?.selectedMethods || [],
+            englishResponse: answer?.englishResponse || answer?.textResponse || "",
+            equationSource: answer?.equationSource || "",
+            equationEntries: answer?.equationEntries || [],
+            drawingPages: answer?.drawingPages || [],
             marks: question.marks,
             marksAwarded: answer?.marksAwarded ?? null,
             feedback: answer?.feedback || "",
             evaluationStatus: answer?.evaluationStatus || "PENDING",
-            unanswered: !answer || !answer.textResponse
+            unanswered: !answer || (
+                !answer.textResponse &&
+                !answer.selectedOption &&
+                !answer.englishResponse &&
+                !answer.equationSource &&
+                (!answer.equationEntries || answer.equationEntries.length === 0) &&
+                (!answer.drawingPages || answer.drawingPages.length === 0)
+            )
         };
     });
     return {

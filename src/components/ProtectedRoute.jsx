@@ -26,7 +26,11 @@ function ProtectedRoute({ role, children }) {
 
     if (user.role !== role) {
         return <Navigate
-            to={user.role === "admin" ? "/admin/management" : `/${user.role}/dashboard`}
+            to={user.role === "admin"
+                ? "/admin/management"
+                : user.role === "branch_admin"
+                    ? "/branch-admin/home"
+                    : `/${user.role}/dashboard`}
             replace
         />;
     }

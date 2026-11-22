@@ -5037,8 +5037,8 @@ a {
 }
 
 .landing-header {
-  min-height: 88px;
-  padding: 14px max(24px, calc((100% - 1120px) / 2));
+  min-height: 72px;
+  padding: 10px max(24px, calc((100% - 1120px) / 2));
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -5056,8 +5056,8 @@ a {
 }
 
 .landing-brand .brand-logo-image {
-  width: 52px;
-  height: 52px;
+  width: 44px;
+  height: 44px;
 }
 
 .landing-brand-copy {
@@ -5078,19 +5078,19 @@ a {
 
 .landing-main {
   width: 100%;
-  padding: 52px 24px 76px;
+  padding: 20px 24px 24px;
 }
 
 .landing-hero {
-  width: min(100%, 720px);
+  width: min(100%, 760px);
   margin: 0 auto;
   text-align: center;
 }
 
 .landing-hero-logo {
-  width: 96px;
-  height: 96px;
-  margin: 0 auto 20px;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 10px;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -5111,7 +5111,7 @@ a {
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  padding: 9px 15px;
+  padding: 7px 12px;
   color: #168b55;
   background: #ffffff;
   border: 1px solid #d6e8f7;
@@ -5129,39 +5129,39 @@ a {
 }
 
 .landing-hero h1 {
-  margin-top: 21px;
+  margin-top: 11px;
   color: #173b70;
-  font-size: clamp(36px, 5vw, 52px);
+  font-size: clamp(32px, 4vw, 42px);
   font-weight: 750;
-  letter-spacing: -1.8px;
+  letter-spacing: -1.4px;
   line-height: 1.14;
 }
 
 .landing-hero > p {
-  margin-top: 13px;
+  margin-top: 8px;
   color: #64748b;
-  font-size: 16px;
-  line-height: 1.65;
+  font-size: 14px;
+  line-height: 1.45;
 }
 
 .landing-role-list {
   display: grid;
-  gap: 16px;
-  margin-top: 38px;
+  gap: 10px;
+  margin-top: 22px;
   text-align: left;
 }
 
 .landing-role-card {
-  min-height: 136px;
-  padding: 25px 28px;
+  min-height: 92px;
+  padding: 14px 20px;
   display: grid;
-  grid-template-columns: 66px minmax(0, 1fr) 42px;
+  grid-template-columns: 56px minmax(0, 1fr) 36px;
   align-items: center;
-  gap: 21px;
+  gap: 16px;
   color: #17324d;
   background: #ffffff;
   border: 1px solid #dceaf6;
-  border-radius: 18px;
+  border-radius: 16px;
   box-shadow: 0 7px 22px rgba(23, 59, 112, 0.055);
   transition:
     transform 180ms ease,
@@ -5181,16 +5181,16 @@ a {
 }
 
 .landing-role-icon {
-  width: 66px;
-  height: 66px;
+  width: 56px;
+  height: 56px;
   display: grid;
   place-items: center;
   border-radius: 16px;
 }
 
 .landing-role-icon svg {
-  width: 39px;
-  height: 39px;
+  width: 34px;
+  height: 34px;
   stroke: #168b55;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -5209,25 +5209,25 @@ a {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 5px;
 }
 
 .landing-role-copy strong {
   color: #173b70;
-  font-size: 21px;
+  font-size: 19px;
   font-weight: 700;
 }
 
 .landing-role-copy > span {
-  max-width: 540px;
+  max-width: 600px;
   color: #64748b;
-  font-size: 14px;
-  line-height: 1.65;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .landing-role-arrow {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   display: grid;
   place-items: center;
   color: #168b55;
@@ -5256,8 +5256,8 @@ a {
 
 @media (max-width: 600px) {
   .landing-header {
-    min-height: 74px;
-    padding: 10px 18px;
+    min-height: 62px;
+    padding: 8px 18px;
   }
 
   .landing-brand {
@@ -5265,8 +5265,8 @@ a {
   }
 
   .landing-brand .brand-logo-image {
-    width: 46px;
-    height: 46px;
+    width: 40px;
+    height: 40px;
   }
 
   .landing-brand-copy strong {
@@ -5278,67 +5278,67 @@ a {
   }
 
   .landing-main {
-    padding: 40px 18px 56px;
+    padding: 18px 16px 24px;
   }
 
   .landing-hero-logo {
-    width: 82px;
-    height: 82px;
-    margin-bottom: 17px;
+    width: 54px;
+    height: 54px;
+    margin-bottom: 9px;
   }
 
   .landing-hero h1 {
-    margin-top: 18px;
-    font-size: clamp(34px, 9vw, 43px);
-    letter-spacing: -1.2px;
+    margin-top: 10px;
+    font-size: clamp(29px, 8vw, 36px);
+    letter-spacing: -1px;
   }
 
   .landing-hero > p {
-    max-width: 340px;
-    margin: 12px auto 0;
-    font-size: 14px;
+    max-width: 360px;
+    margin: 7px auto 0;
+    font-size: 13px;
   }
 
   .landing-role-list {
-    gap: 13px;
-    margin-top: 30px;
+    gap: 9px;
+    margin-top: 18px;
   }
 
   .landing-role-card {
-    min-height: 122px;
-    padding: 20px 17px;
-    grid-template-columns: 54px minmax(0, 1fr) 34px;
-    gap: 14px;
-    border-radius: 16px;
-  }
-
-  .landing-role-icon {
-    width: 54px;
-    height: 54px;
+    min-height: 84px;
+    padding: 11px 13px;
+    grid-template-columns: 44px minmax(0, 1fr) 30px;
+    gap: 10px;
     border-radius: 14px;
   }
 
+  .landing-role-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+  }
+
   .landing-role-icon svg {
-    width: 33px;
-    height: 33px;
+    width: 28px;
+    height: 28px;
   }
 
   .landing-role-copy {
-    gap: 6px;
+    gap: 4px;
   }
 
   .landing-role-copy strong {
-    font-size: 19px;
+    font-size: 16px;
   }
 
   .landing-role-copy > span {
-    font-size: 13px;
-    line-height: 1.55;
+    font-size: 12px;
+    line-height: 1.4;
   }
 
   .landing-role-arrow {
-    width: 34px;
-    height: 34px;
+    width: 30px;
+    height: 30px;
   }
 }
 
@@ -5365,15 +5365,20 @@ a {
   }
 
   .landing-role-card {
-    grid-template-columns: 48px minmax(0, 1fr) 30px;
-    gap: 10px;
-    padding-right: 12px;
-    padding-left: 12px;
+    grid-template-columns: 40px minmax(0, 1fr) 28px;
+    gap: 8px;
+    padding-right: 10px;
+    padding-left: 10px;
   }
 
   .landing-role-icon {
-    width: 48px;
-    height: 48px;
+    width: 40px;
+    height: 40px;
+  }
+
+  .landing-role-arrow {
+    width: 28px;
+    height: 28px;
   }
 }
 
@@ -5504,6 +5509,115 @@ a {
 .registration-success .auth-button {
   max-width: 350px;
   margin: 26px auto 0;
+}
+
+.admin-dashboard-layout {
+  min-height: calc(100vh - 74px);
+  display: block;
+}
+
+.admin-dashboard-nav {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  position: sticky;
+  top: 74px;
+  z-index: 20;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #173b70;
+}
+
+.admin-dashboard-nav button {
+  min-height: 48px;
+  padding: 12px 14px;
+  color: #dbeafe;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-dashboard-nav button:hover,
+.admin-dashboard-nav button.active {
+  color: #173b70;
+  background: #ffffff;
+  border-color: #dbeafe;
+}
+
+.admin-dashboard-content {
+  min-width: 0;
+  padding: 28px;
+  background: #f4f7fb;
+}
+
+.admin-sector-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.admin-sector-list span {
+  padding: 7px 10px;
+  border-radius: 999px;
+  color: #166534;
+  background: #dcfce7;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-filter-row {
+  grid-template-columns: repeat(3, minmax(160px, 1fr));
+  margin-bottom: 16px;
+}
+
+.admin-branch-header,
+.admin-branch-row {
+  grid-template-columns: 1.4fr 1fr 1fr 0.7fr 1.4fr;
+}
+
+.admin-branch-admin-header,
+.admin-branch-admin-row {
+  grid-template-columns: 1.5fr 1fr 1fr 0.8fr 1fr;
+}
+
+.admin-performance-header,
+.admin-performance-row {
+  grid-template-columns: 1.3fr 0.8fr 1fr 0.8fr 0.7fr 0.7fr 0.8fr;
+}
+
+@media (max-width: 900px) {
+  .admin-dashboard-layout {
+    display: block;
+  }
+
+  .admin-dashboard-nav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    top: 68px;
+    padding: 10px;
+  }
+
+  .admin-dashboard-nav button {
+    text-align: center;
+  }
+
+  .admin-dashboard-content {
+    padding: 18px 12px;
+  }
+
+  .admin-filter-row {
+    grid-template-columns: 1fr;
+  }
+
+  .management-table-header {
+    display: none;
+  }
+
+  .management-table-row {
+    grid-template-columns: 1fr !important;
+  }
 }
 
 @media (max-width: 500px) {

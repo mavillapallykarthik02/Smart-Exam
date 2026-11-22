@@ -38,6 +38,7 @@ export function serializeUser(user) {
         studyYear: user.studyYear,
         semester: user.semester,
         teacherId: user.teacherId,
+        administratorId: user.administratorId,
         staffRole: user.staffRole,
         departmentName: user.departmentName,
         branchName: user.branchName,
@@ -51,12 +52,100 @@ export async function registerUser(role, input) {
     const passwordHash = await bcrypt.hash(input.password, passwordHashCost);
     const institutionKey = INSTITUTION_KEY;
     const teacherId = role === "teacher" ? normalizeTeacherId(input.teacherId) : undefined;
+    const administratorId = role === "branch_admin"
+        ? String(input.administratorId || "").trim().toUpperCase()
+        : undefined;
+
+    if (role === "branch_admin") {
+        if (!administratorId) {
+            const error = new Error("Administrator ID is required.");
+            error.statusCode = 400;
+            error.field = "administratorId";
+            throw error;
+        }
+        if (String(input.confirmAdministratorId || "").trim().toUpperCase() !== administratorId) {
+            const error = new Error("Administrator IDs do not match.");
+            error.statusCode = 400;
+            error.field = "confirmAdministratorId";
+            throw error;
+        }
+        if (await User.exists({
+            role: "branch_admin",
+            institutionKey,
+            administratorIdLookup: createLookupHash(administratorId)
+        })) {
+            const error = new Error("This Administrator ID is already registered.");
+            error.statusCode = 409;
+            error.field = "administratorId";
+            throw error;
+        }
+
+        const branch = await Branch.findOne({
+            _id: input.branchId,
+            institutionKey,
+            isActive: true
+        });
+        if (!branch) {
+            const error = new Error("The selected branch is not available.");
+            error.statusCode = 400;
+            error.field = "branchId";
+            throw error;
+        }
+        if (
+            String(input.branchName || "").trim().toLowerCase() !== branch.name.toLowerCase() ||
+            String(input.branchCode || "").trim().toUpperCase() !== branch.code
+        ) {
+            const error = new Error("The selected branch name and code do not match.");
+            error.statusCode = 400;
+            error.field = "branchId";
+            throw error;
+        }
+        if (await User.exists({
+            role: "branch_admin",
+            institutionKey,
+            branch: branch._id,
+            verificationStatus: { $in: ["PENDING", "APPROVED"] }
+        })) {
+            const error = new Error("This branch already has a pending or approved Branch Administrator.");
+            error.statusCode = 409;
+            error.field = "branchId";
+            throw error;
+        }
+
+        const user = await User.create({
+            name: input.name,
+            username: input.username,
+            email: input.email,
+            mobile: input.mobile,
+            passwordHash,
+            role,
+            institution: INSTITUTION.name,
+            institutionKey,
+            administratorId,
+            branch: branch._id,
+            branchName: branch.name,
+            verificationStatus: "PENDING",
+            accountStatus: "pending"
+        });
+        await user.populate("branch", "name code");
+        return serializeUser(user);
+    }
 
     if (role === "student") {
         const studentId = String(input.studentId || "").trim();
         if (!studentId) {
             const error = new Error("Student ID is required.");
             error.statusCode = 400;
+            error.field = "studentId";
+            throw error;
+        }
+        const enrollment = await StudentEnrollment.findOne({
+            institutionKey,
+            pinLookup: createLookupHash(studentId)
+        }).populate("branch", "_id name code isActive");
+        if (enrollment && enrollment.status !== "AVAILABLE") {
+            const error = new Error("Polytechnic PIN already exists.");
+            error.statusCode = 409;
             error.field = "studentId";
             throw error;
         }
@@ -71,7 +160,7 @@ export async function registerUser(role, input) {
             throw error;
         }
 
-        const branchId = input.branchId || input.branch;
+        const branchId = input.branchId || input.branch || enrollment?.branch?._id?.toString();
         if (!branchId) {
             const error = new Error("Select a valid branch for registration.");
             error.statusCode = 400;
@@ -91,9 +180,9 @@ export async function registerUser(role, input) {
             throw error;
         }
 
-        const academicBatch = String(input.academicBatch || "").trim();
-        const studyYear = Number(input.studyYear ?? 1);
-        const semester = Number(input.semester ?? 1);
+        const academicBatch = String(input.academicBatch || enrollment?.academicBatch || "").trim();
+        const studyYear = Number(input.studyYear ?? enrollment?.studyYear ?? 1);
+        const semester = Number(input.semester ?? enrollment?.semester ?? 1);
         if (!academicBatch || !/^(\d{4})-(\d{4})$/u.test(academicBatch)) {
             const error = new Error("Enter a valid academic batch such as 2026-2029.");
             error.statusCode = 400;
@@ -130,6 +219,12 @@ export async function registerUser(role, input) {
             studyYear,
             semester
         });
+        if (enrollment) {
+            await StudentEnrollment.updateOne(
+                { _id: enrollment._id, status: "AVAILABLE" },
+                { $set: { status: "CLAIMED", claimedBy: user._id } }
+            );
+        }
         await user.populate("branch", "name code");
         return serializeUser(user);
     }
@@ -190,7 +285,9 @@ export async function authenticateUser(role, identifier, password) {
                 ? [{ studentIdLookup: createLookupHash(identifier) }]
                 : role === "teacher"
                     ? [{ teacherIdLookup: createLookupHash(normalizeTeacherId(identifier)) }]
-                    : [])
+                    : role === "branch_admin"
+                        ? [{ administratorIdLookup: createLookupHash(identifier.toUpperCase()) }]
+                        : [])
         ]
     }).select("+passwordHash").populate("branch", "name code");
 
@@ -213,11 +310,15 @@ export async function authenticateUser(role, identifier, password) {
             throw error;
         }
     } else {
-        if (role === "teacher" && user.verificationStatus !== "APPROVED") {
+        if (["teacher", "branch_admin"].includes(role) && user.verificationStatus !== "APPROVED") {
             const error = new Error(
                 user.verificationStatus === "REJECTED"
-                    ? `Your teacher registration was not approved.${user.verificationReason ? ` ${user.verificationReason}` : ""}`
-                    : "Your teacher registration is waiting for administrator verification."
+                    ? role === "branch_admin"
+                        ? "Your Branch Administrator registration request has been rejected. Please contact the College Administrator."
+                        : `Your teacher registration was not approved.${user.verificationReason ? ` ${user.verificationReason}` : ""}`
+                    : role === "branch_admin"
+                        ? "Your Branch Administrator account is awaiting College Administrator approval."
+                        : "Your teacher registration is waiting for administrator verification."
             );
             error.statusCode = 403;
             throw error;

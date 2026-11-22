@@ -1200,6 +1200,45 @@
   background: #f6f8ff;
 }
 
+.student-mcq-options {
+  display: grid;
+  gap: 9px;
+  margin: 16px 0;
+  padding: 14px;
+  border: 1px solid var(--student-line);
+  border-radius: 12px;
+}
+
+.student-mcq-options legend {
+  padding: 0 6px;
+  color: var(--student-ink);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.student-mcq-options label {
+  display: flex;
+  min-height: 46px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--student-line);
+  border-radius: 10px;
+  background: #ffffff;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.student-mcq-options label.selected {
+  border-color: #aab9ef;
+  color: var(--student-primary);
+  background: #f6f8ff;
+}
+
+.student-mcq-options input {
+  accent-color: var(--student-primary);
+}
+
 .exam-save-status {
   color: var(--student-muted);
   font-size: 10px;

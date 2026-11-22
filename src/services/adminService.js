@@ -23,6 +23,53 @@ export async function createAdminBranch(branch) {
     return createdBranch;
 }
 
+export async function listAdminSectors() {
+    const { sectors } = await apiRequest("/admin/sectors");
+    return sectors;
+}
+
+export async function createAdminSector(sector) {
+    const { sector: createdSector } = await apiRequest("/admin/sectors", {
+        method: "POST",
+        body: sector
+    });
+    return createdSector;
+}
+
+export async function updateAdminBranch(id, branch) {
+    const { branch: updatedBranch } = await apiRequest(`/admin/branches/${encodeURIComponent(id)}`, {
+        method: "PUT",
+        body: branch
+    });
+    return updatedBranch;
+}
+
+export async function setAdminBranchStatus(id, status) {
+    const { branch } = await apiRequest(`/admin/branches/${encodeURIComponent(id)}/status`, {
+        method: "PATCH",
+        body: status
+    });
+    return branch;
+}
+
+export async function listAdminBranchAdministrators() {
+    const { administrators } = await apiRequest("/admin/branch-admins");
+    return administrators;
+}
+
+export async function setAdminBranchAdministratorStatus(id, status, reason = "") {
+    const { administrator } = await apiRequest(`/admin/branch-admins/${encodeURIComponent(id)}/status`, {
+        method: "PATCH",
+        body: { status, reason }
+    });
+    return administrator;
+}
+
+export async function listAdminBranchPerformance() {
+    const { branches } = await apiRequest("/admin/branch-performance");
+    return branches;
+}
+
 export async function listClassIncharges() {
     const { assignments } = await apiRequest("/admin/class-incharges");
     return assignments;

@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { QUESTION_CONTENT_METHODS } from "./Question.js";
 
 const answerSchema = new mongoose.Schema(
     {
@@ -12,11 +13,46 @@ const answerSchema = new mongoose.Schema(
             ref: "Question",
             required: true
         },
+        selectedOption: {
+            type: String,
+            trim: true,
+            maxlength: 5,
+            default: ""
+        },
         textResponse: {
             type: String,
             trim: true,
             maxlength: 10000,
             default: ""
+        },
+        selectedMethods: {
+            type: [String],
+            enum: QUESTION_CONTENT_METHODS,
+            validate: {
+                validator: (methods) => methods.length > 0 && new Set(methods).size === methods.length,
+                message: "Select at least one unique answer method."
+            },
+            default: ["ENGLISH"]
+        },
+        englishResponse: {
+            type: String,
+            trim: true,
+            maxlength: 10000,
+            default: ""
+        },
+        equationSource: {
+            type: String,
+            trim: true,
+            maxlength: 20000,
+            default: ""
+        },
+        equationEntries: {
+            type: [mongoose.Schema.Types.Mixed],
+            default: []
+        },
+        drawingPages: {
+            type: [mongoose.Schema.Types.Mixed],
+            default: []
         },
         feedback: {
             type: String,

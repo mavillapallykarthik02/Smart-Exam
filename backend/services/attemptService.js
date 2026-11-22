@@ -31,9 +31,16 @@ function safeQuestion(question) {
         position: question.position,
         questionType: question.questionType,
         text: question.text,
+        title: question.title,
+        instructions: question.instructions,
+        contentMethods: question.contentMethods,
+        englishContent: question.englishContent,
+        equationSource: question.equationSource,
+        equationEntries: question.equationEntries,
+        drawingPages: question.drawingPages,
+        imageUrl: question.imageUrl,
         marks: question.marks,
-        options: Array.isArray(question.options) ? shuffleForAttempt(question.options, question.id) : undefined,
-        explanation: question.explanation || undefined
+        options: Array.isArray(question.options) ? shuffleForAttempt(question.options, question.id) : undefined
     };
 }
 
@@ -44,6 +51,7 @@ function safeTest(test) {
         duration: test.duration,
         totalQuestions: test.totalQuestions,
         totalMarks: test.totalMarks,
+        testType: test.testType,
         instructions: test.instructions,
         startAt: test.startAt,
         endAt: test.endAt,
@@ -56,6 +64,12 @@ function serializeAttempt(attempt, questions, answers) {
     const responseByQuestion = new Map(
         answers.map((answer) => [answer.question.toString(), {
             textResponse: answer.textResponse,
+            selectedOption: answer.selectedOption,
+            selectedMethods: answer.selectedMethods,
+            englishResponse: answer.englishResponse,
+            equationSource: answer.equationSource,
+            equationEntries: answer.equationEntries,
+            drawingPages: answer.drawingPages,
             updatedAt: answer.updatedAt
         }])
     );
@@ -63,7 +77,13 @@ function serializeAttempt(attempt, questions, answers) {
         ...safeQuestion(question),
         position: index + 1,
         response: responseByQuestion.get(question.id) || {
-            textResponse: ""
+            textResponse: "",
+            selectedOption: "",
+            selectedMethods: ["ENGLISH"],
+            englishResponse: "",
+            equationSource: "",
+            equationEntries: [],
+            drawingPages: []
         }
     }));
     return {
@@ -231,18 +251,57 @@ export async function saveAnswer(attemptId, questionId, input, studentId) {
     }
     const question = await Question.findOne({ _id: questionId, test: attempt.test });
     if (!question) throw resourceError(404, "Question not found for this attempt.");
-    const textResponse = input.textResponse?.trim() || "";
+    const test = await Test.findById(attempt.test).select("testType");
+    const selectedOption = input.selectedOption?.trim() || "";
+    if (test.testType === "MCQ") {
+        if (selectedOption && !question.options.some((option) => option.key === selectedOption)) {
+            throw resourceError(400, "Selected option is not valid for this question.");
+        }
+    } else if (input.selectedOption !== undefined) {
+        throw resourceError(400, "Descriptive examinations do not accept selected options.");
+    }
+    const textResponse = input.englishResponse?.trim()
+        || input.textResponse?.trim()
+        || "";
+    const selectedMethods = Array.isArray(input.selectedMethods)
+        ? input.selectedMethods
+        : ["ENGLISH"];
+    const englishResponse = input.englishResponse?.trim() ?? textResponse;
+    const equationSource = typeof input.equationSource === "string"
+        ? input.equationSource
+        : "";
+    const equationEntries = Array.isArray(input.equationEntries)
+        ? input.equationEntries
+        : [];
+    const drawingPages = Array.isArray(input.drawingPages)
+        ? input.drawingPages
+        : [];
     const answer = await Answer.findOneAndUpdate(
         { attempt: attempt.id, question: question.id },
         {
-            $set: { textResponse, evaluationStatus: "PENDING" },
+            $set: {
+                selectedOption,
+                textResponse,
+                selectedMethods,
+                englishResponse,
+                equationSource,
+                equationEntries,
+                drawingPages,
+                evaluationStatus: "PENDING"
+            },
             $setOnInsert: { attempt: attempt.id, question: question.id }
         },
         { new: true, upsert: true, runValidators: true }
     );
     return {
         questionId: question.id,
+        selectedOption: answer.selectedOption,
         textResponse: answer.textResponse,
+        selectedMethods: answer.selectedMethods,
+        englishResponse: answer.englishResponse,
+        equationSource: answer.equationSource,
+        equationEntries: answer.equationEntries,
+        drawingPages: answer.drawingPages,
         updatedAt: answer.updatedAt
     };
 }

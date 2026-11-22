@@ -48,19 +48,23 @@ export const validateStudentRegistration = [
         .isLength({ min: 3, max: 30 })
         .withMessage("Student ID must be between 3 and 30 characters."),
     body("branchId")
+        .optional({ values: "falsy" })
         .trim()
         .notEmpty()
         .withMessage("Select a branch for registration."),
     body("academicBatch")
+        .optional({ values: "falsy" })
         .trim()
         .notEmpty()
         .withMessage("Academic batch is required.")
         .matches(/^(\d{4})-(\d{4})$/u)
         .withMessage("Enter a valid academic batch such as 2026-2029."),
     body("studyYear")
+        .optional({ values: "falsy" })
         .isInt({ min: 1, max: 3 })
         .withMessage("Course year must be between 1 and 3."),
     body("semester")
+        .optional({ values: "falsy" })
         .isInt({ min: 1, max: 6 })
         .withMessage("Semester must be between 1 and 6."),
     requiredText("name", "Name", 100),
@@ -101,6 +105,33 @@ export const validateTeacherRegistration = [
     requiredText("designation", "Designation", 100)
 ];
 
+export const validateBranchAdminRegistration = [
+    requiredText("name", "Full name", 100),
+    username(),
+    email(),
+    mobile(),
+    password(),
+    body("confirmPassword")
+        .custom((value, { req }) => value === req.body.password)
+        .withMessage("Passwords do not match."),
+    body("institution")
+        .custom(isSupportedInstitution)
+        .withMessage("Registration is limited to the configured institution."),
+    body("branchId")
+        .isMongoId()
+        .withMessage("Select a valid branch."),
+    requiredText("branchName", "Branch name", 120),
+    requiredText("branchCode", "Branch code", 12),
+    body("administratorId")
+        .trim()
+        .matches(/^[A-Z0-9][A-Z0-9_-]{2,39}$/u)
+        .withMessage("Administrator ID must be 3–40 characters using letters, numbers, hyphens, or underscores."),
+    body("confirmAdministratorId")
+        .trim()
+        .custom((value, { req }) => value.toUpperCase() === String(req.body.administratorId || "").toUpperCase())
+        .withMessage("Administrator IDs do not match.")
+];
+
 export const validateLogin = [
     body("identifier")
         .trim()
@@ -115,7 +146,7 @@ export const validateLogin = [
 ];
 
 const validatePasswordResetRole = param("role")
-    .isIn(["student", "teacher", "admin"])
+    .isIn(["student", "teacher", "branch_admin", "admin"])
     .withMessage("Choose a valid account type.");
 
 export const validatePasswordResetRequest = [

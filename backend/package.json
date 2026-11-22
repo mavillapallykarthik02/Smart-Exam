@@ -11,6 +11,7 @@
     "migrate:student-ids": "node scripts/migrateStudentIds.js",
     "migrate:user-encryption": "node scripts/migrateUserEncryption.js",
     "create-admin": "node scripts/createAdmin.js",
+    "update-admin": "node scripts/updateAdmin.js",
     "test": "node --test"
   },
   "dependencies": {

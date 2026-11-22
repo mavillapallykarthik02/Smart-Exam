@@ -264,6 +264,11 @@ export async function updateTest(id, input, teacherId) {
         error.statusCode = 409;
         throw error;
     }
+    if (test.testType !== input.testType && await Question.exists({ test: test.id })) {
+        const error = new Error("Examination type cannot be changed after questions have been added.");
+        error.statusCode = 409;
+        throw error;
+    }
     await activeAssignment(input.branch, input.subject, teacherId, input);
     applyChanges(test, input);
     await test.save();

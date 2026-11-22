@@ -7,6 +7,9 @@ import {
     publishResult,
     saveAnswerEvaluation
 } from "../services/resultService";
+import EnglishEditor from "../components/editors/EnglishEditor";
+import EquationEditor from "../components/editors/EquationEditor";
+import PaintStudio from "../components/editors/PaintStudio";
 
 function ResultReview({ mode }) {
     const { resultId } = useParams();
@@ -135,7 +138,61 @@ function ResultReview({ mode }) {
                                     </div>
                                     <p>{answer.text}</p>
                                     <div className="review-response">
-                                        <p><strong>Student response:</strong> {answer.textResponse || "No response"}</p>
+                                        {answer.questionType === "MCQ" ? (
+                                            <div className="review-mcq-answer">
+                                                <p>
+                                                    <strong>Selected answer:</strong>{" "}
+                                                    {answer.selectedOption
+                                                        ? `${answer.selectedOption}. ${answer.options?.find((option) => option.key === answer.selectedOption)?.text || ""}`
+                                                        : "Unanswered"}
+                                                </p>
+                                                <p>
+                                                    <strong>Correct answer:</strong>{" "}
+                                                    {answer.correctAnswer
+                                                        ? `${answer.correctAnswer}. ${answer.options?.find((option) => option.key === answer.correctAnswer)?.text || ""}`
+                                                        : "Not available"}
+                                                </p>
+                                                {answer.explanation && <p><strong>Explanation:</strong> {answer.explanation}</p>}
+                                            </div>
+                                        ) : (
+                                        <>
+                                        {(answer.selectedMethods?.includes("ENGLISH") || answer.englishResponse) && (
+                                            <div>
+                                                <p><strong>English response:</strong></p>
+                                                <EnglishEditor
+                                                    value={answer.englishResponse || answer.textResponse || ""}
+                                                    onChange={() => {}}
+                                                    label={`English response to question ${answer.position}`}
+                                                    readOnly
+                                                />
+                                            </div>
+                                        )}
+                                        {(answer.selectedMethods?.includes("EQUATION") || answer.equationSource) && (
+                                            <div>
+                                                <p><strong>Equation response:</strong></p>
+                                                <EquationEditor
+                                                    value={answer.equationSource || ""}
+                                                    onChange={() => {}}
+                                                    label={`Equation response to question ${answer.position}`}
+                                                    readOnly
+                                                />
+                                            </div>
+                                        )}
+                                        {(answer.selectedMethods?.includes("DRAW") || answer.drawingPages?.length) && (
+                                            <div>
+                                                <p><strong>Drawing response:</strong></p>
+                                                <PaintStudio
+                                                    pages={answer.drawingPages?.length ? answer.drawingPages : [{ width: 800, height: 500, objects: [] }]}
+                                                    onChange={() => {}}
+                                                    readOnly
+                                                />
+                                            </div>
+                                        )}
+                                        {!answer.selectedMethods?.length && !answer.textResponse && (
+                                            <p><strong>Student response:</strong> No response</p>
+                                        )}
+                                        </>
+                                        )}
                                     </div>
                                     {mode === "teacher" && result.evaluationStatus !== "PUBLISHED" ? (
                                         <div className="teacher-form-grid">

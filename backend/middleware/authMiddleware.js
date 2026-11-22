@@ -28,24 +28,19 @@ export async function authenticate(request, response, next) {
             ? ["active", "approved"].includes(user.accountStatus)
             : user.accountStatus === "active";
         if (!accountIsActive) {
-            response.clearCookie(config.sessionCookieName, {
-                httpOnly: true,
-                secure: config.nodeEnv === "production",
-                sameSite: "strict",
-                path: "/api"
-            });
             return sendError(response, 403, "Your account is not authorized to access this resource.");
         }
         if (user.role === "teacher" &&
             user.verificationStatus &&
             user.verificationStatus !== "APPROVED") {
-            response.clearCookie(config.sessionCookieName, {
-                httpOnly: true,
-                secure: config.nodeEnv === "production",
-                sameSite: "strict",
-                path: "/api"
-            });
             return sendError(response, 403, "Your teacher account is awaiting administrator verification.");
+        }
+        if (user.role === "branch_admin" &&
+            user.verificationStatus !== "APPROVED") {
+            return sendError(response, 403,
+                user.verificationStatus === "REJECTED"
+                    ? "Your Branch Administrator registration request has been rejected."
+                    : "Your Branch Administrator account is awaiting College Administrator approval.");
         }
 
         request.user = user;

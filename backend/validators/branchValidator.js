@@ -29,7 +29,9 @@ const validateBranchFields = [
 
 export const validateBranchCreate = validateBranchFields;
 export const validateAdminBranchCreate = [
-    body("teacher").isMongoId().withMessage("Select a valid verified teacher."),
+    body("sector").optional({ values: "falsy" }).isMongoId().withMessage("Select a valid sector."),
+    body("collegeName").optional({ values: "null" }).isString().trim().isLength({ max: 150 }),
+    body("location").optional({ values: "null" }).isString().trim().isLength({ max: 200 }),
     ...validateBranchFields
 ];
 export const validateBranchUpdate = [
@@ -41,9 +43,10 @@ export const validateBranchId = [
 ];
 export const validateBranchStatus = [
     param("id").isMongoId().withMessage("Branch ID must be a valid MongoDB ObjectId."),
-    body("isActive")
-        .isBoolean({ strict: true })
-        .withMessage("isActive must be a boolean.")
+    body("isActive").optional().isBoolean({ strict: true })
+        .withMessage("isActive must be a boolean."),
+    body("isArchived").optional().isBoolean({ strict: true })
+        .withMessage("isArchived must be a boolean.")
 ];
 export const validateBranchSubjects = [
     param("branchId").isMongoId().withMessage("Branch ID must be a valid MongoDB ObjectId.")

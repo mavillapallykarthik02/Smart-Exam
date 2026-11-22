@@ -9,11 +9,32 @@ import {
     reorderQuestions,
     updateQuestion
 } from "../services/questionService";
+import EnglishEditor from "../components/editors/EnglishEditor";
+import EquationEditor from "../components/editors/EquationEditor";
+import PaintStudio from "../components/editors/PaintStudio";
 
 const emptyForm = {
     text: "",
+    title: "",
+    instructions: "",
     marks: "1",
-    explanation: ""
+    explanation: "",
+    contentMethods: ["ENGLISH"],
+    englishContent: "",
+    equationSource: "",
+    equationEntries: [],
+    drawingPages: [],
+    options: [
+        { key: "A", text: "" },
+        { key: "B", text: "" },
+        { key: "C", text: "" },
+        { key: "D", text: "" }
+    ],
+    correctAnswer: "A",
+    imageUrl: "",
+    expectedAnswer: "",
+    markingScheme: "",
+    evaluationInstructions: ""
 };
 
 function createEmptyQuestionForm() {
@@ -67,9 +88,24 @@ function TeacherTestQuestions() {
     const editQuestion = (question) => {
         setEditingQuestion(question);
         setForm({
-            text: question.text,
+            text: question.text || "",
+            title: question.title || "",
+            instructions: question.instructions || "",
             marks: String(question.marks),
-            explanation: question.explanation || ""
+            explanation: question.explanation || "",
+            contentMethods: question.contentMethods?.length ? question.contentMethods : ["ENGLISH"],
+            englishContent: question.englishContent || "",
+            equationSource: question.equationSource || "",
+            equationEntries: question.equationEntries || [],
+            drawingPages: question.drawingPages || [],
+            options: question.options?.length
+                ? question.options.map(({ key, text }) => ({ key, text }))
+                : emptyForm.options.map((option) => ({ ...option })),
+            correctAnswer: question.correctAnswer || "A",
+            imageUrl: question.imageUrl || "",
+            expectedAnswer: question.expectedAnswer || "",
+            markingScheme: question.markingScheme || "",
+            evaluationInstructions: question.evaluationInstructions || ""
         });
         setFormError("");
         setValidationErrors([]);
@@ -81,10 +117,29 @@ function TeacherTestQuestions() {
         setIsSaving(true);
         setFormError("");
         setValidationErrors([]);
-        const details = {
+        const details = test?.testType === "MCQ" ? {
+            questionType: "MCQ",
             text: form.text.trim(),
+            options: form.options,
+            correctAnswer: form.correctAnswer,
             marks: Number(form.marks),
             explanation: form.explanation.trim()
+        } : {
+            questionType: "DESCRIPTIVE",
+            text: form.text.trim(),
+            title: form.title.trim(),
+            instructions: form.instructions.trim(),
+            marks: Number(form.marks),
+            explanation: form.explanation.trim(),
+            contentMethods: form.contentMethods,
+            englishContent: form.englishContent,
+            equationSource: form.equationSource,
+            equationEntries: form.equationEntries,
+            drawingPages: form.drawingPages,
+            imageUrl: form.imageUrl.trim(),
+            expectedAnswer: form.expectedAnswer,
+            markingScheme: form.markingScheme,
+            evaluationInstructions: form.evaluationInstructions
         };
 
         try {
@@ -197,24 +252,236 @@ function TeacherTestQuestions() {
                             <div className="teacher-form-grid">
                                 <div className="teacher-form-group">
                                     <label>Question type</label>
-                                    <input value="Descriptive" readOnly />
+                                    <input value={test.testType === "MCQ" ? "Multiple choice" : "Descriptive"} readOnly />
+                                </div>
+                                <div className="teacher-form-group">
+                                    <label htmlFor="questionTitle">Question title (optional)</label>
+                                    <input
+                                        id="questionTitle"
+                                        value={form.title}
+                                        onChange={(event) => setForm((old) => ({ ...old, title: event.target.value }))}
+                                        maxLength={160}
+                                    />
                                 </div>
                                 <div className="teacher-form-group teacher-form-full">
                                     <label htmlFor="questionText">Question text</label>
-                                    <textarea id="questionText" value={form.text} onChange={(event) => setForm((old) => ({ ...old, text: event.target.value }))} maxLength={10000} rows="4" required />
+                                    <textarea id="questionText" value={form.text} onChange={(event) => setForm((old) => ({ ...old, text: event.target.value }))} maxLength={10000} rows="3" required />
+                                </div>
+                                {test.testType === "MCQ" && (
+                                    <div className="teacher-form-group teacher-form-full mcq-options">
+                                        <fieldset>
+                                            <legend>Answer options</legend>
+                                            {form.options.map((option, index) => (
+                                                <div className="mcq-option-editor" key={option.key}>
+                                                    <label htmlFor={`option-${index}`}>Option {option.key}</label>
+                                                    <input
+                                                        id={`option-${index}`}
+                                                        value={option.text}
+                                                        maxLength={2000}
+                                                        required
+                                                        onChange={(event) => setForm((old) => ({
+                                                            ...old,
+                                                            options: old.options.map((item, itemIndex) => (
+                                                                itemIndex === index
+                                                                    ? { ...item, text: event.target.value }
+                                                                    : item
+                                                            ))
+                                                        }))}
+                                                    />
+                                                    {form.options.length > 2 && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setForm((old) => {
+                                                                const options = old.options.filter((_item, itemIndex) => itemIndex !== index);
+                                                                const correctOptionIndex = options.findIndex((item) => item.key === old.correctAnswer);
+                                                                return {
+                                                                    ...old,
+                                                                    options: options.map((item, itemIndex) => ({
+                                                                        ...item,
+                                                                        key: String.fromCharCode(65 + itemIndex)
+                                                                    })),
+                                                                    correctAnswer: String.fromCharCode(65 + Math.max(0, correctOptionIndex))
+                                                                };
+                                                            })}
+                                                        >
+                                                            Remove
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            ))}
+                                            {form.options.length < 6 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setForm((old) => ({
+                                                        ...old,
+                                                        options: [...old.options, {
+                                                            key: String.fromCharCode(65 + old.options.length),
+                                                            text: ""
+                                                        }]
+                                                    }))}
+                                                >
+                                                    Add option
+                                                </button>
+                                            )}
+                                            <label className="correct-option-field">
+                                                Correct answer
+                                                <select
+                                                    value={form.correctAnswer}
+                                                    onChange={(event) => setForm((old) => ({ ...old, correctAnswer: event.target.value }))}
+                                                >
+                                                    {form.options.map((option) => (
+                                                        <option key={option.key} value={option.key}>{option.key}</option>
+                                                    ))}
+                                                </select>
+                                            </label>
+                                        </fieldset>
+                                    </div>
+                                )}
+                                {test.testType === "MCQ" ? (
+                                    <>
+                                        <div className="teacher-form-group">
+                                            <label htmlFor="marks">Marks</label>
+                                            <input id="marks" type="number" min="0.01" step="0.01" value={form.marks} onChange={(event) => setForm((old) => ({ ...old, marks: event.target.value }))} required />
+                                        </div>
+                                        <div className="teacher-form-group teacher-form-full">
+                                            <label htmlFor="explanation">Explanation (optional)</label>
+                                            <textarea id="explanation" value={form.explanation} onChange={(event) => setForm((old) => ({ ...old, explanation: event.target.value }))} maxLength={5000} rows="2" />
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="teacher-form-group teacher-form-full">
+                                            <label htmlFor="questionInstructions">Question instructions (optional)</label>
+                                            <textarea id="questionInstructions" value={form.instructions} onChange={(event) => setForm((old) => ({ ...old, instructions: event.target.value }))} maxLength={5000} rows="2" />
+                                        </div>
+                                        <div className="teacher-form-group">
+                                            <label htmlFor="marks">Marks</label>
+                                            <input id="marks" type="number" min="0.01" step="0.01" value={form.marks} onChange={(event) => setForm((old) => ({ ...old, marks: event.target.value }))} required />
+                                        </div>
+                                        <div className="teacher-form-group">
+                                            <label htmlFor="questionImage">Question image URL (optional)</label>
+                                            <input id="questionImage" type="url" value={form.imageUrl} onChange={(event) => setForm((old) => ({ ...old, imageUrl: event.target.value }))} maxLength={2048} />
+                                        </div>
+                                        <div className="teacher-form-group teacher-form-full">
+                                            <label htmlFor="explanation">Explanation (optional)</label>
+                                            <textarea id="explanation" value={form.explanation} onChange={(event) => setForm((old) => ({ ...old, explanation: event.target.value }))} maxLength={5000} rows="2" />
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                            {test.testType === "DESCRIPTIVE" && (
+                            <>
+                            <fieldset className="method-selector">
+                                <legend>SELECT QUESTION CONTENT METHODS</legend>
+                                {[
+                                    ["ENGLISH", "English"],
+                                    ["EQUATION", "Equation"],
+                                    ["DRAW", "Draw"]
+                                ].map(([method, label]) => (
+                                    <label key={method}>
+                                        <input
+                                            type="checkbox"
+                                            checked={form.contentMethods.includes(method)}
+                                            onChange={(event) => setForm((old) => ({
+                                                ...old,
+                                                contentMethods: event.target.checked
+                                                    ? [...old.contentMethods, method]
+                                                    : old.contentMethods.filter((item) => item !== method)
+                                            }))}
+                                        />
+                                        {label}
+                                    </label>
+                                ))}
+                            </fieldset>
+                            {form.contentMethods.length === 0 && (
+                                <div className="error-message">Select at least one question content method.</div>
+                            )}
+                            {form.contentMethods.includes("ENGLISH") && (
+                                <section className="method-editor-panel">
+                                    <h3>English question content</h3>
+                                    <EnglishEditor
+                                        value={form.englishContent}
+                                        onChange={(englishContent) => setForm((old) => ({ ...old, englishContent }))}
+                                        label="English question content"
+                                    />
+                                </section>
+                            )}
+                            {form.contentMethods.includes("EQUATION") && (
+                                <section className="method-editor-panel">
+                                    <h3>Equation question content</h3>
+                                    <EquationEditor
+                                        value={form.equationSource}
+                                        onChange={(equationSource) => setForm((old) => ({ ...old, equationSource }))}
+                                        label="Equation question content"
+                                    />
+                                </section>
+                            )}
+                            {form.contentMethods.includes("DRAW") && (
+                                <section className="method-editor-panel">
+                                    <h3>Drawing question content</h3>
+                                    <PaintStudio
+                                        pages={form.drawingPages.length ? form.drawingPages : [{ width: 800, height: 500, objects: [] }]}
+                                        onChange={(drawingPages) => setForm((old) => ({ ...old, drawingPages }))}
+                                    />
+                                </section>
+                            )}
+                            <div className="teacher-form-grid">
+                                <div className="teacher-form-group teacher-form-full">
+                                    <label htmlFor="expectedAnswer">Expected answer (optional)</label>
+                                    <textarea id="expectedAnswer" value={form.expectedAnswer} onChange={(event) => setForm((old) => ({ ...old, expectedAnswer: event.target.value }))} maxLength={20000} rows="3" />
                                 </div>
                                 <div className="teacher-form-group">
-                                    <label htmlFor="marks">Marks</label>
-                                    <input id="marks" type="number" min="0.01" step="0.01" value={form.marks} onChange={(event) => setForm((old) => ({ ...old, marks: event.target.value }))} required />
+                                    <label htmlFor="markingScheme">Marking scheme (optional)</label>
+                                    <textarea id="markingScheme" value={form.markingScheme} onChange={(event) => setForm((old) => ({ ...old, markingScheme: event.target.value }))} maxLength={10000} rows="3" />
                                 </div>
-                                <div className="teacher-form-group teacher-form-full">
-                                    <label htmlFor="explanation">Explanation (optional)</label>
-                                    <textarea id="explanation" value={form.explanation} onChange={(event) => setForm((old) => ({ ...old, explanation: event.target.value }))} maxLength={5000} rows="2" />
+                                <div className="teacher-form-group">
+                                    <label htmlFor="evaluationInstructions">Evaluation instructions (optional)</label>
+                                    <textarea id="evaluationInstructions" value={form.evaluationInstructions} onChange={(event) => setForm((old) => ({ ...old, evaluationInstructions: event.target.value }))} maxLength={5000} rows="3" />
                                 </div>
                             </div>
+                            </>
+                            )}
+                            <details className="question-preview">
+                                <summary>Preview complete question</summary>
+                                <div className="question-preview-content">
+                                    {form.title && <h3>{form.title}</h3>}
+                                    <p>{form.text}</p>
+                                    {test.testType === "MCQ" ? (
+                                        <>
+                                            <ul>
+                                                {form.options.map((option) => (
+                                                    <li key={option.key}>
+                                                        {option.key}. {option.text}
+                                                        {option.key === form.correctAnswer ? " (Correct answer)" : ""}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                            {form.explanation && <p><strong>Explanation:</strong> {form.explanation}</p>}
+                                        </>
+                                    ) : (
+                                    <>
+                                    {form.instructions && <p><strong>Instructions:</strong> {form.instructions}</p>}
+                                    {form.imageUrl && <img src={form.imageUrl} alt="Question" />}
+                                    {form.contentMethods.includes("ENGLISH") && (
+                                        <EnglishEditor value={form.englishContent} onChange={() => {}} label="English question preview" readOnly />
+                                    )}
+                                    {form.contentMethods.includes("EQUATION") && (
+                                        <EquationEditor value={form.equationSource} onChange={() => {}} label="Equation question preview" readOnly />
+                                    )}
+                                    {form.contentMethods.includes("DRAW") && (
+                                        <PaintStudio
+                                            pages={form.drawingPages.length ? form.drawingPages : [{ width: 800, height: 500, objects: [] }]}
+                                            onChange={() => {}}
+                                            readOnly
+                                        />
+                                    )}
+                                    </>
+                                    )}
+                                </div>
+                            </details>
                             <div className="modal-actions">
                                 {editingQuestion && <button type="button" onClick={resetForm}>Cancel Edit</button>}
-                                <button className="teacher-primary-button" type="submit" disabled={isSaving}>
+                                <button className="teacher-primary-button" type="submit" disabled={isSaving || form.contentMethods.length === 0}>
                                     {isSaving ? "Saving..." : editingQuestion ? "Update Question" : "Add Question"}
                                 </button>
                             </div>
@@ -234,7 +501,19 @@ function TeacherTestQuestions() {
                                 </div>
                                 <strong>{question.marks} marks</strong>
                             </div>
-                            <p>Student answers will be evaluated manually by the teacher.</p>
+                            {question.questionType === "MCQ" ? (
+                                <>
+                                    <ol className="mcq-question-options">
+                                        {question.options.map((option) => (
+                                            <li key={option.key}>
+                                                {option.key}. {option.text}
+                                                {option.key === question.correctAnswer ? " (Correct answer)" : ""}
+                                            </li>
+                                        ))}
+                                    </ol>
+                                    <p>Student answers are evaluated automatically.</p>
+                                </>
+                            ) : <p>Student answers will be evaluated manually by the teacher.</p>}
                             <div className="management-actions">
                                 <button type="button" onClick={() => moveQuestion(index, -1)} disabled={index === 0 || test.status !== "Draft"}>Move up</button>
                                 <button type="button" onClick={() => moveQuestion(index, 1)} disabled={index === questions.length - 1 || test.status !== "Draft"}>Move down</button>

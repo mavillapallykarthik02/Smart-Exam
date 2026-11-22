@@ -1,4 +1,5 @@
 import {
+    createStudentEnrollment,
     createTeacherAssignment,
     listTeacherAssignments,
     setTeacherAssignmentStatus
@@ -12,11 +13,25 @@ import {
     setTeacherVerificationStatus
 } from "../services/classTeacherService.js";
 import { createBranchForAdmin } from "../services/branchService.js";
+import {
+    createAdminSector,
+    listAdminSectors,
+    updateAdminBranch,
+    setAdminBranchStatus,
+    listAdminBranchAdministrators,
+    setBranchAdministratorStatus,
+    listAdminBranchPerformance
+} from "../services/adminService.js";
 import { sendSuccess } from "../utils/apiResponse.js";
 
 export async function postBranch(request, response) {
-    const branch = await createBranchForAdmin(request.body, request.body.teacher);
+    const branch = await createBranchForAdmin(request.body, request.user.id);
     return sendSuccess(response, { branch }, "Branch created successfully.", 201);
+}
+
+export async function postStudentEnrollment(request, response) {
+    const enrollment = await createStudentEnrollment(request.body, request.user.id);
+    return sendSuccess(response, { enrollment }, "Student enrollment created successfully.", 201);
 }
 
 export async function getAssignments(_request, response) {
@@ -65,12 +80,54 @@ export async function patchTeacherStaffRole(request, response) {
 }
 
 export async function patchTeacherVerification(request, response) {
+    const adminId = request.user?.id || "000000000000000000000000";
     return sendSuccess(response, {
         teacher: await setTeacherVerificationStatus(
             request.params.id,
             request.body.verificationStatus,
-            request.user.id,
+            adminId,
             request.body.reason || ""
         )
     }, "Teacher verification status updated.");
+}
+
+export async function getSectors(_request, response) {
+    return sendSuccess(response, { sectors: await listAdminSectors() });
+}
+
+export async function postSector(request, response) {
+    const sector = await createAdminSector(request.body, request.user.id);
+    return sendSuccess(response, { sector }, "Sector created successfully.", 201);
+}
+
+export async function putBranch(request, response) {
+    const branch = await updateAdminBranch(request.params.id, request.body);
+    return sendSuccess(response, { branch }, "Branch updated successfully.");
+}
+
+export async function patchBranchStatus(request, response) {
+    const branch = await setAdminBranchStatus(request.params.id, request.body);
+    return sendSuccess(response, { branch }, "Branch status updated successfully.");
+}
+
+export async function getBranchAdministrators(_request, response) {
+    return sendSuccess(response, {
+        administrators: await listAdminBranchAdministrators()
+    });
+}
+
+export async function patchBranchAdministratorStatus(request, response) {
+    const administrator = await setBranchAdministratorStatus(
+        request.params.id,
+        request.body.status,
+        request.user.id,
+        request.body.reason || ""
+    );
+    return sendSuccess(response, { administrator }, "Branch Administrator status updated.");
+}
+
+export async function getBranchPerformance(_request, response) {
+    return sendSuccess(response, {
+        branches: await listAdminBranchPerformance()
+    });
 }

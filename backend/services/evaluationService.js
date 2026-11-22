@@ -18,7 +18,7 @@ export async function createPendingResult(attemptId) {
 
     const [test, questions] = await Promise.all([
         Test.findById(attempt.test),
-        Question.find({ test: attempt.test }).select("_id")
+        Question.find({ test: attempt.test })
     ]);
     if (!test) {
         const error = new Error("The examination for this attempt could not be found.");
@@ -41,22 +41,62 @@ export async function createPendingResult(attemptId) {
         }
     })), { ordered: true });
 
+    let resultValues = {
+        attempt: attempt.id,
+        student: attempt.student,
+        test: test.id,
+        totalMarks: test.totalMarks,
+        obtainedMarks: 0,
+        percentage: 0,
+        unanswered: 0,
+        passed: false,
+        evaluationStatus: "PENDING_EVALUATION",
+        submittedAt: attempt.submittedAt || new Date()
+    };
+
+    if (test.testType === "MCQ") {
+        const answers = await Answer.find({ attempt: attempt.id });
+        const answerByQuestion = new Map(answers.map((answer) => [answer.question.toString(), answer]));
+        let obtainedMarks = 0;
+        let unanswered = 0;
+        const evaluations = questions.map((question) => {
+            const answer = answerByQuestion.get(question.id);
+            const selectedOption = answer?.selectedOption || "";
+            const isCorrect = Boolean(selectedOption) && selectedOption === question.correctAnswer;
+            if (!selectedOption) unanswered += 1;
+            if (isCorrect) obtainedMarks += question.marks;
+            return {
+                updateOne: {
+                    filter: { attempt: attempt.id, question: question.id },
+                    update: {
+                        $set: {
+                            marksAwarded: isCorrect ? question.marks : 0,
+                            evaluationStatus: "EVALUATED"
+                        }
+                    }
+                }
+            };
+        });
+        if (evaluations.length) await Answer.bulkWrite(evaluations, { ordered: true });
+        obtainedMarks = roundMarks(obtainedMarks);
+        resultValues = {
+            ...resultValues,
+            obtainedMarks,
+            percentage: test.totalMarks > 0
+                ? roundMarks(obtainedMarks / test.totalMarks * 100)
+                : 0,
+            unanswered,
+            passed: obtainedMarks >= test.totalMarks * test.passingPercentage / 100,
+            evaluationStatus: "PUBLISHED",
+            publishedAt: attempt.submittedAt || new Date()
+        };
+    }
+
     try {
         return await Result.findOneAndUpdate(
             { attempt: attempt.id },
             {
-                $setOnInsert: {
-                    attempt: attempt.id,
-                    student: attempt.student,
-                    test: test.id,
-                    totalMarks: test.totalMarks,
-                    obtainedMarks: 0,
-                    percentage: 0,
-                    unanswered: 0,
-                    passed: false,
-                    evaluationStatus: "PENDING_EVALUATION",
-                    submittedAt: attempt.submittedAt || new Date()
-                }
+                $setOnInsert: resultValues
             },
             { new: true, upsert: true, setDefaultsOnInsert: true }
         );

@@ -4,6 +4,10 @@ import { Subject } from "../models/Subject.js";
 import { User } from "../models/User.js";
 import { normalizeInstitution } from "../utils/institution.js";
 import { INSTITUTION_KEY } from "../config/institution.js";
+import { Sector } from "../models/Sector.js";
+
+const COLLEGE_NAME = "Government Polytechnic - 001";
+const COLLEGE_LOCATION = "Masab Tank, Hyderabad";
 
 function notFound(message) {
     const error = new Error(message);
@@ -17,6 +21,14 @@ function serializeBranch(branch, user) {
         name: branch.name,
         code: branch.code,
         description: branch.description,
+        sector: branch.sector ? {
+            id: branch.sector.id || branch.sector.toString(),
+            name: branch.sector.name || "",
+        } : null,
+        sectorId: branch.sector?.id || branch.sector?.toString() || "",
+        collegeName: COLLEGE_NAME,
+        location: COLLEGE_LOCATION,
+        isArchived: branch.isArchived,
         isActive: branch.isActive,
         canManage: user?.role === "teacher" &&
             branch.createdBy?.toString() === user.id,
@@ -37,7 +49,9 @@ export async function listBranches(user) {
             { createdBy: user.id }
         ];
     }
-    const branches = await Branch.find(filter).sort({ name: 1 });
+    const branches = await Branch.find(filter)
+        .populate("sector", "name")
+        .sort({ name: 1 });
     return branches.map((branch) => serializeBranch(branch, user));
 }
 
@@ -55,7 +69,7 @@ export async function getBranchById(id, user) {
         ];
     }
 
-    const branch = await Branch.findOne(filter);
+    const branch = await Branch.findOne(filter).populate("sector", "name");
     if (!branch) {
         throw notFound("Branch not found.");
     }
@@ -96,20 +110,40 @@ export async function createBranch(input, teacherId) {
 }
 
 export async function createBranchForAdmin(input, teacherId) {
-    const teacher = await User.findOne({
-        _id: teacherId,
-        role: "teacher",
-        accountStatus: "active",
-        institutionKey: INSTITUTION_KEY,
-        $or: [
-            { verificationStatus: "APPROVED" },
-            { verificationStatus: { $exists: false } }
-        ]
-    }).select("_id");
-    if (!teacher) {
-        throw notFound("Active verified teacher not found.");
+    if (input.sector) {
+        const sector = await Sector.findOne({
+            _id: input.sector,
+            institutionKey: INSTITUTION_KEY,
+            isActive: true
+        }).select("_id");
+        if (!sector) throw notFound("Active sector not found.");
     }
-    return createBranch(input, teacher.id);
+    const institutionKey = INSTITUTION_KEY;
+    const normalizedName = input.name.trim().toLocaleLowerCase("en");
+    const code = input.code.trim().toUpperCase();
+    const existingBranch = await Branch.findOne({
+        institutionKey,
+        $or: [{ normalizedName }, { code }]
+    }).select("name code");
+    if (existingBranch) {
+        const duplicateName = existingBranch.name.toLocaleLowerCase("en") === normalizedName;
+        const error = new Error(duplicateName
+            ? `The branch "${existingBranch.name}" already exists.`
+            : `Branch code "${code}" is already in use.`);
+        error.statusCode = 409;
+        throw error;
+    }
+    const branch = await Branch.create({
+        name: input.name,
+        code,
+        institutionKey,
+        description: input.description || "",
+        sector: input.sector || null,
+        collegeName: COLLEGE_NAME,
+        location: COLLEGE_LOCATION,
+        createdBy: teacherId
+    });
+    return serializeBranch(await branch.populate("sector", "name"), { role: "admin" });
 }
 
 export async function updateBranch(id, input, teacherId) {

@@ -33,6 +33,8 @@ export async function register(request, response, role) {
     const user = await registerUser(role, request.body);
     const message = role === "student"
         ? "Registration submitted successfully. Waiting for class incharge approval."
+        : role === "branch_admin"
+            ? "Branch Administrator Registration Submitted Successfully!"
         : "Registration submitted successfully. Waiting for administrator verification.";
     return sendSuccess(response, { user }, message, 201);
 }

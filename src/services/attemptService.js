@@ -16,7 +16,7 @@ export async function getAttempt(id) {
 export async function saveAttemptAnswer(attemptId, questionId, response) {
     const { answer } = await apiRequest(
         `/attempts/${encodeURIComponent(attemptId)}/answers/${encodeURIComponent(questionId)}`,
-        { method: "PUT", body: response }
+        { method: "PUT", body: response, toast: false }
     );
     return answer;
 }
@@ -24,7 +24,7 @@ export async function saveAttemptAnswer(attemptId, questionId, response) {
 export async function recordAttemptSecurityEvent(attemptId, eventType) {
     const { event } = await apiRequest(
         `/attempts/${encodeURIComponent(attemptId)}/security-events`,
-        { method: "POST", body: { eventType }, keepalive: true }
+        { method: "POST", body: { eventType }, keepalive: true, toast: false }
     );
     return event;
 }

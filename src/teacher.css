@@ -1656,3 +1656,511 @@
     grid-column: auto;
   }
 }
+
+.method-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 18px 0;
+  padding: 14px;
+  border: 1px solid var(--teacher-line);
+  border-radius: 12px;
+}
+
+.method-selector legend {
+  padding: 0 6px;
+  color: var(--teacher-ink);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.method-selector label {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid var(--teacher-line);
+  border-radius: 9px;
+  background: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.method-editor-panel,
+.question-preview {
+  margin: 16px 0;
+  padding: 16px;
+  border: 1px solid var(--teacher-line);
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.method-editor-panel h3,
+.question-preview summary {
+  color: var(--teacher-ink);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.question-preview-content {
+  margin-top: 14px;
+  overflow: hidden;
+}
+
+.question-preview-content img {
+  max-width: 100%;
+  max-height: 360px;
+  object-fit: contain;
+}
+
+.rich-editor,
+.equation-editor {
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--teacher-line);
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.rich-editor-toolbar,
+.equation-ribbon,
+.paint-toolbar,
+.paint-settings,
+.paint-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px;
+  border-bottom: 1px solid var(--teacher-line);
+  background: #f8faff;
+}
+
+.rich-editor-toolbar button,
+.equation-ribbon button,
+.paint-toolbar button,
+.paint-status button {
+  min-height: 34px;
+  padding: 6px 9px;
+  border: 1px solid var(--teacher-line);
+  border-radius: 7px;
+  color: var(--teacher-ink);
+  background: #ffffff;
+  font-size: 11px;
+}
+
+.rich-editor-content {
+  min-height: 180px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding: 14px;
+  outline: none;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.rich-editor-status {
+  padding: 7px 12px;
+  border-top: 1px solid var(--teacher-line);
+  color: var(--teacher-muted);
+  font-size: 10px;
+  text-align: right;
+}
+
+.equation-ribbon details {
+  position: relative;
+}
+
+.equation-ribbon summary {
+  min-height: 34px;
+  padding: 8px 10px;
+  border: 1px solid var(--teacher-line);
+  border-radius: 7px;
+  background: #ffffff;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.equation-symbol-grid {
+  position: absolute;
+  z-index: 20;
+  display: grid;
+  width: min(320px, 75vw);
+  grid-template-columns: repeat(4, minmax(48px, 1fr));
+  gap: 6px;
+  margin-top: 4px;
+  padding: 8px;
+  border: 1px solid var(--teacher-line);
+  border-radius: 9px;
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(20, 33, 61, 0.14);
+}
+
+.equation-editor math-field {
+  display: block;
+  width: calc(100% - 24px);
+  min-height: 72px;
+  margin: 12px;
+  padding: 10px;
+  border: 1px solid var(--teacher-line);
+  border-radius: 9px;
+}
+
+.equation-source-label {
+  display: block;
+  margin: 0 12px 6px;
+  color: var(--teacher-muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.equation-source {
+  width: calc(100% - 24px);
+  min-height: 70px;
+  margin: 0 12px 12px;
+  padding: 10px;
+  border: 1px solid var(--teacher-line);
+  border-radius: 9px;
+  font-family: Consolas, monospace;
+  resize: vertical;
+}
+
+.equation-preview {
+  min-height: 74px;
+  align-content: center;
+  padding: 12px;
+  border-top: 1px solid var(--teacher-line);
+  overflow-x: auto;
+  background: #fbfcff;
+  text-align: center;
+}
+
+.paint-studio {
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--teacher-line);
+  border-radius: 12px;
+  background: #f7f9fd;
+}
+
+.paint-menu {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 16px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--teacher-line);
+  background: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.paint-toolbar button.active {
+  border-color: #93a9ec;
+  color: #ffffff;
+  background: var(--teacher-primary);
+}
+
+.paint-settings label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.paint-colors {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.paint-colors button {
+  width: 24px;
+  height: 24px;
+  border: 1px solid #cbd5e1;
+  border-radius: 50%;
+}
+
+.paint-colors button.active {
+  outline: 2px solid var(--teacher-primary);
+  outline-offset: 2px;
+}
+
+.paint-colors input {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.paint-workspace {
+  width: 100%;
+  max-height: 500px;
+  overflow: auto;
+  background: #e9edf5;
+  touch-action: none;
+}
+
+.paint-status {
+  justify-content: center;
+  border-top: 1px solid var(--teacher-line);
+  border-bottom: 0;
+}
+
+@media (max-width: 600px) {
+  .method-selector {
+    display: grid;
+  }
+
+  .equation-ribbon {
+    align-items: stretch;
+  }
+
+  .equation-ribbon details {
+    flex: 1 1 30%;
+  }
+
+  .equation-ribbon summary {
+    width: 100%;
+  }
+
+  .equation-symbol-grid {
+    position: fixed;
+    left: 12px;
+    bottom: 12px;
+    width: calc(100vw - 24px);
+  }
+
+  .paint-menu {
+    gap: 8px;
+    overflow: hidden;
+  }
+
+  .paint-toolbar {
+    max-height: 82px;
+    overflow-y: auto;
+  }
+
+  .paint-toolbar button {
+    min-height: 30px;
+    padding-inline: 7px;
+  }
+
+  .paint-colors {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .paint-colors button {
+    width: 22px;
+    height: 22px;
+  }
+
+  .paint-workspace {
+    max-height: calc(100dvh - 240px);
+  }
+
+  .paint-status {
+    gap: 3px;
+  }
+
+  .paint-status button {
+    min-height: 30px;
+    padding-inline: 6px;
+  }
+}
+
+.mcq-options fieldset {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--teacher-line);
+  border-radius: 12px;
+}
+
+.mcq-options legend {
+  padding: 0 6px;
+  color: var(--teacher-ink);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.mcq-option-editor {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.mcq-option-editor label,
+.correct-option-field {
+  color: var(--teacher-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.mcq-option-editor button,
+.mcq-options fieldset > button {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--teacher-line);
+  border-radius: 8px;
+  background: #ffffff;
+  font-size: 11px;
+}
+
+.correct-option-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.correct-option-field select {
+  min-height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--teacher-line);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.mcq-question-options {
+  padding-left: 22px;
+  color: var(--teacher-muted);
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+.review-mcq-answer {
+  padding: 12px;
+  border-radius: 10px;
+  background: #f7f9fd;
+}
+
+@media (max-width: 600px) {
+  .mcq-option-editor {
+    grid-template-columns: 1fr auto;
+  }
+
+  .mcq-option-editor label {
+    grid-column: 1 / -1;
+  }
+
+  .mcq-option-editor input {
+    min-width: 0;
+  }
+}
+
+.app-toast-region {
+  position: fixed;
+  z-index: 10000;
+  top: max(16px, env(safe-area-inset-top));
+  right: max(16px, env(safe-area-inset-right));
+  display: grid;
+  width: min(390px, calc(100vw - 32px));
+  gap: 10px;
+  pointer-events: none;
+}
+
+.app-toast {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 11px 12px;
+  border: 1px solid #cfe7d8;
+  border-radius: 13px;
+  color: #155d3c;
+  background: #f3fbf6;
+  box-shadow: 0 12px 36px rgba(20, 33, 61, 0.18);
+  animation: app-toast-enter 180ms ease-out;
+  pointer-events: auto;
+}
+
+.app-toast--error {
+  border-color: #f1cdd1;
+  color: #963541;
+  background: #fff5f6;
+}
+
+.app-toast--info {
+  border-color: #d7e1ff;
+  color: #28479f;
+  background: #f5f7ff;
+}
+
+.app-toast-icon {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border-radius: 50%;
+  color: #ffffff;
+  background: #218354;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.app-toast--error .app-toast-icon {
+  background: #bd4d59;
+}
+
+.app-toast--info .app-toast-icon {
+  background: #4263bd;
+}
+
+.app-toast p {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.app-toast > button {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
+  color: inherit;
+  background: transparent;
+  font-size: 19px;
+  cursor: pointer;
+}
+
+.app-toast > button:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+@keyframes app-toast-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-7px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 600px) {
+  .app-toast-region {
+    top: max(10px, env(safe-area-inset-top));
+    right: max(10px, env(safe-area-inset-right));
+    width: calc(100vw - 20px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-toast {
+    animation: none;
+  }
+}

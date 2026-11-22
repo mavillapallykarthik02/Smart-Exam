@@ -88,13 +88,25 @@ function Landing() {
                 <ArrowIcon />
               </span>
             </Link>
+            <Link to="/branch-admin/login" className="landing-role-card">
+              <span className="landing-role-icon teacher-icon">
+                <TeacherIcon />
+              </span>
+              <span className="landing-role-copy">
+                <strong>Branch Administrator</strong>
+                <span>Manage teacher approvals and monitor branch performance.</span>
+              </span>
+              <span className="landing-role-arrow">
+                <ArrowIcon />
+              </span>
+            </Link>
             <Link to="/admin/login" className="landing-role-card">
               <span className="landing-role-icon teacher-icon">
                 <TeacherIcon />
               </span>
               <span className="landing-role-copy">
                 <strong>College Administrator</strong>
-                <span>Review teacher registrations and assign class incharges.</span>
+                <span>Review Branch Administrator registrations and manage institution performance.</span>
               </span>
               <span className="landing-role-arrow">
                 <ArrowIcon />

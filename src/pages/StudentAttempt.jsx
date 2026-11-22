@@ -7,6 +7,9 @@ import {
     saveAttemptAnswer,
     submitAttempt
 } from "../services/attemptService";
+import EnglishEditor from "../components/editors/EnglishEditor";
+import EquationEditor from "../components/editors/EquationEditor";
+import PaintStudio from "../components/editors/PaintStudio";
 
 const SHARED_WARNING_MESSAGE = "This action is blocked while the examination is running.";
 
@@ -29,16 +32,17 @@ function StudentAttempt() {
     const pendingSaves = useRef(new Map());
     const latestResponses = useRef({});
     const unsavedQuestions = useRef(new Set());
+    const saveTimers = useRef(new Map());
     const [unsavedCount, setUnsavedCount] = useState(0);
     const [error, setError] = useState("");
     const [securityWarnings, setSecurityWarnings] = useState([]);
     const submitted = useRef(false);
 
-    const updateUnsavedStatus = (questionId, unsaved) => {
+    const updateUnsavedStatus = useCallback((questionId, unsaved) => {
         if (unsaved) unsavedQuestions.current.add(questionId);
         else unsavedQuestions.current.delete(questionId);
         setUnsavedCount(unsavedQuestions.current.size);
-    };
+    }, []);
 
     const loadAttempt = useCallback(async () => {
         setError("");
@@ -48,7 +52,17 @@ function StudentAttempt() {
             setAttempt(loaded);
             const loadedResponses = Object.fromEntries(loaded.questions.map((question) => [
                 question.id,
-                question.response
+                {
+                selectedOption: question.response.selectedOption || "",
+                    selectedMethods: question.response.selectedMethods?.length
+                        ? question.response.selectedMethods
+                        : ["ENGLISH"],
+                    englishResponse: question.response.englishResponse || question.response.textResponse || "",
+                    equationSource: question.response.equationSource || "",
+                    equationEntries: question.response.equationEntries || [],
+                    drawingPages: question.response.drawingPages || [],
+                    textResponse: question.response.textResponse || ""
+                }
             ]));
             latestResponses.current = loadedResponses;
             unsavedQuestions.current.clear();
@@ -61,48 +75,16 @@ function StudentAttempt() {
         }
     }, [attemptId]);
 
-    const finishAttempt = useCallback(async (confirmSubmit) => {
-        if (submitted.current || !attempt || attempt.status !== "IN_PROGRESS") return;
-        if (confirmSubmit && !window.confirm("Submit this exam now? You cannot change answers afterward.")) {
-            return;
-        }
-        submitted.current = true;
-        setIsSubmitting(true);
-        setError("");
-        try {
-            const savesSucceeded = (await Promise.all(pendingSaves.current.values()))
-                .every(Boolean);
-            if (confirmSubmit && (!savesSucceeded || unsavedQuestions.current.size > 0)) {
-                submitted.current = false;
-                setError("One or more answers could not be saved. Retry the answer save before submitting.");
-                return;
-            }
-            setAttempt(await submitAttempt(attempt.id));
-        } catch (requestError) {
-            submitted.current = false;
-            setError(requestError.message);
-        } finally {
-            setIsSubmitting(false);
-        }
-    }, [attempt]);
-
     useEffect(() => {
         Promise.resolve().then(loadAttempt);
     }, [loadAttempt]);
 
-    useEffect(() => {
-        if (!attempt || attempt.status !== "IN_PROGRESS") return undefined;
-        const updateRemaining = () => {
-            const milliseconds = new Date(attempt.expiresAt).getTime() - Date.now();
-            setRemaining(milliseconds);
-            if (milliseconds <= 0) void finishAttempt(false);
-        };
-        updateRemaining();
-        const timer = window.setInterval(updateRemaining, 1000);
-        return () => window.clearInterval(timer);
-    }, [attempt, finishAttempt]);
+    useEffect(() => () => {
+        saveTimers.current.forEach((timer) => window.clearTimeout(timer));
+        saveTimers.current.clear();
+    }, []);
 
-    const saveResponse = async (question, response) => {
+    const saveResponse = useCallback(async (question, response) => {
         const previousSave = pendingSaves.current.get(question.id) || Promise.resolve(true);
         const currentSave = previousSave.catch(() => false).then(async () => {
             setPendingSaveCount((count) => count + 1);
@@ -129,13 +111,72 @@ function StudentAttempt() {
             pendingSaves.current.delete(question.id);
         }
         return saved;
-    };
+    }, [attempt, loadAttempt, updateUnsavedStatus]);
+
+    const finishAttempt = useCallback(async (confirmSubmit) => {
+        if (submitted.current || !attempt || attempt.status !== "IN_PROGRESS") return;
+        if (confirmSubmit && !window.confirm("Submit this exam now? You cannot change answers afterward.")) {
+            return;
+        }
+        submitted.current = true;
+        setIsSubmitting(true);
+        setError("");
+        try {
+            if (confirmSubmit) {
+                const questionsById = new Map(attempt.questions.map((question) => [question.id, question]));
+                const pendingQuestionIds = [...unsavedQuestions.current];
+                for (const questionId of pendingQuestionIds) {
+                    const timer = saveTimers.current.get(questionId);
+                    if (timer) window.clearTimeout(timer);
+                    saveTimers.current.delete(questionId);
+                }
+                await Promise.all(pendingQuestionIds.map((questionId) => {
+                    const question = questionsById.get(questionId);
+                    return question
+                        ? saveResponse(question, latestResponses.current[questionId])
+                        : Promise.resolve(false);
+                }));
+            }
+            const savesSucceeded = (await Promise.all(pendingSaves.current.values()))
+                .every(Boolean);
+            if (confirmSubmit && (!savesSucceeded || unsavedQuestions.current.size > 0)) {
+                submitted.current = false;
+                setError("One or more answers could not be saved. Retry the answer save before submitting.");
+                return;
+            }
+            setAttempt(await submitAttempt(attempt.id));
+        } catch (requestError) {
+            submitted.current = false;
+            setError(requestError.message);
+        } finally {
+            setIsSubmitting(false);
+        }
+    }, [attempt, saveResponse]);
+
+    useEffect(() => {
+        if (!attempt || attempt.status !== "IN_PROGRESS") return undefined;
+        const updateRemaining = () => {
+            const milliseconds = new Date(attempt.expiresAt).getTime() - Date.now();
+            setRemaining(milliseconds);
+            if (milliseconds <= 0) void finishAttempt(false);
+        };
+        updateRemaining();
+        const timer = window.setInterval(updateRemaining, 1000);
+        return () => window.clearInterval(timer);
+    }, [attempt, finishAttempt]);
 
     const changeResponse = (question, patch) => {
         const next = { ...responses[question.id], ...patch };
         latestResponses.current = { ...latestResponses.current, [question.id]: next };
         updateUnsavedStatus(question.id, true);
         setResponses((current) => ({ ...current, [question.id]: next }));
+        const existingTimer = saveTimers.current.get(question.id);
+        if (existingTimer) window.clearTimeout(existingTimer);
+        const timer = window.setTimeout(() => {
+            void saveResponse(question, latestResponses.current[question.id]);
+            saveTimers.current.delete(question.id);
+        }, 900);
+        saveTimers.current.set(question.id, timer);
     };
 
     const retryUnsavedAnswers = async () => {
@@ -306,7 +347,13 @@ function StudentAttempt() {
                                 <div className="exam-question-list">
                                     {attempt.questions.map((question) => {
                                         const response = responses[question.id] || {
-                                            textResponse: ""
+                                            selectedMethods: ["ENGLISH"],
+                                            textResponse: "",
+                                            selectedOption: "",
+                                            englishResponse: "",
+                                            equationSource: "",
+                                            equationEntries: [],
+                                            drawingPages: []
                                         };
                                         return (
                                             <section className="exam-question" key={question.id}>
@@ -315,15 +362,102 @@ function StudentAttempt() {
                                                     <span>{question.marks} marks</span>
                                                 </div>
                                                 <p>{question.text}</p>
-                                                <textarea
-                                                    value={response.textResponse || ""}
-                                                    maxLength={10000}
-                                                    onChange={(event) => changeResponse(question, {
-                                                        textResponse: event.target.value
-                                                    })}
-                                                    onBlur={() => void saveResponse(question, response)}
-                                                    aria-label={`Response to question ${question.position}`}
-                                                />
+                                                {question.questionType === "MCQ" ? (
+                                                    <fieldset className="student-mcq-options">
+                                                        <legend>Select one answer</legend>
+                                                        {question.options.map((option) => (
+                                                            <label key={option.key} className={response.selectedOption === option.key ? "selected" : ""}>
+                                                                <input
+                                                                    type="radio"
+                                                                    name={`answer-${question.id}`}
+                                                                    value={option.key}
+                                                                    checked={response.selectedOption === option.key}
+                                                                    onChange={() => changeResponse(question, {
+                                                                        selectedOption: option.key
+                                                                    })}
+                                                                />
+                                                                <span><strong>{option.key}.</strong> {option.text}</span>
+                                                            </label>
+                                                        ))}
+                                                        <p className="exam-save-status" aria-live="polite">
+                                                            {pendingSaveCount > 0
+                                                                ? "Saving answer..."
+                                                                : unsavedCount > 0
+                                                                    ? "Answer not saved yet"
+                                                                    : "Answer saved"}
+                                                        </p>
+                                                    </fieldset>
+                                                ) : (
+                                                    <>
+                                                {question.instructions && (
+                                                    <p className="exam-instructions">{question.instructions}</p>
+                                                )}
+                                                {question.imageUrl && (
+                                                    <img
+                                                        className="exam-question-image"
+                                                        src={question.imageUrl}
+                                                        alt={`Question ${question.position} illustration`}
+                                                    />
+                                                )}
+                                                <fieldset className="method-selector">
+                                                    <legend>SELECT YOUR ANSWER METHODS</legend>
+                                                    {[
+                                                        ["ENGLISH", "English"],
+                                                        ["EQUATION", "Equation"],
+                                                        ["DRAW", "Draw"]
+                                                    ].map(([method, label]) => (
+                                                        <label key={method}>
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={(response.selectedMethods || []).includes(method)}
+                                                                onChange={(event) => changeResponse(question, {
+                                                                    selectedMethods: event.target.checked
+                                                                        ? [...(response.selectedMethods || []), method]
+                                                                        : (response.selectedMethods || []).filter((item) => item !== method)
+                                                                })}
+                                                            />
+                                                            {label}
+                                                        </label>
+                                                    ))}
+                                                </fieldset>
+                                                {(response.selectedMethods || []).includes("ENGLISH") && (
+                                                    <section className="method-editor-panel">
+                                                        <h3>English answer</h3>
+                                                        <EnglishEditor
+                                                            value={response.englishResponse || response.textResponse || ""}
+                                                            onChange={(englishResponse) => changeResponse(question, {
+                                                                englishResponse,
+                                                                textResponse: englishResponse
+                                                            })}
+                                                            label={`English response to question ${question.position}`}
+                                                        />
+                                                    </section>
+                                                )}
+                                                {(response.selectedMethods || []).includes("EQUATION") && (
+                                                    <section className="method-editor-panel">
+                                                        <h3>Equation answer</h3>
+                                                        <EquationEditor
+                                                            value={response.equationSource || ""}
+                                                            onChange={(equationSource) => changeResponse(question, {
+                                                                equationSource
+                                                            })}
+                                                            label={`Equation response to question ${question.position}`}
+                                                        />
+                                                    </section>
+                                                )}
+                                                {(response.selectedMethods || []).includes("DRAW") && (
+                                                    <section className="method-editor-panel">
+                                                        <h3>Draw answer</h3>
+                                                        <PaintStudio
+                                                            pages={response.drawingPages?.length ? response.drawingPages : [{ width: 800, height: 500, objects: [] }]}
+                                                            onChange={(drawingPages) => changeResponse(question, {
+                                                                drawingPages
+                                                            })}
+                                                        />
+                                                    </section>
+                                                )}
+                                                    </>
+                                                )}
                                                 <p className="exam-save-status" aria-live="polite">
                                                     {pendingSaveCount > 0 ? "Saving answers..." : ""}
                                                 </p>
@@ -343,7 +477,9 @@ function StudentAttempt() {
                         ) : (
                             <section className="teacher-empty-state" role="status">
                                 <h2>{attempt.status === "TIMED_OUT" ? "Time expired" : "Exam submitted"}</h2>
-                                <p>Your answers have been submitted. Results will be available after evaluation.</p>
+                                <p>{attempt.test.testType === "MCQ"
+                                    ? "Your objective answers have been automatically evaluated."
+                                    : "Your answers have been submitted. Results will be available after teacher evaluation."}</p>
                                 <Link to="/student/results" className="start-test-button">My Results</Link>
                             </section>
                         )}

@@ -54,8 +54,16 @@ const userSchema = new mongoose.Schema(
         role: {
             type: String,
             required: true,
-            enum: ["student", "teacher", "admin"],
+            enum: ["student", "teacher", "branch_admin", "admin"],
             immutable: true
+        },
+        administratorId: {
+            type: String,
+            match: /^[A-Z0-9][A-Z0-9_-]{2,39}$/,
+            maxlength: 40,
+            required() {
+                return this.role === "branch_admin";
+            }
         },
         staffRole: {
             type: String,
@@ -89,7 +97,10 @@ const userSchema = new mongoose.Schema(
             type: String,
             enum: ["PENDING", "APPROVED", "REJECTED"],
             default() {
-                return this.role === "teacher" ? "APPROVED" : undefined;
+                if (["teacher", "branch_admin"].includes(this.role)) {
+                    return this.role === "teacher" ? "APPROVED" : "PENDING";
+                }
+                return undefined;
             }
         },
         verificationReviewedBy: {
@@ -163,6 +174,10 @@ const userSchema = new mongoose.Schema(
             type: String,
             select: false
         },
+        administratorIdLookup: {
+            type: String,
+            select: false
+        },
         nameSearchTokens: {
             type: [String],
             select: false
@@ -171,7 +186,7 @@ const userSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: "Branch",
             required() {
-                return this.role === "student";
+                return ["student", "branch_admin"].includes(this.role);
             }
         },
         year: {
@@ -323,6 +338,7 @@ const encryptedFields = [
     "email",
     "mobile",
     "teacherId",
+    "administratorId",
     "branchPin"
 ];
 
@@ -339,6 +355,7 @@ userSchema.pre("save", function encryptProfileFields() {
     this.mobile = this.mobile.trim();
     if (this.studentId) this.studentId = this.studentId.trim().toUpperCase();
     if (this.teacherId) this.teacherId = this.teacherId.trim().toUpperCase();
+    if (this.administratorId) this.administratorId = this.administratorId.trim().toUpperCase();
     if (this.branchPin) this.branchPin = this.branchPin.trim().toUpperCase();
     this.nameSearchTokens = createNameSearchTokens(this.name);
     this.emailLookup = createLookupHash(this.email);
@@ -346,6 +363,7 @@ userSchema.pre("save", function encryptProfileFields() {
     this.mobileLookup = createLookupHash(this.mobile);
     if (this.studentId) this.studentIdLookup = createLookupHash(this.studentId);
     if (this.teacherId) this.teacherIdLookup = createLookupHash(this.teacherId);
+    if (this.administratorId) this.administratorIdLookup = createLookupHash(this.administratorId);
     for (const field of encryptedFields) {
         if (typeof this[field] === "string") this[field] = encryptField(this[field]);
     }
@@ -376,6 +394,17 @@ userSchema.index(
         partialFilterExpression: {
             role: "student",
             studentIdLookup: { $type: "string" }
+        }
+    }
+);
+userSchema.index(
+    { institutionKey: 1, administratorIdLookup: 1 },
+    {
+        name: "institutionKey_1_administratorIdLookup_1",
+        unique: true,
+        partialFilterExpression: {
+            role: "branch_admin",
+            administratorIdLookup: { $type: "string" }
         }
     }
 );

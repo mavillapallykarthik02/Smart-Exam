@@ -6,6 +6,7 @@ import { requestPasswordReset, resetPassword } from "../services/api";
 const roleLabels = {
     student: "Student",
     teacher: "Teacher",
+    branch_admin: "Branch Administrator",
     admin: "Administrator"
 };
 
@@ -60,7 +61,11 @@ function PasswordRecovery({ isReset = false }) {
         }
     };
 
-    const loginPath = role === "admin" ? "/admin/login" : `/${role}/login`;
+    const loginPath = role === "admin"
+        ? "/admin/login"
+        : role === "branch_admin"
+            ? "/branch-admin/login"
+            : `/${role}/login`;
 
     return (
         <main className="auth-page auth-page--login">

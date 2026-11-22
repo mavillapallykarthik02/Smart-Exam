@@ -829,7 +829,19 @@ function TeacherTests() {
 
                                 <div className="teacher-form-group">
                                     <label htmlFor="test-type">Examination Type</label>
-                                    <input id="test-type" value="Descriptive examination" readOnly />
+                                    <select
+                                        id="test-type"
+                                        name="type"
+                                        value={formData.type}
+                                        onChange={handleChange}
+                                        disabled={Boolean(editingTest)}
+                                    >
+                                        <option value="DESCRIPTIVE">Descriptive examination</option>
+                                        <option value="MCQ">Multiple choice examination</option>
+                                    </select>
+                                    {editingTest && (
+                                        <small>Examination type is fixed after creation.</small>
+                                    )}
                                 </div>
 
                                 <div className="teacher-form-group">
