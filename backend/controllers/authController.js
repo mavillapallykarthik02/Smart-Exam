@@ -14,7 +14,7 @@ function setSessionCookie(response, token) {
     response.cookie(config.sessionCookieName, token, {
         httpOnly: true,
         secure: config.nodeEnv === "production",
-        sameSite: "strict",
+        sameSite: config.nodeEnv === "production" ? "none" : "strict",
         path: "/api",
         maxAge: config.sessionCookieMaxAge
     });
@@ -24,7 +24,7 @@ function clearSessionCookie(response) {
     response.clearCookie(config.sessionCookieName, {
         httpOnly: true,
         secure: config.nodeEnv === "production",
-        sameSite: "strict",
+        sameSite: config.nodeEnv === "production" ? "none" : "strict",
         path: "/api"
     });
 }

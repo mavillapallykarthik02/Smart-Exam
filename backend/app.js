@@ -4,6 +4,7 @@ import express from "express";
 import helmet from "helmet";
 import { config } from "./config/env.js";
 import { errorMiddleware, notFoundMiddleware } from "./middleware/errorMiddleware.js";
+import { sendError } from "./utils/apiResponse.js";
 import authRoutes from "./routes/authRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import attemptRoutes from "./routes/attemptRoutes.js";
@@ -23,10 +24,20 @@ const app = express();
 app.disable("x-powered-by");
 app.use(helmet());
 app.use(cors({
-    origin: config.clientOrigin,
+    origin(origin, callback) {
+        callback(null, !origin || config.clientOrigins.includes(origin));
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 }));
+app.use((request, response, next) => {
+    if (["GET", "HEAD", "OPTIONS"].includes(request.method)) return next();
+    const origin = request.get("origin");
+    if (origin && !config.clientOrigins.includes(origin)) {
+        return sendError(response, 403, "This origin is not allowed to modify SmartExam data.");
+    }
+    return next();
+});
 app.use(express.json({ limit: "2mb" }));
 app.use(cookieParser());
 

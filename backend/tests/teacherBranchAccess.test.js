@@ -8,6 +8,7 @@ import request from "supertest";
 process.env.NODE_ENV = "test";
 process.env.JWT_SECRET = "teacher-branch-access-integration-secret";
 process.env.FIELD_ENCRYPTION_KEY = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+process.env.CLIENT_ORIGIN = "http://localhost:5173,https://smart-exam-theta.vercel.app";
 
 let memoryServer;
 let mongoose;
@@ -44,6 +45,24 @@ after(async () => {
 });
 
 test("branch approval grants a teacher student management access to that branch", async () => {
+    const corsPreflight = await request(app)
+        .options("/api/auth/admin/login")
+        .set("Origin", "https://smart-exam-theta.vercel.app")
+        .set("Access-Control-Request-Method", "POST")
+        .set("Access-Control-Request-Headers", "content-type");
+    assert.equal(corsPreflight.status, 204);
+    assert.equal(
+        corsPreflight.headers["access-control-allow-origin"],
+        "https://smart-exam-theta.vercel.app"
+    );
+    assert.equal(corsPreflight.headers["access-control-allow-credentials"], "true");
+
+    const blockedMutation = await request(app)
+        .post("/api/auth/admin/login")
+        .set("Origin", "https://untrusted.example")
+        .send({});
+    assert.equal(blockedMutation.status, 403, JSON.stringify(blockedMutation.body));
+
     const anonymousSession = await request(app).get("/api/auth/me");
     assert.equal(anonymousSession.status, 200, JSON.stringify(anonymousSession.body));
     assert.equal(anonymousSession.body.data.user, null);
