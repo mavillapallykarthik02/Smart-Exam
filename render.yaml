@@ -16,4 +16,4 @@ services:
       - key: FIELD_ENCRYPTION_KEY
         sync: false
       - key: CLIENT_ORIGIN
-        value: https://smart-exam-theta.vercel.app
+        value: "https://smart-exam-theta.vercel.app,https://smart-exam-gptm.vercel.app"

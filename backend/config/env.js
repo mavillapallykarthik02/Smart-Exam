@@ -8,10 +8,10 @@ const configuredClientOrigins = (process.env.CLIENT_ORIGIN || "")
     .split(",")
     .map((origin) => origin.trim())
     .filter((origin) => origin && (!isProduction || !/^https?:\/\/localhost(?::|$)/iu.test(origin)));
-const defaultClientOrigin = isProduction
-    ? "https://smart-exam-theta.vercel.app"
-    : "http://localhost:5173";
-const clientOrigins = [...new Set([defaultClientOrigin, ...configuredClientOrigins])];
+const defaultClientOrigins = isProduction
+    ? ["https://smart-exam-theta.vercel.app", "https://smart-exam-gptm.vercel.app"]
+    : ["http://localhost:5173"];
+const clientOrigins = [...new Set([...defaultClientOrigins, ...configuredClientOrigins])];
 
 for (const variable of requiredEnvironmentVariables) {
     if (!process.env[variable]) {
@@ -31,7 +31,7 @@ export const config = {
     mongodbUri: process.env.MONGODB_URI,
     jwtSecret: process.env.JWT_SECRET,
     fieldEncryptionKey: process.env.FIELD_ENCRYPTION_KEY,
-    clientOrigin: configuredClientOrigins[0] || defaultClientOrigin,
+    clientOrigin: configuredClientOrigins[0] || defaultClientOrigins[0],
     clientOrigins,
     gmailUser: process.env.GMAIL_USER || "",
     gmailAppPassword: process.env.GMAIL_APP_PASSWORD || "",
