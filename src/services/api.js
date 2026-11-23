@@ -1,9 +1,10 @@
 const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/+$/u, "");
-const API_BASE_URL = !configuredApiBaseUrl
+const normalizedApiBaseUrl = !configuredApiBaseUrl
     ? "/api"
     : configuredApiBaseUrl.endsWith("/api")
         ? configuredApiBaseUrl
         : `${configuredApiBaseUrl}/api`;
+const API_BASE_URL = import.meta.env.PROD ? "/api" : normalizedApiBaseUrl;
 
 export class ApiError extends Error {
     constructor(message, status, errors = []) {
