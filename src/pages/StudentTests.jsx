@@ -12,20 +12,34 @@ function StudentTests() {
         UPCOMING: "Upcoming",
         CLOSED: "Closed"
     };
-    const loadTests = useCallback(async () => {
+    const loadTests = useCallback(async ({ silent = false } = {}) => {
         setError("");
-        setIsLoading(true);
+        if (!silent) setIsLoading(true);
         try {
             setTests(await listStudentTests());
         } catch (requestError) {
             setError(requestError.message);
         } finally {
-            setIsLoading(false);
+            if (!silent) setIsLoading(false);
         }
     }, []);
 
     useEffect(() => {
         Promise.resolve().then(loadTests);
+    }, [loadTests]);
+
+    useEffect(() => {
+        const refreshWhileVisible = () => {
+            if (document.visibilityState === "visible") {
+                void loadTests({ silent: true });
+            }
+        };
+        const intervalId = window.setInterval(refreshWhileVisible, 5000);
+        document.addEventListener("visibilitychange", refreshWhileVisible);
+        return () => {
+            window.clearInterval(intervalId);
+            document.removeEventListener("visibilitychange", refreshWhileVisible);
+        };
     }, [loadTests]);
 
     return (

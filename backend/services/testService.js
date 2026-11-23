@@ -7,6 +7,11 @@ import { TeacherAssignment } from "../models/TeacherAssignment.js";
 import { User } from "../models/User.js";
 import { INSTITUTION_KEY } from "../config/institution.js";
 import { TeacherBranchRequest } from "../models/TeacherBranchRequest.js";
+import {
+    hasApprovedTeacherAssignmentForTest,
+    listTeacherManagedTestIds,
+    teacherCanManageTest
+} from "./testAccessService.js";
 
 function notFound(message = "Test not found.") {
     const error = new Error(message);
@@ -67,6 +72,7 @@ async function activeAssignment(branchId, subjectId, teacherId, cohort) {
             _id: teacherId,
             role: "teacher",
             accountStatus: "active",
+            verificationStatus: "APPROVED",
             institutionKey: INSTITUTION_KEY
         }).select("institution teacherId")
         : null;
@@ -85,8 +91,7 @@ async function activeAssignment(branchId, subjectId, teacherId, cohort) {
         }).select("_id name code"),
         Subject.findOne({
             _id: subjectId,
-            isActive: true,
-            ...(teacherId ? { createdBy: teacherId } : {})
+            isActive: true
         }).populate("branch", "_id isActive")
     ]);
     if (!branch) {
@@ -104,35 +109,39 @@ async function activeAssignment(branchId, subjectId, teacherId, cohort) {
         error.statusCode = 400;
         throw error;
     }
-    if (teacherId && !await TeacherBranchRequest.exists({
-        teacher: teacherId,
-        branch: branchId,
-        status: "APPROVED"
-    })) {
-        const error = new Error("You need approval from this branch administrator before creating tests.");
-        error.statusCode = 403;
-        throw error;
-    }
     if (Math.ceil(Number(cohort.semester) / 2) !== Number(cohort.studyYear)) {
         const error = new Error("The selected semester does not belong to the selected study year.");
         error.statusCode = 400;
         throw error;
     }
-    await TeacherAssignment.findOneAndUpdate(
-        {
-            teacher: teacherId,
-            branch: branchId,
-            subject: subjectId,
-            academicBatch: cohort.academicBatch,
-            studyYear: Number(cohort.studyYear),
-            semester: Number(cohort.semester)
-        },
-        {
-            $set: { isActive: true },
-            $setOnInsert: { assignedBy: teacherId }
-        },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
+    if (teacherId) {
+        const [branchRequest, assignment] = await Promise.all([
+            TeacherBranchRequest.exists({
+                teacher: teacherId,
+                branch: branchId,
+                status: "APPROVED"
+            }),
+            TeacherAssignment.exists({
+                teacher: teacherId,
+                branch: branchId,
+                subject: subjectId,
+                academicBatch: cohort.academicBatch,
+                studyYear: Number(cohort.studyYear),
+                semester: Number(cohort.semester),
+                isActive: true
+            })
+        ]);
+        if (!branchRequest) {
+            const error = new Error("You need approval from this branch administrator before creating tests.");
+            error.statusCode = 403;
+            throw error;
+        }
+        if (!assignment) {
+            const error = new Error("You are not assigned to teach this subject for the selected class.");
+            error.statusCode = 403;
+            throw error;
+        }
+    }
     return { branch, subject, teacher };
 }
 
@@ -157,19 +166,30 @@ function applyChanges(test, input) {
 }
 
 export async function listTests({ user, filters }) {
-    const filter = user.role === "teacher"
-        ? { createdBy: user.id }
-        : {
+    let filter;
+    if (user.role === "teacher") {
+        const testIds = await listTeacherManagedTestIds(user.id);
+        if (testIds.length === 0) return [];
+        filter = { _id: { $in: testIds } };
+    } else {
+        filter = {
             status: "PUBLISHED",
             branch: user.branch?._id || user.branch,
             academicBatch: user.academicBatch,
             studyYear: Number(user.studyYear),
             semester: Number(user.semester)
         };
+    }
     if (user.role === "student") {
+        const approvedBranchTeachers = await TeacherBranchRequest.find({
+            branch: user.branch?._id || user.branch,
+            status: "APPROVED"
+        }).distinct("teacher");
         const assignedTeachers = await User.find({
+            _id: { $in: approvedBranchTeachers },
             role: "teacher",
-            accountStatus: "active"
+            accountStatus: "active",
+            verificationStatus: "APPROVED"
         }).distinct("_id");
         const assignments = await TeacherAssignment.find({
             teacher: { $in: assignedTeachers },
@@ -180,10 +200,7 @@ export async function listTests({ user, filters }) {
             isActive: true
         }).select("teacher subject").lean();
         if (assignments.length === 0) return [];
-        filter.$or = assignments.map((assignment) => ({
-            subject: assignment.subject,
-            createdBy: assignment.teacher
-        }));
+        filter.$or = assignments.map((assignment) => ({ subject: assignment.subject }));
     }
     if (filters.status && user.role === "teacher") filter.status = filters.status;
     if (filters.branch && user.role === "teacher") filter.branch = filters.branch;
@@ -208,17 +225,21 @@ export async function listTests({ user, filters }) {
 
 export async function getTestById(id, user) {
     const filter = { _id: id };
-    if (user.role === "teacher") {
-        filter.createdBy = user.id;
-    } else {
+    if (user.role !== "teacher") {
         filter.status = "PUBLISHED";
         filter.branch = user.branch?._id || user.branch;
         filter.academicBatch = user.academicBatch;
         filter.studyYear = Number(user.studyYear);
         filter.semester = Number(user.semester);
+        const approvedBranchTeachers = await TeacherBranchRequest.find({
+            branch: filter.branch,
+            status: "APPROVED"
+        }).distinct("teacher");
         const activeTeachers = await User.find({
+            _id: { $in: approvedBranchTeachers },
             role: "teacher",
-            accountStatus: "active"
+            accountStatus: "active",
+            verificationStatus: "APPROVED"
         }).distinct("_id");
         const assignments = await TeacherAssignment.find({
             teacher: { $in: activeTeachers },
@@ -239,6 +260,10 @@ export async function getTestById(id, user) {
         .populate("subject", "name code isActive branch")
         .populate("createdBy", "name teacherId institution");
     if (!test) throw notFound();
+    if (user.role === "teacher") {
+        if (!await teacherCanManageTest(user.id, test)) throw notFound();
+        await activeAssignment(test.branch, test.subject, user.id, test);
+    }
     if (user.role === "student" && (
         !test.branch?.isActive ||
         !test.subject?.isActive ||
@@ -263,8 +288,8 @@ export async function createTest(input, teacherId) {
 }
 
 export async function updateTest(id, input, teacherId) {
-    const test = await Test.findOne({ _id: id, createdBy: teacherId });
-    if (!test) throw notFound();
+    const test = await Test.findById(id);
+    if (!test || !await teacherCanManageTest(teacherId, test)) throw notFound();
     if (test.status !== "DRAFT") {
         const error = new Error("Unpublish the test before editing it.");
         error.statusCode = 409;
@@ -292,8 +317,9 @@ export async function updateTest(id, input, teacherId) {
 }
 
 export async function setTestStatus(id, status, teacherId) {
-    const test = await Test.findOne({ _id: id, createdBy: teacherId });
-    if (!test) throw notFound();
+    const test = await Test.findById(id);
+    if (!test || !await teacherCanManageTest(teacherId, test)) throw notFound();
+    await activeAssignment(test.branch, test.subject, teacherId, test);
     if (test.status === "ARCHIVED" && status !== "ARCHIVED") {
         const error = new Error("Archived tests cannot be republished.");
         error.statusCode = 409;
@@ -305,7 +331,6 @@ export async function setTestStatus(id, status, teacherId) {
         throw error;
     }
     if (status === "PUBLISHED") {
-        await activeAssignment(test.branch, test.subject, teacherId, test);
         const [questionCount, marks] = await Promise.all([
             Question.countDocuments({ test: test.id }),
             Question.aggregate([

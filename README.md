@@ -15,6 +15,11 @@ SmartExam keeps the React/Vite application at the repository root and adds an Ex
 4. Start MongoDB, then run `npm run dev:api` and `npm run dev` in separate terminals.
 5. Vite proxies `/api` to `http://localhost:5000`.
 
+## Deployment
+
+- **Render API:** Create a Blueprint from `render.yaml` (or use `backend/` as the service root directory), with build command `npm ci --omit=dev` and start command `npm start`. Set `MONGODB_URI`, `JWT_SECRET`, `FIELD_ENCRYPTION_KEY`, and `CLIENT_ORIGIN` in the Render environment. `CLIENT_ORIGIN` must be the exact deployed Vercel origin.
+- **Vercel frontend:** Import the repository with the project root as the root directory. `vercel.json` builds with `npm run vercel-build`, serves `dist`, and routes client-side pages to the React app. Set `VITE_API_BASE_URL` to the Render API URL ending in `/api` (for example, `https://your-api.onrender.com/api`) before deploying. Do not put backend secrets in Vercel variables.
+
 ## Student IDs
 
 - This deployment is restricted to Government Polytechnic, Masab Tank (MASB / College Code 001). Registration and authentication reject identities associated with other institutes.
@@ -40,7 +45,7 @@ npm --prefix backend run create-admin
 The script creates an administrator only; it does not offer a public administrator-registration endpoint. Sign in through `POST /api/auth/admin/login`. The authenticated administrator can:
 
 - Create a branch for an active, verified teacher with `POST /api/admin/branches`, sending the teacher ID, branch `name`, and `code`. The existing-branch duplicate checks still apply. The branch is created under that teacher so it is available to their subjects and classes.
-- Assign a teacher to an owned subject and specific class with `POST /api/admin/teacher-assignments`, sending `teacher`, `subject`, `branch`, `academicBatch`, `studyYear`, and `semester`. The teacher can view active assignments through `GET /api/teacher/assignments`. Administrators can list assignments and activate/deactivate them through the `/api/admin/teacher-assignments` endpoints.
+- Assign an active subject to an active, approved teacher who has branch access with `POST /api/admin/teacher-assignments`, sending `teacher`, `subject`, `branch`, `academicBatch`, `studyYear`, and `semester`. The teacher can view active assignments through `GET /api/teacher/assignments`. Administrators can list assignments and activate/deactivate them through the `/api/admin/teacher-assignments` endpoints.
 
 Student registration does not require an administrator-issued PIN. Students submit their active branch, academic batch, semester, and student ID, then their registration stays in `accountStatus: "pending"` until the class incharge approves the account. The server validates the selected branch and academic data, but the actual login gate remains teacher approval.
 
@@ -73,12 +78,14 @@ Example request bodies:
 
 Administrator APIs remain protected by the administrator role; no public administrator registration endpoint exists.
 
+Branch administrators create and publish branch subjects from the Branch Administrator dashboard. The related APIs are `GET/POST /api/branch-admin/subjects`, `PUT /api/branch-admin/subjects/:id`, `PATCH /api/branch-admin/subjects/:id/status`, and `DELETE /api/branch-admin/subjects/:id`. A subject with tests or teacher assignments can be deleted after transferring its tests and assignments to another active subject in the same branch; existing attempts, answers, and results remain connected through their unchanged test records. Duplicate teacher/class assignments are merged by retaining the destination assignment and removing the source duplicate. Subjects without tests or assignments can be deleted directly; deletion archives the subject. They assign each subject to an active, approved teacher and a class through `POST /api/branch-admin/subjects/:id/assignments`; after an assignment exists, the dashboard hides the add-assignment form and allows the assigned teacher to be changed through `PATCH /api/branch-admin/assignments/:id`. A teacher must also have approved access to that branch. Assignments can be deactivated or reactivated through `PATCH /api/branch-admin/assignments/:id/status`. Students see all active published subjects in their assigned branch; only published tests matching the student's batch, year, and semester and an active approved teacher assignment are accessible.
+
 ## Examination workflow
 
-- Teachers can use the institute's branches and manage their own subjects. They can create and publish descriptive examinations only for an active administrator-assigned subject and class, after the configured question count and total marks are satisfied.
+- Branch administrators manage subject creation and publication. Teachers see subjects assigned to them and can create, publish, and manage tests only for an active subject/class assignment approved for their branch.
 - Teacher IDs are globally unique and immutable after registration. Students can optionally connect to teachers from their account, but connections do not control subject or test access.
 - Branches and all authenticated records are scoped to Government Polytechnic, Masab Tank. Institute identity is assigned by the server, not trusted from a registration form.
-- Students see active subjects and published tests assigned to their branch, batch, year, and semester, without needing a teacher connection. The backend enforces the full class assignment when listing tests, viewing test details, and starting an exam; students from other branches or classes cannot access the test. Upcoming and closed tests are identified from the configured exam window. Subject details include that subject's published tests. The test/question APIs do not send answer keys during an exam.
+- Students see all active subjects published to their branch, without needing a teacher connection. Subject details show only published tests matching the student's batch, year, and semester when an active approved teacher assignment exists. The student tests API returns a published test as soon as it is published; the Available Tests page refreshes in the background every five seconds and when it becomes visible. The backend enforces the full class assignment when listing tests, viewing test details, and starting an exam; students from other branches or classes cannot access the test. Upcoming and closed tests are identified from the configured exam window. The test/question APIs do not send answer keys during an exam.
 - Teachers configure an opening and closing date/time for each test. The backend enforces the window using server time and caps the attempt deadline at the earlier of the test duration or window close.
 - Starting a test creates one official attempt per student/test. Its deadline is persisted by the backend; answers are saved against the attempt, late writes are rejected, and a backend worker expires due attempts even if the student has left the page.
 - During an active attempt, browser-reported tab changes, focus loss, full-screen exits, restricted clipboard/context-menu actions, and keyboard shortcuts are stored against that attempt and shown to the teacher who owns the test. These browser signals are review evidence, not tamper-proof proof or a guarantee against cheating.

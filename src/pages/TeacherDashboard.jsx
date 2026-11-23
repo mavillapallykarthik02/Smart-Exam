@@ -16,21 +16,39 @@ function TeacherDashboard() {
        LOAD DASHBOARD COUNTS
     ===================================================== */
 
-    const updateCounts = useCallback(async () => {
+    const updateCounts = useCallback(async ({ silent = false } = {}) => {
         setResourceError("");
-        setIsLoading(true);
-        setDashboard(null);
+        if (!silent) {
+            setIsLoading(true);
+            setDashboard(null);
+        }
         try {
             setDashboard(await getTeacherDashboard());
         } catch (error) {
             setResourceError(error.message);
         } finally {
-            setIsLoading(false);
+            if (!silent) setIsLoading(false);
         }
     }, []);
 
     useEffect(() => {
         Promise.resolve().then(updateCounts);
+    }, [updateCounts]);
+
+    useEffect(() => {
+        const refreshWhenVisible = () => {
+            if (document.visibilityState === "visible") {
+                void updateCounts({ silent: true });
+            }
+        };
+        const intervalId = window.setInterval(refreshWhenVisible, 15000);
+        document.addEventListener("visibilitychange", refreshWhenVisible);
+        window.addEventListener("focus", refreshWhenVisible);
+        return () => {
+            window.clearInterval(intervalId);
+            document.removeEventListener("visibilitychange", refreshWhenVisible);
+            window.removeEventListener("focus", refreshWhenVisible);
+        };
     }, [updateCounts]);
 
 
@@ -134,7 +152,7 @@ function TeacherDashboard() {
 
                         <div>
 
-                            <h3>
+                            <h3 aria-live="polite">
                                 {dashboard?.students.total ?? "—"}
                             </h3>
 
@@ -321,10 +339,7 @@ function TeacherDashboard() {
                                     Manage Subjects
                                 </h3>
 
-                                <p>
-                                    Assign subjects to
-                                    branches.
-                                </p>
+                                <p>View subjects assigned by your branch administrator.</p>
 
                             </div>
 

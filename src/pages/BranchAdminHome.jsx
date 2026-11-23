@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import LogoutButton from "../components/LogoutButton";
 import BrandLogoImage from "../components/BrandLogoImage";
+import BranchAdminSubjects from "./BranchAdminSubjects";
 import {
     getBranchAdminTeacherDetails,
     listBranchAdminBranchRequests,
@@ -15,6 +16,7 @@ import {
 
 const sections = [
     { id: "teachers", label: "Teacher Approval & Management" },
+    { id: "subjects", label: "Subjects & Teaching Assignments" },
     { id: "branch-requests", label: "Teacher Branch Requests" },
     { id: "performance", label: "Student Progress & Performance" },
     { id: "account", label: "Administrator Account" }
@@ -219,7 +221,7 @@ function BranchAdminHome() {
                                                     <div>Subject</div><div>Academic Placement</div><div>Completed</div><div>Average</div><div>Highest</div>
                                                 </div>
                                                 {selectedTeacherDetails.subjects.map((subject) => (
-                                                    <div className="management-table-row" key={subject.id}>
+                                                    <div className="management-table-row" key={subject.id} style={{ gridTemplateColumns: "1.2fr 1fr 0.7fr 0.7fr 0.7fr" }}>
                                                         <div><strong>{subject.name}</strong><small>{subject.code}</small></div>
                                                         <div>{subject.assignments.map((assignment) => `${assignment.academicBatch} • Year ${assignment.studyYear} • Sem ${assignment.semester}`).join(", ")}</div>
                                                         <div>{subject.completedTests}</div>
@@ -244,6 +246,7 @@ function BranchAdminHome() {
                                                 {teachers.map((teacher) => (
                                                     <div
                                                         className="management-table-row"
+                                                        style={{ gridTemplateColumns: "1.5fr 1fr 0.7fr 1fr" }}
                                                         key={teacher.id}
                                                         role={teacher.verificationStatus === "APPROVED" ? "button" : undefined}
                                                         tabIndex={teacher.verificationStatus === "APPROVED" ? 0 : undefined}
@@ -310,6 +313,9 @@ function BranchAdminHome() {
                                 </div>
                             </article>
                         )}
+                        {activeSection === "subjects" && (
+                            <BranchAdminSubjects teachers={teachers} branchRequests={branchRequests} />
+                        )}
                         {activeSection === "performance" && (
                             <>
                                 <article className="teacher-panel admin-section">
@@ -319,7 +325,8 @@ function BranchAdminHome() {
                                             <div>Student</div><div>Academic Placement</div><div>Status</div>
                                         </div>
                                         {students.map((student) => (
-                                            <div className="management-table-row" key={student.id}>
+                                            <div className="management-table-row" key={student.id}
+                                                style={{ gridTemplateColumns: "1fr 1fr 0.7fr" }}>
                                                 <div><strong>{student.name}</strong><small>{student.studentId}</small></div>
                                                 <div>{student.academicBatch || "Batch not set"} • Year {student.studyYear || "-"}</div>
                                                 <div><span className="status-badge">{student.accountStatus}</span></div>
@@ -335,11 +342,12 @@ function BranchAdminHome() {
                                             <div>Student</div><div>Completed</div><div>Average</div><div>Highest</div>
                                         </div>
                                         {performance.map((student) => (
-                                            <div className="management-table-row" key={student.id}>
+                                            <div className="management-table-row" key={student.id}
+                                                style={{ gridTemplateColumns: "1.2fr 0.7fr 0.7fr 0.7fr" }}>
                                                 <div><strong>{student.name}</strong><small>{student.studentId}</small></div>
-                                                <div>Completed: {student.completedTests}</div>
-                                                <div>Average: {student.averagePercentage}%</div>
-                                                <div>Highest: {student.highestPercentage}%</div>
+                                                <div>{student.completedTests}</div>
+                                                <div>{student.averagePercentage}%</div>
+                                                <div>{student.highestPercentage}%</div>
                                             </div>
                                         ))}
                                         {!performance.length && <p className="management-empty">No student performance data is available.</p>}

@@ -5,6 +5,7 @@ import { Question } from "../models/Question.js";
 import { Subject } from "../models/Subject.js";
 import { Test } from "../models/Test.js";
 import { TeacherAssignment } from "../models/TeacherAssignment.js";
+import { TeacherBranchRequest } from "../models/TeacherBranchRequest.js";
 import { User } from "../models/User.js";
 import { MAX_SECURITY_EVENTS_PER_ATTEMPT } from "../utils/securityEventTypes.js";
 import { createPendingResult } from "./evaluationService.js";
@@ -154,14 +155,20 @@ export async function startAttempt(testId, student) {
         semester: Number(student.semester),
         isActive: true
     });
-    if (!assigned) throw resourceError(404, "Published test not found.");
+    const branchTeacherAccess = await TeacherBranchRequest.exists({
+        teacher: test.createdBy,
+        branch: studentBranchId,
+        status: "APPROVED"
+    });
+    if (!assigned || !branchTeacherAccess) throw resourceError(404, "Published test not found.");
     const now = new Date();
     if (now < test.startAt) throw resourceError(409, "This examination is not available yet.");
     if (now >= test.endAt) throw resourceError(409, "The examination availability window has closed.");
     if (!await User.exists({
         _id: test.createdBy,
         role: "teacher",
-        accountStatus: "active"
+        accountStatus: "active",
+        verificationStatus: "APPROVED"
     })) {
         throw resourceError(404, "Published test not found.");
     }
@@ -198,7 +205,7 @@ export async function startAttempt(testId, student) {
         }
         throw error;
     }
-    const [stillPublished, stillAssigned, activeBranch, activeSubject, activeTeacher] = await Promise.all([
+    const [stillPublished, stillAssigned, branchAccess, activeBranch, activeSubject, activeTeacher] = await Promise.all([
         Test.exists({
             _id: test.id,
             status: "PUBLISHED",
@@ -216,11 +223,21 @@ export async function startAttempt(testId, student) {
             semester: Number(student.semester),
             isActive: true
         }),
+        TeacherBranchRequest.exists({
+            teacher: test.createdBy,
+            branch: studentBranchId,
+            status: "APPROVED"
+        }),
         Branch.exists({ _id: studentBranchId, isActive: true }),
         Subject.exists({ _id: test.subject._id, isActive: true, branch: studentBranchId }),
-        User.exists({ _id: test.createdBy, role: "teacher", accountStatus: "active" })
+        User.exists({
+            _id: test.createdBy,
+            role: "teacher",
+            accountStatus: "active",
+            verificationStatus: "APPROVED"
+        })
     ]);
-    if (!stillPublished || !stillAssigned || !activeBranch || !activeSubject ||
+    if (!stillPublished || !stillAssigned || !branchAccess || !activeBranch || !activeSubject ||
         !activeTeacher || Date.now() >= test.endAt.getTime()) {
         await Attempt.deleteOne({ _id: attempt.id, student: student.id });
         throw resourceError(409, "This test is no longer available to start.");

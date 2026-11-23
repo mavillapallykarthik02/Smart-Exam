@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { Question } from "../models/Question.js";
 import { Test } from "../models/Test.js";
+import { teacherCanManageTest } from "./testAccessService.js";
 
 function notFound(message = "Question or test not found.") {
     const error = new Error(message);
@@ -42,8 +43,8 @@ function serializeQuestion(question) {
 }
 
 async function getEditableTest(testId, teacherId) {
-    const test = await Test.findOne({ _id: testId, createdBy: teacherId });
-    if (!test) throw notFound("Test not found.");
+    const test = await Test.findById(testId);
+    if (!test || !await teacherCanManageTest(teacherId, test)) throw notFound("Test not found.");
     if (test.status !== "DRAFT") {
         throw conflict("Questions can only be changed while the test is a draft.");
     }
@@ -81,8 +82,8 @@ function questionValues(input, testType) {
 }
 
 export async function listQuestions(testId, teacherId) {
-    const test = await Test.findOne({ _id: testId, createdBy: teacherId }).select("_id");
-    if (!test) throw notFound("Test not found.");
+    const test = await Test.findById(testId);
+    if (!test || !await teacherCanManageTest(teacherId, test)) throw notFound("Test not found.");
     const questions = await Question.find({ test: testId }).sort({ position: 1 });
     return questions.map(serializeQuestion);
 }

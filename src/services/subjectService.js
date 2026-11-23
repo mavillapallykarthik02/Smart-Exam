@@ -29,34 +29,3 @@ export async function getStudentSubjectDetails(subjectId) {
     );
     return subject;
 }
-
-export async function createSubject(details) {
-    const { subject } = await apiRequest("/subjects", {
-        method: "POST",
-        body: details
-    });
-    return toSubjectView(subject);
-}
-
-export async function updateSubject(id, details) {
-    const { subject } = await apiRequest(`/subjects/${encodeURIComponent(id)}`, {
-        method: "PUT",
-        body: details
-    });
-    return toSubjectView(subject);
-}
-
-export async function setSubjectStatus(id, isActive) {
-    const { subject } = await apiRequest(`/subjects/${encodeURIComponent(id)}/status`, {
-        method: "PATCH",
-        body: { isActive }
-    });
-    return toSubjectView(subject);
-}
-
-export async function deactivateSubject(id) {
-    const { subject } = await apiRequest(`/subjects/${encodeURIComponent(id)}`, {
-        method: "DELETE"
-    });
-    return toSubjectView(subject);
-}

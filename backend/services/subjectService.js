@@ -3,7 +3,6 @@ import { Branch } from "../models/Branch.js";
 import { Subject } from "../models/Subject.js";
 import { TeacherAssignment } from "../models/TeacherAssignment.js";
 import { User } from "../models/User.js";
-import { INSTITUTION_KEY } from "../config/institution.js";
 import { TeacherBranchRequest } from "../models/TeacherBranchRequest.js";
 
 function notFound(message) {
@@ -12,7 +11,7 @@ function notFound(message) {
     return error;
 }
 
-function serializeSubject(subject) {
+function serializeSubject(subject, assignedTeacher = null) {
     const branch = subject.branch;
     return {
         id: subject.id,
@@ -30,47 +29,15 @@ function serializeSubject(subject) {
         isActive: subject.isActive,
         createdAt: subject.createdAt,
         updatedAt: subject.updatedAt,
-        teacher: subject.createdBy && typeof subject.createdBy === "object"
+        teacher: assignedTeacher || (subject.createdBy?.role === "teacher"
             ? {
                 id: subject.createdBy.id,
                 name: subject.createdBy.name,
                 teacherId: subject.createdBy.teacherId,
                 institution: subject.createdBy.institution
             }
-            : null
+            : null)
     };
-}
-
-async function requireActiveBranch(branchId, teacherId) {
-    if (!mongoose.isValidObjectId(branchId)) {
-        const error = new Error("Branch ID must be a valid MongoDB ObjectId.");
-        error.statusCode = 400;
-        throw error;
-    }
-
-    const teacher = await User.findOne({ _id: teacherId, role: "teacher" })
-        .select("institution");
-    const branch = teacher
-        ? await Branch.findOne({
-            _id: branchId,
-            isActive: true,
-            institutionKey: INSTITUTION_KEY
-        })
-        : null;
-    if (!branch) {
-        throw notFound("The selected branch does not exist or is inactive.");
-    }
-    const branchAccess = await TeacherBranchRequest.findOne({
-        teacher: teacherId,
-        branch: branchId,
-        status: "APPROVED"
-    }).select("_id");
-    if (!branchAccess) {
-        const error = new Error("You need approval from this branch administrator before managing it.");
-        error.statusCode = 403;
-        throw error;
-    }
-    return branch;
 }
 
 export async function listSubjects({
@@ -83,21 +50,29 @@ export async function listSubjects({
     semester
 }) {
     const filter = {};
+    const assignedTeacherBySubject = new Map();
 
     if (role === "student") {
         filter.isActive = true;
         filter.branch = studentBranchId
             ? studentBranchId
             : { $in: [] };
+        filter.isDeleted = { $ne: true };
         if (studentBranchId && !await Branch.exists({
             _id: studentBranchId,
             isActive: true
         })) {
             throw notFound("Your assigned branch is inactive.");
         }
+        const approvedBranchTeachers = await TeacherBranchRequest.find({
+            branch: studentBranchId,
+            status: "APPROVED"
+        }).distinct("teacher");
         const activeTeachers = await User.find({
+            _id: { $in: approvedBranchTeachers },
             role: "teacher",
-            accountStatus: "active"
+            accountStatus: "active",
+            verificationStatus: "APPROVED"
         }).distinct("_id");
         const assignments = await TeacherAssignment.find({
             teacher: { $in: activeTeachers },
@@ -106,13 +81,38 @@ export async function listSubjects({
             studyYear: Number(studyYear),
             semester: Number(semester),
             isActive: true
-        }).select("subject").lean();
-        filter._id = { $in: assignments.map((assignment) => assignment.subject) };
+        }).select("subject teacher").populate("teacher", "name teacherId institution");
+        for (const assignment of assignments) {
+            if (assignment.teacher) {
+                assignedTeacherBySubject.set(assignment.subject.toString(), {
+                    id: assignment.teacher.id,
+                    name: assignment.teacher.name,
+                    teacherId: assignment.teacher.teacherId,
+                    institution: assignment.teacher.institution
+                });
+            }
+        }
         if (branchId && branchId !== studentBranchId?.toString()) {
             throw notFound("Subjects are only available for your assigned branch.");
         }
-    } else if (teacherId) {
-        filter.createdBy = teacherId;
+    } else if (role === "teacher") {
+        filter.isActive = true;
+        filter.isDeleted = { $ne: true };
+        const approvedBranches = await TeacherBranchRequest.find({
+            teacher: teacherId,
+            status: "APPROVED"
+        }).distinct("branch");
+        const branchIsApproved = !branchId || approvedBranches.some((id) =>
+            id.toString() === branchId
+        );
+        const assignments = branchIsApproved
+            ? await TeacherAssignment.find({
+                teacher: teacherId,
+                branch: branchId || { $in: approvedBranches },
+                isActive: true
+            }).select("subject").lean()
+            : [];
+        filter._id = { $in: assignments.map((assignment) => assignment.subject) };
     }
 
     if (branchId) {
@@ -132,13 +132,18 @@ export async function listSubjects({
 
     const subjects = await Subject.find(filter)
         .populate("branch", "name code isActive")
-        .populate("createdBy", "name teacherId institution")
+        .populate("createdBy", "name teacherId institution role")
         .sort({ name: 1 });
-    const serialized = subjects.map(serializeSubject);
-    if (teacherId) {
+    const visibleSubjects = role === "teacher"
+        ? subjects.filter((subject) => subject.branch?.isActive)
+        : subjects;
+    const serialized = visibleSubjects.map((subject) =>
+        serializeSubject(subject, assignedTeacherBySubject.get(subject.id) || null)
+    );
+    if (role === "teacher") {
         const assignments = await TeacherAssignment.find({
             teacher: teacherId,
-            subject: { $in: subjects.map((subject) => subject._id) },
+            subject: { $in: visibleSubjects.map((subject) => subject._id) },
             isActive: true
         }).sort({ studyYear: 1, semester: 1 }).lean();
         for (const subject of serialized) {
@@ -155,142 +160,31 @@ export async function listSubjects({
     return serialized;
 }
 
-export async function getSubjectById(id, role, userId, student) {
+export async function getSubjectById(id, role, userId) {
     const filter = { _id: id };
     if (role === "student") {
         filter.isActive = true;
         filter.branch = userId;
-        const activeTeachers = await User.find({
-            role: "teacher",
-            accountStatus: "active"
-        }).distinct("_id");
+    } else if (role === "teacher") {
+        filter.isActive = true;
+        filter.isDeleted = { $ne: true };
+        const approvedBranches = await TeacherBranchRequest.find({
+            teacher: userId,
+            status: "APPROVED"
+        }).distinct("branch");
         const assignments = await TeacherAssignment.find({
-            teacher: { $in: activeTeachers },
-            branch: userId,
-            academicBatch: student?.academicBatch,
-            studyYear: Number(student?.studyYear),
-            semester: Number(student?.semester),
+            teacher: userId,
+            branch: { $in: approvedBranches },
+            subject: id,
             isActive: true
-        }).select("subject").lean();
-        filter._id = { $in: assignments.map((assignment) => assignment.subject) };
-    } else if (userId) {
-        filter.createdBy = userId;
+        }).select("_id");
+        if (assignments.length === 0) throw notFound("Subject not assigned to this teacher.");
     }
     const subject = await Subject.findOne(filter)
         .populate("branch", "name code isActive")
-        .populate("createdBy", "name teacherId institution");
-    if (!subject || (role === "student" && (
-        !subject.branch?.isActive
-    ))) {
+        .populate("createdBy", "name teacherId institution role");
+    if (!subject || (["student", "teacher"].includes(role) && !subject.branch?.isActive)) {
         throw notFound("Subject not found.");
     }
     return serializeSubject(subject);
-}
-
-export async function createSubject(input, teacherId) {
-    await requireActiveBranch(input.branch, teacherId);
-    const academicBatch = String(input.academicBatch || "").trim();
-    const studyYear = Number(input.studyYear);
-    const semester = Number(input.semester);
-    if (!/^\d{4}-\d{4}$/u.test(academicBatch)) {
-        const error = new Error("Academic batch must use the YYYY-YYYY format.");
-        error.statusCode = 400;
-        throw error;
-    }
-    if (Math.ceil(semester / 2) !== studyYear) {
-        const error = new Error("The selected semester does not belong to the selected study year.");
-        error.statusCode = 400;
-        throw error;
-    }
-    const subject = await Subject.create({
-        name: input.name,
-        code: input.code,
-        description: input.description || "",
-        branch: input.branch,
-        createdBy: teacherId
-    });
-    await TeacherAssignment.findOneAndUpdate(
-        {
-            teacher: teacherId,
-            subject: subject._id,
-            academicBatch,
-            studyYear,
-            semester
-        },
-        {
-            $set: {
-                branch: subject.branch,
-                isActive: true
-            },
-            $setOnInsert: { assignedBy: teacherId }
-        },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
-    await subject.populate("branch", "name code isActive");
-    await subject.populate("createdBy", "name teacherId institution");
-    return serializeSubject(subject);
-}
-
-export async function updateSubject(id, input, teacherId) {
-    const subject = await Subject.findOne({ _id: id, createdBy: teacherId });
-    if (!subject) {
-        throw notFound("Subject not found.");
-    }
-
-    await requireActiveBranch(input.branch, teacherId);
-    const academicBatch = String(input.academicBatch || "").trim();
-    const studyYear = Number(input.studyYear);
-    const semester = Number(input.semester);
-    if (!/^\d{4}-\d{4}$/u.test(academicBatch)) {
-        const error = new Error("Academic batch must use the YYYY-YYYY format.");
-        error.statusCode = 400;
-        throw error;
-    }
-    if (Math.ceil(semester / 2) !== studyYear) {
-        const error = new Error("The selected semester does not belong to the selected study year.");
-        error.statusCode = 400;
-        throw error;
-    }
-    subject.name = input.name;
-    subject.code = input.code;
-    subject.description = input.description || "";
-    subject.branch = input.branch;
-    await subject.save();
-    await TeacherAssignment.findOneAndUpdate(
-        {
-            teacher: teacherId,
-            subject: subject._id,
-            academicBatch,
-            studyYear,
-            semester
-        },
-        {
-            $set: { branch: subject.branch, isActive: true },
-            $setOnInsert: { assignedBy: teacherId }
-        },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
-    await subject.populate("branch", "name code isActive");
-    await subject.populate("createdBy", "name teacherId institution");
-    return serializeSubject(subject);
-}
-
-export async function setSubjectStatus(id, isActive, teacherId) {
-    const subject = await Subject.findOne({ _id: id, createdBy: teacherId });
-    if (!subject) {
-        throw notFound("Subject not found.");
-    }
-
-    if (isActive) {
-        await requireActiveBranch(subject.branch, teacherId);
-    }
-    subject.isActive = isActive;
-    await subject.save();
-    await subject.populate("branch", "name code isActive");
-    await subject.populate("createdBy", "name teacherId institution");
-    return serializeSubject(subject);
-}
-
-export async function deactivateSubject(id, teacherId) {
-    return setSubjectStatus(id, false, teacherId);
 }

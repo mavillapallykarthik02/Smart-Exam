@@ -3,6 +3,7 @@ import { Attempt } from "../models/Attempt.js";
 import { Question } from "../models/Question.js";
 import { Result } from "../models/Result.js";
 import { Test } from "../models/Test.js";
+import { teacherCanManageTest } from "./testAccessService.js";
 
 function roundMarks(value) {
     return Math.round((value + Number.EPSILON) * 100) / 100;
@@ -113,8 +114,8 @@ export async function saveAnswerEvaluation(resultId, questionId, teacher, input)
         error.statusCode = 404;
         throw error;
     }
-    if (teacher.role !== "teacher" ||
-        !await Test.exists({ _id: result.test, createdBy: teacher.id })) {
+    const test = await Test.findById(result.test);
+    if (teacher.role !== "teacher" || !await teacherCanManageTest(teacher.id, test)) {
         const error = new Error("Result not found.");
         error.statusCode = 404;
         throw error;
@@ -175,8 +176,9 @@ export async function saveAnswerEvaluation(resultId, questionId, teacher, input)
 
 export async function publishResult(resultId, teacher) {
     const result = await Result.findById(resultId);
+    const test = result ? await Test.findById(result.test) : null;
     if (!result || teacher.role !== "teacher" ||
-        !await Test.exists({ _id: result.test, createdBy: teacher.id })) {
+        !await teacherCanManageTest(teacher.id, test)) {
         const error = new Error("Result not found.");
         error.statusCode = 404;
         throw error;

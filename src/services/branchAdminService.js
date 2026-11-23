@@ -50,3 +50,75 @@ export async function reviewBranchAdminBranchRequest(id, status, reason = "") {
     );
     return request;
 }
+
+export async function listBranchAdminSubjects() {
+    const { subjects } = await apiRequest("/branch-admin/subjects");
+    return subjects;
+}
+
+export async function createBranchAdminSubject(details) {
+    const { subject } = await apiRequest("/branch-admin/subjects", {
+        method: "POST",
+        body: details
+    });
+    return subject;
+}
+
+export async function updateBranchAdminSubject(id, details) {
+    const { subject } = await apiRequest(`/branch-admin/subjects/${encodeURIComponent(id)}`, {
+        method: "PUT",
+        body: details
+    });
+    return subject;
+}
+
+export async function deleteBranchAdminSubject(id, destinationSubjectId) {
+    return apiRequest(`/branch-admin/subjects/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        body: destinationSubjectId ? { destinationSubjectId } : {}
+    });
+}
+
+export async function setBranchAdminSubjectStatus(id, isActive) {
+    const { subject } = await apiRequest(
+        `/branch-admin/subjects/${encodeURIComponent(id)}/status`,
+        {
+            method: "PATCH",
+            body: { isActive }
+        }
+    );
+    return subject;
+}
+
+export async function assignBranchAdminSubject(id, assignment) {
+    const { assignment: result } = await apiRequest(
+        `/branch-admin/subjects/${encodeURIComponent(id)}/assignments`,
+        {
+            method: "POST",
+            body: assignment
+        }
+    );
+    return result;
+}
+
+export async function updateBranchAdminAssignment(id, teacher) {
+    const { assignment } = await apiRequest(
+        `/branch-admin/assignments/${encodeURIComponent(id)}`,
+        {
+            method: "PATCH",
+            body: { teacher }
+        }
+    );
+    return assignment;
+}
+
+export async function setBranchAdminAssignmentStatus(id, isActive) {
+    const { assignment } = await apiRequest(
+        `/branch-admin/assignments/${encodeURIComponent(id)}/status`,
+        {
+            method: "PATCH",
+            body: { isActive }
+        }
+    );
+    return assignment;
+}

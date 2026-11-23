@@ -5,6 +5,7 @@ import { Attempt } from "../models/Attempt.js";
 import { Result } from "../models/Result.js";
 import { Subject } from "../models/Subject.js";
 import { TeacherAssignment } from "../models/TeacherAssignment.js";
+import { TeacherBranchRequest } from "../models/TeacherBranchRequest.js";
 import { Test } from "../models/Test.js";
 import { User } from "../models/User.js";
 import { listSubjects } from "./subjectService.js";
@@ -64,40 +65,46 @@ function resourceNotFound() {
 export async function getStudentSubjectDetails(subjectId, student) {
     const branchId = student.branch?._id || student.branch;
     if (!branchId) throw resourceNotFound();
-    const activeTeachers = await User.find({
-        role: "teacher",
-        accountStatus: "active"
-    }).distinct("_id");
-    const assignment = await TeacherAssignment.findOne({
-        teacher: { $in: activeTeachers },
-        subject: subjectId,
-        branch: branchId,
-        academicBatch: student.academicBatch,
-        studyYear: Number(student.studyYear),
-        semester: Number(student.semester),
-        isActive: true
-    });
-    if (!assignment) throw resourceNotFound();
-
     const subject = await Subject.findOne({
         _id: subjectId,
         branch: branchId,
-        createdBy: assignment.teacher,
-        isActive: true
+        isActive: true,
+        isDeleted: { $ne: true }
     })
         .populate("branch", "name code isActive")
         .populate("createdBy", "name teacherId institution");
     if (!subject || !subject.branch?.isActive) throw resourceNotFound();
 
-    const tests = await Test.find({
+    const approvedBranchTeachers = await TeacherBranchRequest.find({
+        branch: branchId,
+        status: "APPROVED"
+    }).distinct("teacher");
+    const activeTeachers = await User.find({
+        _id: { $in: approvedBranchTeachers },
+        role: "teacher",
+        accountStatus: "active",
+        verificationStatus: "APPROVED"
+    }).distinct("_id");
+    const assignments = await TeacherAssignment.find({
+        teacher: { $in: activeTeachers },
         subject: subject._id,
-        branch: subject.branch._id,
-        createdBy: subject.createdBy._id,
+        branch: branchId,
         academicBatch: student.academicBatch,
         studyYear: Number(student.studyYear),
         semester: Number(student.semester),
-        status: "PUBLISHED"
-    }).sort({ createdAt: -1 });
+        isActive: true
+    }).populate("teacher", "name teacherId institution");
+    const tests = assignments.length
+        ? await Test.find({
+            subject: subject._id,
+            branch: subject.branch._id,
+            academicBatch: student.academicBatch,
+            studyYear: Number(student.studyYear),
+            semester: Number(student.semester),
+            status: "PUBLISHED"
+        }).sort({ createdAt: -1 })
+        : [];
+    const assignedTeacher = assignments.find((assignment) => assignment.teacher)?.teacher;
     const testIds = tests.map((test) => test._id);
     const [completedTestIds, activeAttempts] = await Promise.all([
         Result.distinct("test", { student: student._id || student.id, test: { $in: testIds } }),
@@ -138,10 +145,10 @@ export async function getStudentSubjectDetails(subjectId, student) {
             code: subject.branch.code
         },
         teacher: {
-            id: subject.createdBy.id,
-            name: subject.createdBy.name,
-            teacherId: subject.teacherId || subject.createdBy.teacherId,
-            institution: subject.createdBy.institution
+            id: assignedTeacher?.id,
+            name: assignedTeacher?.name || "Assigned teacher",
+            teacherId: assignedTeacher?.teacherId || "",
+            institution: assignedTeacher?.institution || ""
         },
         tests: testViews,
         availableTests: testViews.filter((test) => test.status === "AVAILABLE"),

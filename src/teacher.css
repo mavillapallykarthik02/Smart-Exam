@@ -1110,6 +1110,170 @@
   min-height: 42px;
 }
 
+.subject-actions,
+.assignment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.subject-expand-toggle {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.subject-expand-toggle > span:first-child {
+  color: var(--teacher-ink);
+}
+
+.subject-expand-toggle > span:first-child small {
+  color: var(--teacher-muted);
+}
+
+.subject-expand-label {
+  color: var(--teacher-primary);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.subject-expand-toggle:focus-visible {
+  border-radius: 4px;
+  outline: 3px solid rgba(49, 86, 200, 0.3);
+  outline-offset: 3px;
+}
+
+.subject-details-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.subject-details-panel[hidden] {
+  display: none;
+}
+
+.subject-delete-button {
+  min-height: 40px;
+  padding: 0 15px;
+  border: 1px solid #e6b6b6;
+  border-radius: 10px;
+  color: #a52e38;
+  background: #fff5f5;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.subject-delete-button:hover:not(:disabled) {
+  border-color: #d98e94;
+  background: #ffeded;
+}
+
+.subject-delete-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.subject-transfer-panel {
+  margin-bottom: 16px;
+  padding: 15px;
+  border: 1px solid var(--teacher-line);
+  border-radius: 12px;
+  background: #f7f9fd;
+}
+
+.subject-transfer-panel p {
+  margin: 0 0 12px;
+  color: #53627a;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.subject-transfer-form {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+
+.subject-transfer-form label {
+  display: grid;
+  gap: 7px;
+  color: var(--teacher-ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.subject-transfer-form select {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 11px;
+  border: 1px solid var(--teacher-line);
+  border-radius: 10px;
+  color: #42516a;
+  background: #ffffff;
+  font-size: 12px;
+}
+
+.subject-transfer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.subject-transferred-tests {
+  margin: 14px 0;
+}
+
+.subject-transferred-tests h3 {
+  margin: 0 0 10px;
+  color: var(--teacher-ink);
+  font-size: 14px;
+}
+
+.admin-assignment-edit-form {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto auto;
+  align-items: end;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.admin-assignment-edit-form label {
+  display: grid;
+  gap: 7px;
+  color: var(--teacher-ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-assignment-edit-form select {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 11px;
+  border: 1px solid var(--teacher-line);
+  border-radius: 10px;
+  color: #42516a;
+  background: #ffffff;
+  font-size: 12px;
+}
+
+@media (max-width: 700px) {
+  .admin-assignment-edit-form {
+    grid-template-columns: 1fr;
+  }
+
+  .subject-transfer-form {
+    grid-template-columns: 1fr;
+  }
+}
+
 .admin-branch-form {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
@@ -1866,6 +2030,27 @@
   object-fit: contain;
 }
 
+.question-preview-combined {
+  display: grid;
+  gap: 12px;
+}
+
+.question-preview-method-list {
+  margin: 0;
+  color: var(--teacher-muted);
+  font-size: 12px;
+}
+
+.question-preview-method {
+  display: grid;
+  gap: 6px;
+}
+
+.question-preview-method > strong {
+  color: var(--teacher-ink);
+  font-size: 12px;
+}
+
 .rich-editor,
 .equation-editor {
   width: 100%;
@@ -1910,6 +2095,16 @@
   outline: none;
   font-size: 14px;
   line-height: 1.65;
+}
+
+.rich-editor-readonly {
+  border: 0;
+}
+
+.rich-editor-readonly .rich-editor-content {
+  min-height: 0;
+  max-height: none;
+  padding: 0;
 }
 
 .rich-editor-status {
@@ -1960,6 +2155,10 @@
   border-radius: 9px;
 }
 
+.equation-editor-readonly {
+  border: 0;
+}
+
 .equation-source-label {
   display: block;
   margin: 0 12px 6px;
@@ -1989,6 +2188,14 @@
   text-align: center;
 }
 
+.equation-preview-readonly {
+  min-height: 0;
+  padding: 8px 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
 .paint-studio {
   width: 100%;
   overflow: hidden;
@@ -1997,22 +2204,27 @@
   background: #f7f9fd;
 }
 
-.paint-menu {
-  display: flex;
-  min-height: 34px;
-  align-items: center;
-  gap: 16px;
-  padding: 0 10px;
-  border-bottom: 1px solid var(--teacher-line);
-  background: #ffffff;
-  font-size: 11px;
-  font-weight: 700;
-}
-
 .paint-toolbar button.active {
   border-color: #93a9ec;
   color: #ffffff;
   background: var(--teacher-primary);
+}
+
+.paint-studio-readonly {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.paint-studio-readonly .paint-workspace {
+  max-height: 360px;
+}
+
+.paint-upload-error {
+  margin: 0;
+  padding: 8px 12px;
+  color: #b42318;
+  font-size: 12px;
 }
 
 .paint-settings label {
@@ -2086,11 +2298,6 @@
     left: 12px;
     bottom: 12px;
     width: calc(100vw - 24px);
-  }
-
-  .paint-menu {
-    gap: 8px;
-    overflow: hidden;
   }
 
   .paint-toolbar {

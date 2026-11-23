@@ -48,38 +48,42 @@ function EquationEditor({ value = "", onChange, label = "Mathematical equations"
     };
 
     return (
-        <div className="equation-editor">
-            <div className="equation-ribbon">
-                {SYMBOL_CATEGORIES.map((category) => (
-                    <details key={category.name}>
-                        <summary>{category.name}</summary>
-                        <div className="equation-symbol-grid">
-                            {category.symbols.map((symbol) => (
-                                <button type="button" key={symbol} onClick={() => insertSymbol(symbol)}>
-                                    <span>{symbol}</span>
-                                </button>
-                            ))}
-                        </div>
-                    </details>
-                ))}
-            </div>
-            <math-field
-                ref={fieldRef}
-                aria-label={label}
-                virtual-keyboard-mode="onfocus"
-                readonly={readOnly ? "true" : undefined}
-                onInput={(event) => onChange(event.target.value)}
-            />
-            <label className="equation-source-label" htmlFor="equationSource">Editable LaTeX source</label>
-            <textarea
-                id="equationSource"
-                className="equation-source"
-                value={value}
-                onChange={(event) => onChange(event.target.value)}
-                readOnly={readOnly}
-                rows={3}
-            />
-            <div className="equation-preview" aria-label="Equation preview">
+        <div className={`equation-editor${readOnly ? " equation-editor-readonly" : ""}`}>
+            {!readOnly && (
+                <div className="equation-ribbon">
+                    {SYMBOL_CATEGORIES.map((category) => (
+                        <details key={category.name}>
+                            <summary>{category.name}</summary>
+                            <div className="equation-symbol-grid">
+                                {category.symbols.map((symbol) => (
+                                    <button type="button" key={symbol} onClick={() => insertSymbol(symbol)} aria-label={`Insert ${symbol}`} title={symbol}>
+                                        <span dangerouslySetInnerHTML={{ __html: katex.renderToString(symbol, { throwOnError: false }) }} />
+                                    </button>
+                                ))}
+                            </div>
+                        </details>
+                    ))}
+                </div>
+            )}
+            {!readOnly && (
+                <>
+                    <math-field
+                        ref={fieldRef}
+                        aria-label={label}
+                        virtual-keyboard-mode="onfocus"
+                        onInput={(event) => onChange(event.target.value)}
+                    />
+                    <label className="equation-source-label" htmlFor="equationSource">Editable LaTeX source</label>
+                    <textarea
+                        id="equationSource"
+                        className="equation-source"
+                        value={value}
+                        onChange={(event) => onChange(event.target.value)}
+                        rows={3}
+                    />
+                </>
+            )}
+            <div className={`equation-preview${readOnly ? " equation-preview-readonly" : ""}`} aria-label="Equation preview">
                 <span ref={previewRef} />
             </div>
         </div>

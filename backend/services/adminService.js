@@ -2,6 +2,7 @@ import { Branch } from "../models/Branch.js";
 import { StudentEnrollment } from "../models/StudentEnrollment.js";
 import { Subject } from "../models/Subject.js";
 import { TeacherAssignment } from "../models/TeacherAssignment.js";
+import { TeacherBranchRequest } from "../models/TeacherBranchRequest.js";
 import { User } from "../models/User.js";
 import { INSTITUTION_KEY } from "../config/institution.js";
 import { createLookupHash } from "../utils/fieldEncryption.js";
@@ -37,6 +38,7 @@ export async function createTeacherAssignment(input, adminId) {
             _id: input.teacher,
             role: "teacher",
             accountStatus: "active",
+            verificationStatus: "APPROVED",
             institutionKey: INSTITUTION_KEY
         }).select("_id"),
         Subject.findOne({
@@ -44,12 +46,16 @@ export async function createTeacherAssignment(input, adminId) {
             isActive: true
         }).populate("branch", "_id isActive")
     ]);
-    if (!teacher) throw resourceError(404, "Active teacher not found.", "teacher");
+    if (!teacher) throw resourceError(404, "Active, approved teacher not found.", "teacher");
     if (!subject || !subject.branch?.isActive) {
         throw resourceError(404, "Active subject not found.", "subject");
     }
-    if (subject.createdBy.toString() !== teacher.id) {
-        throw resourceError(403, "The assigned teacher must own the selected subject.");
+    if (!await TeacherBranchRequest.exists({
+        teacher: teacher.id,
+        branch: subject.branch.id,
+        status: "APPROVED"
+    })) {
+        throw resourceError(403, "The teacher must be approved for the subject's branch.");
     }
     if (input.branch && subject.branch.id !== input.branch) {
         throw resourceError(400, "The subject does not belong to the selected branch.", "branch");
@@ -171,14 +177,21 @@ export async function createStudentEnrollment(input, adminId) {
 }
 
 export async function listAssignmentsForTeacher(teacherId) {
-    return listTeacherAssignments().then((assignments) => (
-        assignments.filter((assignment) => (
+    const [assignments, approvedBranches] = await Promise.all([
+        listTeacherAssignments(),
+        TeacherBranchRequest.find({
+            teacher: teacherId,
+            status: "APPROVED"
+        }).distinct("branch")
+    ]);
+    const approvedBranchIds = new Set(approvedBranches.map((branch) => branch.toString()));
+    return assignments.filter((assignment) => (
             assignment.teacher?.id === teacherId &&
             assignment.isActive &&
             assignment.branch?.isActive &&
-            assignment.subject?.isActive
-        ))
-    ));
+            assignment.subject?.isActive &&
+            approvedBranchIds.has(assignment.branch.id)
+        ));
 }
 
 export async function listAdminSectors() {

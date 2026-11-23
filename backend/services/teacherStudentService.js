@@ -92,13 +92,15 @@ export async function listTeacherStudents(teacherId, filters) {
 
     const rosterScope = {
         role: "student",
-        accountStatus: { $in: ["active", "approved"] },
         branch: { $in: branchIds },
         $or: classFilters.length ? classFilters : [{ branch: { $in: [] } }]
     };
     const [totalStudents, activeStudents, totalFiltered, students] = await Promise.all([
         User.countDocuments(rosterScope),
-        User.countDocuments(rosterScope),
+        User.countDocuments({
+            ...rosterScope,
+            accountStatus: { $in: ["active", "approved"] }
+        }),
         User.countDocuments(filter),
         User.find(filter)
             .select("studentId name username email mobile branch year academicBatch studyYear semester accountStatus createdAt")

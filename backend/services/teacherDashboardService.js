@@ -5,30 +5,43 @@ import { Result } from "../models/Result.js";
 import { Subject } from "../models/Subject.js";
 import { Test } from "../models/Test.js";
 import { TeacherAssignment } from "../models/TeacherAssignment.js";
-import { User } from "../models/User.js";
+import { TeacherBranchRequest } from "../models/TeacherBranchRequest.js";
+import { listTeacherStudents } from "./teacherStudentService.js";
 
 export async function getTeacherDashboard(teacherId) {
     const teacherObjectId = new mongoose.Types.ObjectId(teacherId);
-    const [ownedBranchIds, subjectBranchIds, subjectAssignments, classAssignments] = await Promise.all([
+    const [ownedBranchIds, subjectAssignments, classAssignments, approvedBranchIds] = await Promise.all([
         Branch.find({ createdBy: teacherObjectId }).distinct("_id"),
-        Subject.find({ createdBy: teacherObjectId }).distinct("branch"),
         TeacherAssignment.find({ teacher: teacherObjectId, isActive: true })
-            .select("branch academicBatch studyYear semester")
+            .select("branch subject academicBatch studyYear semester")
             .lean(),
         ClassTeacherAssignment.find({ teacher: teacherObjectId, isActive: true })
             .select("branch academicBatch studyYear semester")
-            .lean()
+            .lean(),
+        TeacherBranchRequest.find({ teacher: teacherObjectId, status: "APPROVED" })
+            .distinct("branch")
     ]);
     const assignments = [...subjectAssignments, ...classAssignments];
     const branchIds = [...new Set(
-        [...ownedBranchIds, ...subjectBranchIds, ...assignments.map((assignment) => assignment.branch.toString())]
+        [
+            ...ownedBranchIds,
+            ...approvedBranchIds,
+            ...assignments.map((assignment) => assignment.branch.toString())
+        ]
             .map((id) => id.toString())
     )].map((id) => new mongoose.Types.ObjectId(id));
-    const [branches, subjects, testRows] = await Promise.all([
+    const approvedBranchIdSet = new Set(approvedBranchIds.map((id) => id.toString()));
+    const assignedSubjectIds = [...new Set(subjectAssignments
+        .filter((assignment) => approvedBranchIdSet.has(assignment.branch.toString()))
+        .map((assignment) => assignment.subject.toString()))]
+        .map((id) => new mongoose.Types.ObjectId(id));
+    const [branches, subjects, testRows, studentPage, resultStats] = await Promise.all([
         branchIds.length
-            ? Branch.countDocuments({ _id: { $in: branchIds } })
+            ? Branch.countDocuments({ _id: { $in: branchIds }, isActive: true })
             : 0,
-        Subject.countDocuments({ createdBy: teacherObjectId }),
+        assignedSubjectIds.length
+            ? Subject.countDocuments({ _id: { $in: assignedSubjectIds }, isActive: true })
+            : 0,
         Test.aggregate([
             { $match: { createdBy: teacherObjectId } },
             {
@@ -39,50 +52,15 @@ export async function getTeacherDashboard(teacherId) {
                     draft: { $sum: { $cond: [{ $eq: ["$status", "DRAFT"] }, 1, 0] } },
                 }
             }
-        ])
-    ]);
-    const testStats = testRows[0] || { total: 0, published: 0, draft: 0 };
-    const uniqueClassFilters = [];
-    const classFilterKeys = new Set();
-    for (const assignment of assignments) {
-        const key = [
-            assignment.branch.toString(),
-            assignment.academicBatch,
-            assignment.studyYear
-        ].join(":");
-        if (classFilterKeys.has(key)) continue;
-        classFilterKeys.add(key);
-        uniqueClassFilters.push({
-            branch: assignment.branch,
-            academicBatch: assignment.academicBatch,
-            studyYear: assignment.studyYear
-        });
-    }
-    const studentClassFilters = uniqueClassFilters;
-    const [studentStats, resultStats] = await Promise.all([
-        User.aggregate([
-            {
-                $match: {
-                    role: "student",
-                    accountStatus: { $in: ["active", "approved"] },
-                    branch: { $in: branchIds },
-                    $or: studentClassFilters.length
-                        ? studentClassFilters
-                        : [{ branch: { $in: [] } }]
-                }
-            },
-            {
-                $group: {
-                    _id: null,
-                    total: { $sum: 1 },
-                    active: {
-                        $sum: {
-                            $cond: [{ $in: ["$accountStatus", ["active", "approved"]] }, 1, 0]
-                        }
-                    }
-                }
-            }
         ]),
+        listTeacherStudents(teacherObjectId, {
+            page: 1,
+            limit: 1,
+            search: "",
+            branch: "",
+            studyYear: "",
+            status: ""
+        }),
         Result.aggregate([
             {
                 $lookup: {
@@ -123,13 +101,13 @@ export async function getTeacherDashboard(teacherId) {
             }
         ])
     ]);
+    const testStats = testRows[0] || { total: 0, published: 0, draft: 0 };
     const result = resultStats[0];
-    const students = studentStats[0];
-    const totalStudents = students?.total || 0;
+    const totalStudents = studentPage.summary.totalStudents;
     return {
         students: {
             total: totalStudents,
-            active: students?.active || 0,
+            active: studentPage.summary.activeStudents,
             participants: result?.participants || 0
         },
         tests: {

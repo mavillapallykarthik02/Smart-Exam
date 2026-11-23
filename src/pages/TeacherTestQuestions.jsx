@@ -422,6 +422,7 @@ function TeacherTestQuestions() {
                                     <PaintStudio
                                         pages={form.drawingPages.length ? form.drawingPages : [{ width: 800, height: 500, objects: [] }]}
                                         onChange={(drawingPages) => setForm((old) => ({ ...old, drawingPages }))}
+                                        allowImageUpload
                                     />
                                 </section>
                             )}
@@ -462,19 +463,35 @@ function TeacherTestQuestions() {
                                     <>
                                     {form.instructions && <p><strong>Instructions:</strong> {form.instructions}</p>}
                                     {form.imageUrl && <img src={form.imageUrl} alt="Question" />}
-                                    {form.contentMethods.includes("ENGLISH") && (
-                                        <EnglishEditor value={form.englishContent} onChange={() => {}} label="English question preview" readOnly />
-                                    )}
-                                    {form.contentMethods.includes("EQUATION") && (
-                                        <EquationEditor value={form.equationSource} onChange={() => {}} label="Equation question preview" readOnly />
-                                    )}
-                                    {form.contentMethods.includes("DRAW") && (
-                                        <PaintStudio
-                                            pages={form.drawingPages.length ? form.drawingPages : [{ width: 800, height: 500, objects: [] }]}
-                                            onChange={() => {}}
-                                            readOnly
-                                        />
-                                    )}
+                                    <div className="question-preview-combined">
+                                        <p className="question-preview-method-list">
+                                            <strong>Selected methods:</strong> {form.contentMethods.map((method) => (
+                                                { ENGLISH: "English", EQUATION: "Equation", DRAW: "Draw" }[method]
+                                            )).join(" · ")}
+                                        </p>
+                                        {form.contentMethods.includes("ENGLISH") && (
+                                            <div className="question-preview-method">
+                                                <strong>English</strong>
+                                                <EnglishEditor value={form.englishContent} onChange={() => {}} label="English question preview" readOnly />
+                                            </div>
+                                        )}
+                                        {form.contentMethods.includes("EQUATION") && (
+                                            <div className="question-preview-method">
+                                                <strong>Equation</strong>
+                                                <EquationEditor value={form.equationSource} onChange={() => {}} label="Equation question preview" readOnly />
+                                            </div>
+                                        )}
+                                        {form.contentMethods.includes("DRAW") && (
+                                            <div className="question-preview-method">
+                                                <strong>Drawing</strong>
+                                                <PaintStudio
+                                                    pages={form.drawingPages.length ? form.drawingPages : [{ width: 800, height: 500, objects: [] }]}
+                                                    onChange={() => {}}
+                                                    readOnly
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
                                     </>
                                     )}
                                 </div>

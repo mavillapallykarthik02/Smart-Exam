@@ -5,15 +5,33 @@ import { allowRoles } from "../middleware/roleMiddleware.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendError, sendSuccess } from "../utils/apiResponse.js";
 import {
+    createBranchAdminSubject,
+    createBranchTeacherAssignment,
     getBranchAdminOverview,
     getBranchTeacherDetails,
     getBranchStudentPerformance,
+    listBranchAdminSubjects,
     listBranchStudents,
     listBranchTeachers,
     listBranchTeacherRequests,
     reviewBranchTeacherRequest,
-    setBranchTeacherVerification
+    deleteBranchAdminSubject,
+    setBranchAdminSubjectStatus,
+    setBranchTeacherAssignmentStatus,
+    setBranchTeacherVerification,
+    updateBranchTeacherAssignment,
+    updateBranchAdminSubject
 } from "../services/branchAdminService.js";
+import { validateRequest } from "../middleware/validationMiddleware.js";
+import {
+    validateBranchAdminAssignmentStatus,
+    validateBranchAdminAssignmentUpdate,
+    validateBranchAdminSubjectAssignment,
+    validateBranchAdminSubjectCreate,
+    validateBranchAdminSubjectDelete,
+    validateBranchAdminSubjectStatus,
+    validateBranchAdminSubjectUpdate
+} from "../validators/branchAdminValidator.js";
 
 const router = Router();
 router.use(authenticate, allowRoles("branch_admin"));
@@ -63,6 +81,111 @@ router.patch("/teachers/:id/verification", asyncHandler(async (request, response
     );
     return sendSuccess(response, { teacher }, "Teacher verification status updated.");
 }));
+
+router.get("/subjects", asyncHandler(async (request, response) => {
+    return sendSuccess(response, { subjects: await listBranchAdminSubjects(request.user) });
+}));
+
+router.post(
+    "/subjects",
+    validateBranchAdminSubjectCreate,
+    validateRequest,
+    asyncHandler(async (request, response) => {
+        const subject = await createBranchAdminSubject(request.user, request.body);
+        return sendSuccess(
+            response,
+            { subject },
+            "Subject created and published. Assign a teacher and class for student access.",
+            201
+        );
+    })
+);
+
+router.put(
+    "/subjects/:id",
+    validateBranchAdminSubjectUpdate,
+    validateRequest,
+    asyncHandler(async (request, response) => {
+        const subject = await updateBranchAdminSubject(request.user, request.params.id, request.body);
+        return sendSuccess(response, { subject }, "Subject updated successfully.");
+    })
+);
+
+router.delete(
+    "/subjects/:id",
+    validateBranchAdminSubjectDelete,
+    validateRequest,
+    asyncHandler(async (request, response) => {
+        const transfer = await deleteBranchAdminSubject(
+            request.user,
+            request.params.id,
+            request.body?.destinationSubjectId
+        );
+        return sendSuccess(
+            response,
+            { transfer },
+            request.body?.destinationSubjectId
+                ? "Subject data transferred; source subject deleted."
+                : "Subject deleted successfully."
+        );
+    })
+);
+
+router.patch(
+    "/subjects/:id/status",
+    validateBranchAdminSubjectStatus,
+    validateRequest,
+    asyncHandler(async (request, response) => {
+        const subject = await setBranchAdminSubjectStatus(
+            request.user,
+            request.params.id,
+            request.body.isActive
+        );
+        return sendSuccess(response, { subject }, "Subject publication status updated.");
+    })
+);
+
+router.post(
+    "/subjects/:id/assignments",
+    validateBranchAdminSubjectAssignment,
+    validateRequest,
+    asyncHandler(async (request, response) => {
+        const assignment = await createBranchTeacherAssignment(
+            request.user,
+            request.params.id,
+            request.body
+        );
+        return sendSuccess(response, { assignment }, "Subject assigned to teacher.", 201);
+    })
+);
+
+router.patch(
+    "/assignments/:id",
+    validateBranchAdminAssignmentUpdate,
+    validateRequest,
+    asyncHandler(async (request, response) => {
+        const assignment = await updateBranchTeacherAssignment(
+            request.user,
+            request.params.id,
+            request.body.teacher
+        );
+        return sendSuccess(response, { assignment }, "Assigned teacher updated.");
+    })
+);
+
+router.patch(
+    "/assignments/:id/status",
+    validateBranchAdminAssignmentStatus,
+    validateRequest,
+    asyncHandler(async (request, response) => {
+        const assignment = await setBranchTeacherAssignmentStatus(
+            request.user,
+            request.params.id,
+            request.body.isActive
+        );
+        return sendSuccess(response, { assignment }, "Teacher assignment status updated.");
+    })
+);
 
 router.get("/students", asyncHandler(async (request, response) => {
     return sendSuccess(response, { students: await listBranchStudents(request.user) });

@@ -16,6 +16,7 @@ let User;
 let Branch;
 let Subject;
 let TeacherAssignment;
+let TeacherBranchRequest;
 let Answer;
 let Attempt;
 let Result;
@@ -32,6 +33,7 @@ before(async () => {
         branchModule,
         subjectModule,
         assignmentModule,
+        branchRequestModule,
         answerModule,
         attemptModule,
         resultModule,
@@ -44,6 +46,7 @@ before(async () => {
         import("../models/Branch.js"),
         import("../models/Subject.js"),
         import("../models/TeacherAssignment.js"),
+        import("../models/TeacherBranchRequest.js"),
         import("../models/Answer.js"),
         import("../models/Attempt.js"),
         import("../models/Result.js"),
@@ -55,6 +58,7 @@ before(async () => {
     Branch = branchModule.Branch;
     Subject = subjectModule.Subject;
     TeacherAssignment = assignmentModule.TeacherAssignment;
+    TeacherBranchRequest = branchRequestModule.TeacherBranchRequest;
     Answer = answerModule.Answer;
     Attempt = attemptModule.Attempt;
     Result = resultModule.Result;
@@ -96,6 +100,11 @@ test("teacher creates a multi-method exam and student submits all answer methods
         institutionKey,
         isActive: true,
         createdBy: teacher.id
+    });
+    await TeacherBranchRequest.create({
+        teacher: teacher.id,
+        branch: branch.id,
+        status: "APPROVED"
     });
     const subject = await Subject.create({
         name: "Engineering Mathematics",

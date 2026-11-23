@@ -5,8 +5,7 @@ const teacherAssignmentSchema = new mongoose.Schema(
         teacher: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
-            required: true,
-            immutable: true
+            required: true
         },
         branch: {
             type: mongoose.Schema.Types.ObjectId,
@@ -17,8 +16,7 @@ const teacherAssignmentSchema = new mongoose.Schema(
         subject: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Subject",
-            required: true,
-            immutable: true
+            required: true
         },
         academicBatch: {
             type: String,

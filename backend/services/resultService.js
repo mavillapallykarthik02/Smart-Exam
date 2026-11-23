@@ -7,6 +7,10 @@ import { Result } from "../models/Result.js";
 import { Test } from "../models/Test.js";
 import { User } from "../models/User.js";
 import { createLookupHash, createNameSearchTokens } from "../utils/fieldEncryption.js";
+import {
+    listTeacherManagedTestIds,
+    teacherCanManageTest
+} from "./testAccessService.js";
 
 function notFound() {
     const error = new Error("Result not found.");
@@ -55,7 +59,7 @@ const resultPopulation = [
     },
     {
         path: "test",
-        select: "title subject branch",
+        select: "title subject branch academicBatch studyYear semester",
         populate: [
             { path: "subject", select: "name" },
             { path: "branch", select: "name" }
@@ -72,8 +76,8 @@ export async function listResults(user, filters) {
     if (user.role === "student") {
         filter = { student: user._id, evaluationStatus: "PUBLISHED" };
     } else {
-        const tests = await Test.find({ createdBy: user._id }).select("_id");
-        filter = { test: { $in: tests.map((test) => test._id) } };
+        const testIds = await listTeacherManagedTestIds(user._id);
+        filter = { test: { $in: testIds } };
     }
     if (filters.status === "PASSED") filter.passed = true;
     if (filters.status === "FAILED") filter.passed = false;
@@ -100,9 +104,11 @@ export async function listResults(user, filters) {
                 ]
             }).select("_id")
         ]);
-        const ownedTestFilter = user.role === "teacher" ? { createdBy: user._id } : {};
+        const managedTestFilter = user.role === "teacher"
+            ? { _id: { $in: await listTeacherManagedTestIds(user._id) } }
+            : {};
         const matchingTests = await Test.find({
-            ...ownedTestFilter,
+            ...managedTestFilter,
             $or: [
                 { title: pattern },
                     { subject: { $in: matchingSubjects.map((subject) => subject._id) } },
@@ -184,8 +190,7 @@ export async function getResult(id, user) {
         result.evaluationStatus !== "PUBLISHED"
     )) throw notFound();
     if (user.role === "teacher") {
-        const ownedTest = await Test.exists({ _id: result.test.id, createdBy: user.id });
-        if (!ownedTest) throw notFound();
+        if (!await teacherCanManageTest(user.id, result.test)) throw notFound();
     }
     const [attempt, questions, answers] = await Promise.all([
         Attempt.findById(result.attempt),

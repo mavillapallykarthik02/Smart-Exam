@@ -39,6 +39,11 @@ const subjectSchema = new mongoose.Schema(
             default: true,
             required: true
         },
+        isDeleted: {
+            type: Boolean,
+            default: false,
+            required: true
+        },
         createdBy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
