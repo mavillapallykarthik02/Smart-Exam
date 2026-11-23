@@ -2,7 +2,7 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
-import { config } from "./config/env.js";
+import { isAllowedClientOrigin } from "./config/env.js";
 import { errorMiddleware, notFoundMiddleware } from "./middleware/errorMiddleware.js";
 import { sendError } from "./utils/apiResponse.js";
 import authRoutes from "./routes/authRoutes.js";
@@ -25,7 +25,7 @@ app.disable("x-powered-by");
 app.use(helmet());
 app.use(cors({
     origin(origin, callback) {
-        callback(null, !origin || config.clientOrigins.includes(origin));
+        callback(null, !origin || isAllowedClientOrigin(origin));
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
@@ -33,7 +33,7 @@ app.use(cors({
 app.use((request, response, next) => {
     if (["GET", "HEAD", "OPTIONS"].includes(request.method)) return next();
     const origin = request.get("origin");
-    if (origin && !config.clientOrigins.includes(origin)) {
+    if (origin && !isAllowedClientOrigin(origin)) {
         return sendError(response, 403, "This origin is not allowed to modify SmartExam data.");
     }
     return next();

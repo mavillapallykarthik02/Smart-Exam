@@ -17,7 +17,7 @@ SmartExam keeps the React/Vite application at the repository root and adds an Ex
 
 ## Deployment
 
-- **Render API:** Create a Blueprint from `render.yaml` (or use `backend/` as the service root directory), with build command `npm run build` and start command `npm start`. The backend build script installs production dependencies from its lockfile. Set `MONGODB_URI`, `JWT_SECRET`, and `FIELD_ENCRYPTION_KEY` in the Render environment. The Blueprint allows the production Vercel origin `https://smart-exam-theta.vercel.app`; production session cookies use `SameSite=None; Secure` for cross-origin authentication.
+- **Render API:** Create a Blueprint from `render.yaml` (or use `backend/` as the service root directory), with build command `npm run build` and start command `npm start`. The backend build script installs production dependencies from its lockfile. Set `MONGODB_URI`, `JWT_SECRET`, and `FIELD_ENCRYPTION_KEY` in the Render environment. The API allows the production Vercel origins and preview URLs matching `smart-exam-<deployment-id>-smart-exam1.vercel.app`; production session cookies use `SameSite=None; Secure` for cross-origin authentication.
 - **Vercel frontend:** Import the repository with the project root as the root directory. `vercel.json` builds with `npm run vercel-build`, serves `dist`, and routes client-side pages to the React app. Set `VITE_API_BASE_URL` to the Render API URL, with or without the trailing `/api` (for example, `https://smart-exam-4i0d.onrender.com/api`); the frontend normalizes the prefix. Do not put backend secrets in Vercel variables.
 
 ## Student IDs

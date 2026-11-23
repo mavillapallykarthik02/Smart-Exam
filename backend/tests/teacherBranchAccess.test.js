@@ -47,7 +47,8 @@ after(async () => {
 test("branch approval grants a teacher student management access to that branch", async () => {
     for (const origin of [
         "https://smart-exam-theta.vercel.app",
-        "https://smart-exam-gptm.vercel.app"
+        "https://smart-exam-gptm.vercel.app",
+        "https://smart-exam-hf2hmivry-smart-exam1.vercel.app"
     ]) {
         const corsPreflight = await request(app)
             .options("/api/auth/admin/login")
@@ -58,6 +59,15 @@ test("branch approval grants a teacher student management access to that branch"
         assert.equal(corsPreflight.headers["access-control-allow-origin"], origin);
         assert.equal(corsPreflight.headers["access-control-allow-credentials"], "true");
     }
+
+    const previewSession = await request(app)
+        .get("/api/auth/me")
+        .set("Origin", "https://smart-exam-hf2hmivry-smart-exam1.vercel.app");
+    assert.equal(previewSession.status, 200);
+    assert.equal(
+        previewSession.headers["access-control-allow-origin"],
+        "https://smart-exam-hf2hmivry-smart-exam1.vercel.app"
+    );
 
     const blockedMutation = await request(app)
         .post("/api/auth/admin/login")

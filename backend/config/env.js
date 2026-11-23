@@ -12,6 +12,8 @@ const defaultClientOrigins = isProduction
     ? ["https://smart-exam-theta.vercel.app", "https://smart-exam-gptm.vercel.app"]
     : ["http://localhost:5173"];
 const clientOrigins = [...new Set([...defaultClientOrigins, ...configuredClientOrigins])];
+const smartExamPreviewOriginPattern =
+    /^https:\/\/smart-exam-[a-z0-9-]+-smart-exam1\.vercel\.app$/iu;
 
 for (const variable of requiredEnvironmentVariables) {
     if (!process.env[variable]) {
@@ -40,3 +42,7 @@ export const config = {
     sessionCookieName: "smartexam_session",
     sessionCookieMaxAge: 24 * 60 * 60 * 1000
 };
+
+export function isAllowedClientOrigin(origin) {
+    return clientOrigins.includes(origin) || smartExamPreviewOriginPattern.test(origin);
+}
