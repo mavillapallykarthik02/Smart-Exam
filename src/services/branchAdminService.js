@@ -51,6 +51,20 @@ export async function reviewBranchAdminBranchRequest(id, status, reason = "") {
     return request;
 }
 
+export async function deleteBranchAdminBranchRequest(id) {
+    await apiRequest(`/branch-admin/branch-requests/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        toast: false
+    });
+}
+
+export async function deleteBranchAdminTeacher(id) {
+    await apiRequest(`/branch-admin/teachers/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        toast: false
+    });
+}
+
 export async function listBranchAdminSubjects() {
     const { subjects } = await apiRequest("/branch-admin/subjects");
     return subjects;

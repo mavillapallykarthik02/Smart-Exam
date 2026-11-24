@@ -366,7 +366,7 @@ card(slide, 9.91, 1.66, 2.85, 4.72,
 
 # 13. UI Experience
 slide = base_slide("Role-Based User Experience", "12 • Frontend")
-hero = ROOT / "src" / "assets" / "hero.png"
+hero = ROOT / "presentation_assets" / "landing.png"
 if hero.exists():
     slide.shapes.add_picture(str(hero), Inches(0.55), Inches(1.70),
                              width=Inches(5.20), height=Inches(4.40))
@@ -386,7 +386,39 @@ for i, (title, body) in enumerate(dashboards):
     text(slide, 6.42, y + 0.20, 1.58, 0.32, title, 16, NAVY, True)
     text(slide, 8.04, y + 0.18, 4.38, 0.70, body, 12, MUTED)
 
-# 14. Testing and delivery
+# 14. Live student dashboard
+slide = base_slide("Student Dashboard — Live Interface", "12 • Screenshots")
+student_dash = ROOT / "presentation_assets" / "student_dashboard.png"
+if student_dash.exists():
+    slide.shapes.add_picture(str(student_dash), Inches(0.55), Inches(1.55),
+                             width=Inches(8.20), height=Inches(5.10))
+rect(slide, 9.02, 1.55, 3.72, 5.10, NAVY, True)
+text(slide, 9.35, 1.95, 3.06, 0.42, "STUDENT WORKFLOW", 16, CYAN, True)
+bullet_list(slide, 9.35, 2.58, 2.96,
+            ["View assigned branch and cohort",
+             "Browse published class tests",
+             "Start and submit timed attempts",
+             "Review published results",
+             "Track real progress"],
+            12, WHITE, CYAN, 0.70)
+
+# 15. Live teacher dashboard
+slide = base_slide("Teacher Dashboard — Live Interface", "12 • Screenshots")
+teacher_dash = ROOT / "presentation_assets" / "teacher_dashboard.png"
+if teacher_dash.exists():
+    slide.shapes.add_picture(str(teacher_dash), Inches(0.55), Inches(1.55),
+                             width=Inches(8.20), height=Inches(5.10))
+rect(slide, 9.02, 1.55, 3.72, 5.10, NAVY, True)
+text(slide, 9.35, 1.95, 3.06, 0.42, "TEACHER WORKFLOW", 16, ORANGE, True)
+bullet_list(slide, 9.35, 2.58, 2.96,
+            ["Manage assigned students",
+             "Approve class registrations",
+             "Configure tests and questions",
+             "Review and publish results",
+             "Monitor proctoring events"],
+            12, WHITE, ORANGE, 0.70)
+
+# 16. Testing and delivery
 slide = base_slide("Quality Assurance and Deployment", "13 • Validation")
 rect(slide, 0.55, 1.66, 5.85, 4.86, WHITE, True)
 text(slide, 0.88, 1.98, 5.18, 0.38, "Automated test areas", 17, NAVY, True)

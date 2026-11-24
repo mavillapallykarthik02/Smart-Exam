@@ -3,6 +3,7 @@ import PaginationControls from "../components/PaginationControls";
 import TeacherNavbar from "../components/TeacherNavbar";
 import { listBranches } from "../services/branchService";
 import { listTeacherStudents } from "../services/teacherService";
+import { groupStudentsByClass } from "../utils/groupStudentsByClass";
 
 function TeacherStudents() {
     const [students, setStudents] = useState([]);
@@ -63,6 +64,8 @@ function TeacherStudents() {
         setPage(1);
     };
 
+    const studentGroups = groupStudentsByClass(students);
+
     return (
         <div className="teacher-page">
             <TeacherNavbar active="Students" />
@@ -120,7 +123,6 @@ function TeacherStudents() {
                         <option value="1">1st Year</option>
                         <option value="2">2nd Year</option>
                         <option value="3">3rd Year</option>
-                        <option value="4">4th Year</option>
                     </select>
                     <select className="management-filter" value={status}
                         onChange={changeFilter(setStatus)} aria-label="Filter by account status">
@@ -145,13 +147,19 @@ function TeacherStudents() {
                         <p>There are no students matching your managed branches and selected filters.</p>
                     </div>
                 ) : (
-                    <div className="teacher-management-table student-id-management-table">
+                    studentGroups.map((group) => (
+                        <section className="student-class-group" key={group.key}>
+                            <div className="student-class-heading">
+                                <h2>{group.label}</h2>
+                                <span>{group.students.length} student{group.students.length === 1 ? "" : "s"}</span>
+                            </div>
+                            <div className="teacher-management-table student-id-management-table">
                         <div className="management-table-header">
                             <div>Polytechnic PIN</div><div>Student</div><div>Branch</div>
                             <div>Class</div><div>Tests Attempted</div>
                             <div>Average Score</div><div>Account</div>
                         </div>
-                        {students.map((student) => (
+                        {group.students.map((student) => (
                             <div className="management-table-row" key={student.id}>
                                 <div><strong>{student.studentId}</strong></div>
                                 <div className="branch-name-cell">
@@ -173,7 +181,9 @@ function TeacherStudents() {
                                 </span></div>
                             </div>
                         ))}
-                    </div>
+                            </div>
+                        </section>
+                    ))
                 )}
                 {!isLoading && <PaginationControls pagination={pagination} onPageChange={setPage} />}
             </main>

@@ -1,4 +1,4 @@
-import { getResult, listResults } from "../services/resultService.js";
+import { getResult, listResults, listTeacherResultOverview } from "../services/resultService.js";
 import { publishResult, saveAnswerEvaluation } from "../services/evaluationService.js";
 import { sendSuccess } from "../utils/apiResponse.js";
 
@@ -11,6 +11,11 @@ export async function getResults(request, response) {
         date: request.query.date || ""
     });
     return sendSuccess(response, resultPage);
+}
+
+export async function getTeacherResultOverview(request, response) {
+    const overview = await listTeacherResultOverview(request.user.id);
+    return sendSuccess(response, overview);
 }
 
 export async function getResultById(request, response) {

@@ -6,6 +6,7 @@ import {
     listStudentApprovals,
     updateStudentApproval
 } from "../services/teacherService";
+import { groupStudentsByClass } from "../utils/groupStudentsByClass";
 
 const statuses = ["pending", "approved", "rejected", "suspended"];
 
@@ -195,7 +196,13 @@ function TeacherStudentApprovals() {
                         <p>There are no students in this class matching the selected filter.</p>
                     </div>
                 ) : (
-                    <div className="teacher-management-table approval-table">
+                    groupStudentsByClass(students).map((group) => (
+                        <section className="student-class-group" key={group.key}>
+                            <div className="student-class-heading">
+                                <h2>{group.label}</h2>
+                                <span>{group.students.length} student{group.students.length === 1 ? "" : "s"}</span>
+                            </div>
+                            <div className="teacher-management-table approval-table">
                         <div className="management-table-header">
                             <div>Polytechnic PIN</div>
                             <div>Student</div>
@@ -204,7 +211,7 @@ function TeacherStudentApprovals() {
                             <div>Status</div>
                             <div>Actions</div>
                         </div>
-                        {students.map((student) => (
+                        {group.students.map((student) => (
                             <div className="management-table-row" key={student.id}>
                                 <div><strong>{student.studentId}</strong></div>
                                 <div className="branch-name-cell">
@@ -260,7 +267,9 @@ function TeacherStudentApprovals() {
                                 </div>
                             </div>
                         ))}
-                    </div>
+                            </div>
+                        </section>
+                    ))
                 )}
                 {!isLoading && <PaginationControls pagination={pagination} onPageChange={setPage} />}
             </main>

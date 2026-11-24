@@ -268,8 +268,8 @@ function StudentRegister() {
                   onChange={handleChange}
                   required
                 >
-                  {[1, 2, 3, 4].map((year) => (
-                    <option key={year} value={String(year)}>{["", "1st Year", "2nd Year", "3rd Year", "4th Year"][year]}</option>
+                  {[1, 2, 3].map((year) => (
+                    <option key={year} value={String(year)}>{["", "1st Year", "2nd Year", "3rd Year"][year]}</option>
                   ))}
                 </select>
               </div>

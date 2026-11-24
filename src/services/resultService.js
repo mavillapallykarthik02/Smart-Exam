@@ -9,6 +9,10 @@ export async function listResults(filters = {}) {
     return apiRequest(`/results${query}`);
 }
 
+export async function getTeacherResultOverview() {
+    return apiRequest("/results/teacher-overview");
+}
+
 export async function listStudentResults(filters = {}) {
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([key, value]) => {

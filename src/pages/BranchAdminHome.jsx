@@ -4,6 +4,7 @@ import { useAuth } from "../context/useAuth";
 import LogoutButton from "../components/LogoutButton";
 import BrandLogoImage from "../components/BrandLogoImage";
 import BranchAdminSubjects from "./BranchAdminSubjects";
+import { groupStudentsByClass } from "../utils/groupStudentsByClass";
 import {
     getBranchAdminTeacherDetails,
     listBranchAdminBranchRequests,
@@ -11,7 +12,9 @@ import {
     listBranchAdminStudents,
     listBranchAdminTeachers,
     reviewBranchAdminTeacher,
-    reviewBranchAdminBranchRequest
+    reviewBranchAdminBranchRequest,
+    deleteBranchAdminBranchRequest,
+    deleteBranchAdminTeacher
 } from "../services/branchAdminService";
 
 const sections = [
@@ -113,6 +116,36 @@ function BranchAdminHome() {
         try {
             await reviewBranchAdminBranchRequest(branchRequest.id, status, reason);
             setNotice(`Branch request ${status.toLowerCase()} successfully.`);
+            await loadData();
+        } catch (requestError) {
+            setError(requestError.message);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const removeBranchRequest = async (branchRequest) => {
+        if (!window.confirm(`Delete the branch request from ${branchRequest.teacher?.name || "this teacher"}?`)) return;
+        setIsSaving(true);
+        setError("");
+        try {
+            await deleteBranchAdminBranchRequest(branchRequest.id);
+            setNotice("Branch request deleted successfully.");
+            await loadData();
+        } catch (requestError) {
+            setError(requestError.message);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const removeTeacher = async (teacher) => {
+        if (!window.confirm(`Delete ${teacher.name}'s pending or rejected approval record?`)) return;
+        setIsSaving(true);
+        setError("");
+        try {
+            await deleteBranchAdminTeacher(teacher.id);
+            setNotice("Teacher record deleted successfully.");
             await loadData();
         } catch (requestError) {
             setError(requestError.message);
@@ -266,6 +299,7 @@ function BranchAdminHome() {
                                                         <div className="management-actions">
                                                             {teacher.verificationStatus !== "APPROVED" && <button type="button" disabled={isSaving} onClick={(event) => { event.stopPropagation(); void reviewTeacher(teacher, "APPROVED"); }}>Approve</button>}
                                                             {teacher.verificationStatus !== "REJECTED" && <button type="button" className="danger" disabled={isSaving} onClick={(event) => { event.stopPropagation(); void reviewTeacher(teacher, "REJECTED"); }}>Reject</button>}
+                                                            {teacher.verificationStatus !== "APPROVED" && <button type="button" className="danger" disabled={isSaving} onClick={(event) => { event.stopPropagation(); void removeTeacher(teacher); }}>Delete</button>}
                                                         </div>
                                                     </div>
                                                 ))}
@@ -308,6 +342,10 @@ function BranchAdminHome() {
                                                 ) : (
                                                     <span>{branchRequest.status}</span>
                                                 )}
+                                                {branchRequest.status !== "APPROVED" && (
+                                                    <button type="button" className="danger" disabled={isSaving}
+                                                        onClick={() => void removeBranchRequest(branchRequest)}>Delete</button>
+                                                )}
                                             </div>
                                         </div>
                                     ))}
@@ -322,38 +360,60 @@ function BranchAdminHome() {
                             <>
                                 <article className="teacher-panel admin-section">
                                     <div className="teacher-panel-heading"><div><h2>Students</h2></div></div>
-                                    <div className="teacher-management-table">
-                                        <div className="management-table-header" style={{ gridTemplateColumns: "1fr 1fr 0.7fr" }}>
-                                            <div>Student</div><div>Academic Placement</div><div>Status</div>
-                                        </div>
-                                        {students.map((student) => (
-                                            <div className="management-table-row" key={student.id}
-                                                style={{ gridTemplateColumns: "1fr 1fr 0.7fr" }}>
-                                                <div><strong>{student.name}</strong><small>{student.studentId}</small></div>
-                                                <div>{student.academicBatch || "Batch not set"} • Year {student.studyYear || "-"}</div>
-                                                <div><span className="status-badge">{student.accountStatus}</span></div>
+                                    {groupStudentsByClass(students.map((student) => ({
+                                        ...student,
+                                        branch: user?.branch
+                                    }))).map((group) => (
+                                        <section className="student-class-group" key={group.key}>
+                                            <div className="student-class-heading">
+                                                <h2>{group.label}</h2>
+                                                <span>{group.students.length} students</span>
                                             </div>
-                                        ))}
-                                        {!students.length && <p className="management-empty">No students are assigned to this branch.</p>}
-                                    </div>
+                                            <div className="teacher-management-table">
+                                                <div className="management-table-header" style={{ gridTemplateColumns: "1fr 1fr 0.7fr" }}>
+                                                    <div>Student</div><div>Academic Placement</div><div>Status</div>
+                                                </div>
+                                                {group.students.map((student) => (
+                                                    <div className="management-table-row" key={student.id}
+                                                        style={{ gridTemplateColumns: "1fr 1fr 0.7fr" }}>
+                                                        <div><strong>{student.name}</strong><small>{student.studentId}</small></div>
+                                                        <div>{student.academicBatch || "Batch not set"} • Year {student.studyYear || "-"} • Semester {student.semester || "-"}</div>
+                                                        <div><span className="status-badge">{student.accountStatus}</span></div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </section>
+                                    ))}
+                                    {!students.length && <p className="management-empty">No students are assigned to this branch.</p>}
                                 </article>
                                 <article className="teacher-panel admin-section">
                                     <div className="teacher-panel-heading"><div><h2>Student Progress and Performance</h2></div></div>
-                                    <div className="teacher-management-table">
-                                        <div className="management-table-header" style={{ gridTemplateColumns: "1.2fr 0.7fr 0.7fr 0.7fr" }}>
-                                            <div>Student</div><div>Completed</div><div>Average</div><div>Highest</div>
-                                        </div>
-                                        {performance.map((student) => (
-                                            <div className="management-table-row" key={student.id}
-                                                style={{ gridTemplateColumns: "1.2fr 0.7fr 0.7fr 0.7fr" }}>
-                                                <div><strong>{student.name}</strong><small>{student.studentId}</small></div>
-                                                <div>{student.completedTests}</div>
-                                                <div>{student.averagePercentage}%</div>
-                                                <div>{student.highestPercentage}%</div>
+                                    {groupStudentsByClass(performance.map((student) => ({
+                                        ...student,
+                                        branch: user?.branch
+                                    }))).map((group) => (
+                                        <section className="student-class-group" key={group.key}>
+                                            <div className="student-class-heading">
+                                                <h2>{group.label}</h2>
+                                                <span>{group.students.length} students</span>
                                             </div>
-                                        ))}
-                                        {!performance.length && <p className="management-empty">No student performance data is available.</p>}
-                                    </div>
+                                            <div className="teacher-management-table">
+                                                <div className="management-table-header" style={{ gridTemplateColumns: "1.2fr 0.7fr 0.7fr 0.7fr" }}>
+                                                    <div>Student</div><div>Completed</div><div>Average</div><div>Highest</div>
+                                                </div>
+                                                {group.students.map((student) => (
+                                                    <div className="management-table-row" key={student.id}
+                                                        style={{ gridTemplateColumns: "1.2fr 0.7fr 0.7fr 0.7fr" }}>
+                                                        <div><strong>{student.name}</strong><small>{student.studentId}</small></div>
+                                                        <div>{student.completedTests}</div>
+                                                        <div>{student.averagePercentage}%</div>
+                                                        <div>{student.highestPercentage}%</div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </section>
+                                    ))}
+                                    {!performance.length && <p className="management-empty">No student performance data is available.</p>}
                                 </article>
                             </>
                         )}

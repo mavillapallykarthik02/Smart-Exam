@@ -76,6 +76,13 @@ export async function setAdminBranchAdministratorStatus(id, status, reason = "")
     return administrator;
 }
 
+export async function deleteAdminBranchAdministrator(id) {
+    await apiRequest(`/admin/branch-admins/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        toast: false
+    });
+}
+
 export async function listAdminBranchPerformance() {
     const { branches } = await apiRequest("/admin/branch-performance");
     return branches;

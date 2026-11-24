@@ -9,8 +9,8 @@ export const validateTeacherStudentList = [
         .withMessage("Search must be 100 characters or fewer."),
     query("branch").optional().isMongoId()
         .withMessage("Branch filter must be a valid ID."),
-    query("studyYear").optional().isInt({ min: 1, max: 4 })
-        .withMessage("Academic year must be from 1st to 4th Year."),
+    query("studyYear").optional().isInt({ min: 1, max: 3 })
+        .withMessage("Academic year must be from 1st to 3rd Year."),
     query("status").optional().isIn([
         "active", "inactive", "pending", "approved", "rejected", "suspended"
     ])

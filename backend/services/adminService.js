@@ -394,6 +394,24 @@ export async function setBranchAdministratorStatus(id, status, adminId, reason =
     return { id: administrator.id, approvalStatus: status, accountStatus: administrator.accountStatus };
 }
 
+export async function deleteBranchAdministrator(id) {
+    const administrator = await User.findOne({
+        _id: id,
+        role: "branch_admin",
+        institutionKey: INSTITUTION_KEY
+    }).select("_id branch verificationStatus");
+    if (!administrator) throw resourceError(404, "Branch Administrator not found.", "id");
+    if (administrator.verificationStatus === "APPROVED") {
+        throw resourceError(409, "Approved Branch Administrators cannot be deleted. Reject or deactivate the account instead.");
+    }
+
+    await User.deleteOne({ _id: administrator._id, role: "branch_admin" });
+    await Branch.updateOne(
+        { branchAdministrator: administrator._id },
+        { $set: { branchAdministrator: null } }
+    );
+}
+
 export async function listAdminBranchPerformance() {
     const branches = await Branch.find({
         institutionKey: INSTITUTION_KEY,

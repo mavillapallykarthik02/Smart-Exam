@@ -131,6 +131,23 @@ test("teacher creates a multi-method exam and student submits all answer methods
         studyYear: 1,
         semester: 1
     });
+    await User.create({
+        name: "No Attempt Student",
+        username: "noattemptstudent",
+        email: "noattemptstudent@example.test",
+        mobile: "1000000013",
+        passwordHash,
+        role: "student",
+        institution,
+        institutionKey,
+        accountStatus: "approved",
+        studentId: "24001-CSE-502",
+        branch: branch.id,
+        year: "1-1",
+        academicBatch: "2024-2027",
+        studyYear: 1,
+        semester: 1
+    });
 
     await TeacherAssignment.create({
         teacher: teacher.id,
@@ -198,6 +215,18 @@ test("teacher creates a multi-method exam and student submits all answer methods
 
     const publish = await teacherAgent.patch(`/api/tests/${testId}/status`).send({ status: "PUBLISHED" });
     assert.equal(publish.status, 200, JSON.stringify(publish.body));
+
+    const rosterOverview = await teacherAgent.get("/api/results/teacher-overview");
+    assert.equal(rosterOverview.status, 200, JSON.stringify(rosterOverview.body));
+    const firstTestOverview = rosterOverview.body.data.subjects
+        .flatMap((item) => item.tests)
+        .find((item) => item.id === testId);
+    assert.ok(firstTestOverview);
+    assert.equal(firstTestOverview.students.length, 2);
+    assert.ok(firstTestOverview.students.every((entry) =>
+        entry.participationStatus === "NOT_ATTEMPTED"
+    ));
+    assert.equal((await studentAgent.get("/api/results/teacher-overview")).status, 403);
 
     const attemptStart = await studentAgent.post("/api/attempts").send({ testId });
     assert.equal(attemptStart.status, 201, JSON.stringify(attemptStart.body));

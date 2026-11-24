@@ -3,6 +3,7 @@ import {
     evaluateAnswer,
     getResultById,
     getResults,
+    getTeacherResultOverview,
     publishEvaluatedResult
 } from "../controllers/resultController.js";
 import { authenticate } from "../middleware/authMiddleware.js";
@@ -20,6 +21,7 @@ const router = Router();
 
 router.use(authenticate, allowRoles("student", "teacher"));
 router.get("/", validateResultList, validateRequest, asyncHandler(getResults));
+router.get("/teacher-overview", allowRoles("teacher"), asyncHandler(getTeacherResultOverview));
 router.patch(
     "/:id/answers/:questionId",
     allowRoles("teacher"),

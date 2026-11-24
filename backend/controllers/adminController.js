@@ -21,6 +21,7 @@ import {
     deleteAdminBranch,
     listAdminBranchAdministrators,
     setBranchAdministratorStatus,
+    deleteBranchAdministrator as deleteBranchAdministratorRecord,
     listAdminBranchPerformance
 } from "../services/adminService.js";
 import { sendSuccess } from "../utils/apiResponse.js";
@@ -130,6 +131,11 @@ export async function patchBranchAdministratorStatus(request, response) {
         request.body.reason || ""
     );
     return sendSuccess(response, { administrator }, "Branch Administrator status updated.");
+}
+
+export async function deleteBranchAdministrator(request, response) {
+    await deleteBranchAdministratorRecord(request.params.id);
+    return sendSuccess(response, null, "Branch Administrator deleted.");
 }
 
 export async function getBranchPerformance(_request, response) {

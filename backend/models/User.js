@@ -209,7 +209,7 @@ const userSchema = new mongoose.Schema(
         studyYear: {
             type: Number,
             min: 1,
-            max: 4,
+            max: 3,
             default: 1,
             required() {
                 return this.role === "student";
@@ -218,7 +218,7 @@ const userSchema = new mongoose.Schema(
         currentAcademicYear: {
             type: Number,
             min: 1,
-            max: 4,
+            max: 3,
             required() {
                 return this.role === "student";
             }

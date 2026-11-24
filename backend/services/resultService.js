@@ -6,6 +6,7 @@ import { Subject } from "../models/Subject.js";
 import { Result } from "../models/Result.js";
 import { Test } from "../models/Test.js";
 import { User } from "../models/User.js";
+import { INSTITUTION_KEY } from "../config/institution.js";
 import { createLookupHash, createNameSearchTokens } from "../utils/fieldEncryption.js";
 import {
     listTeacherManagedTestIds,
@@ -32,13 +33,19 @@ function serializeResult(result) {
             branch: result.student.branch?.name || "",
             branchCode: result.student.branch?.code || "",
             year: result.student.year,
-            institution: result.student.institution
+            institution: result.student.institution,
+            academicBatch: result.student.academicBatch,
+            studyYear: result.student.studyYear,
+            semester: result.student.semester
         } : null,
         test: result.test ? {
             id: result.test.id,
             title: result.test.title,
             subject: result.test.subject?.name || "",
-            branch: result.test.branch?.name || ""
+            branch: result.test.branch?.name || "",
+            academicBatch: result.test.academicBatch,
+            studyYear: result.test.studyYear,
+            semester: result.test.semester
         } : null,
         totalMarks: result.totalMarks,
         obtainedMarks: result.obtainedMarks,
@@ -54,7 +61,7 @@ function serializeResult(result) {
 const resultPopulation = [
     {
         path: "student",
-        select: "studentId name username email mobile branch year institution",
+        select: "studentId name username email mobile branch year institution academicBatch studyYear semester",
         populate: { path: "branch", select: "name code" }
     },
     {
@@ -180,6 +187,108 @@ export async function listResults(user, filters) {
         },
         summary
     };
+}
+
+export async function listTeacherResultOverview(teacherId) {
+    const managedTestIds = await listTeacherManagedTestIds(teacherId);
+    if (!managedTestIds.length) return { subjects: [] };
+
+    const tests = await Test.find({ _id: { $in: managedTestIds } })
+        .select("title subject branch academicBatch studyYear semester totalMarks status startAt endAt")
+        .populate("subject", "name code")
+        .populate("branch", "name code")
+        .sort({ subject: 1, title: 1 });
+    if (!tests.length) return { subjects: [] };
+
+    const rosterFilters = tests.map((test) => ({
+        branch: test.branch._id,
+        academicBatch: test.academicBatch,
+        studyYear: test.studyYear,
+        semester: test.semester
+    }));
+    const [students, attempts, results] = await Promise.all([
+        User.find({
+            role: "student",
+            institutionKey: INSTITUTION_KEY,
+            $or: rosterFilters
+        }).select("studentId name username branch academicBatch studyYear semester accountStatus")
+            .populate("branch", "name code")
+            .sort({ name: 1, _id: 1 }),
+        Attempt.find({ test: { $in: managedTestIds } })
+            .select("_id test student status submittedAt"),
+        Result.find({ test: { $in: managedTestIds } })
+            .select("_id attempt test student totalMarks obtainedMarks percentage passed evaluationStatus submittedAt")
+    ]);
+
+    const attemptsByPair = new Map(attempts.map((attempt) => [
+        `${attempt.test}:${attempt.student}`,
+        attempt
+    ]));
+    const resultsByAttempt = new Map(results.map((result) => [
+        result.attempt.toString(),
+        result
+    ]));
+    const subjectsById = new Map();
+    for (const test of tests) {
+        const subjectId = test.subject?._id?.toString() || "unassigned";
+        if (!subjectsById.has(subjectId)) {
+            subjectsById.set(subjectId, {
+                id: subjectId,
+                name: test.subject?.name || "Unassigned subject",
+                code: test.subject?.code || "",
+                tests: []
+            });
+        }
+
+        const classStudents = students.filter((student) =>
+            student.branch?._id?.toString() === test.branch?._id?.toString() &&
+            student.academicBatch === test.academicBatch &&
+            Number(student.studyYear) === Number(test.studyYear) &&
+            Number(student.semester) === Number(test.semester)
+        );
+        const testRoster = classStudents.map((student) => {
+            const attempt = attemptsByPair.get(`${test.id}:${student.id}`);
+            const result = attempt ? resultsByAttempt.get(attempt.id) : null;
+            return {
+                student: {
+                    id: student.id,
+                    studentId: student.studentId,
+                    name: student.name,
+                    username: student.username,
+                    branch: student.branch?.name || "",
+                    branchCode: student.branch?.code || "",
+                    academicBatch: student.academicBatch,
+                    studyYear: student.studyYear,
+                    semester: student.semester,
+                    accountStatus: student.accountStatus
+                },
+                participationStatus: result?.evaluationStatus || attempt?.status || "NOT_ATTEMPTED",
+                submittedAt: result?.submittedAt || attempt?.submittedAt || null,
+                result: result ? {
+                    id: result.id,
+                    totalMarks: result.totalMarks,
+                    obtainedMarks: result.obtainedMarks,
+                    percentage: result.percentage,
+                    passed: result.passed,
+                    evaluationStatus: result.evaluationStatus
+                } : null
+            };
+        });
+
+        subjectsById.get(subjectId).tests.push({
+            id: test.id,
+            title: test.title,
+            branch: test.branch?.name || "",
+            academicBatch: test.academicBatch,
+            studyYear: test.studyYear,
+            semester: test.semester,
+            totalMarks: test.totalMarks,
+            status: test.status,
+            students: testRoster
+        });
+    }
+
+    return { subjects: [...subjectsById.values()] };
 }
 
 export async function getResult(id, user) {

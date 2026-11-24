@@ -18,6 +18,7 @@ import {
     deleteBranch,
     getBranchAdministrators,
     patchBranchAdministratorStatus,
+    deleteBranchAdministrator,
     getBranchPerformance
 } from "../controllers/adminController.js";
 import {
@@ -63,6 +64,7 @@ router.patch("/branches/:id/status", validateBranchStatus, validateRequest, asyn
 router.delete("/branches/:id", validateBranchId, validateRequest, asyncHandler(deleteBranch));
 router.get("/branch-admins", asyncHandler(getBranchAdministrators));
 router.patch("/branch-admins/:id/status", asyncHandler(patchBranchAdministratorStatus));
+router.delete("/branch-admins/:id", asyncHandler(deleteBranchAdministrator));
 router.get("/branch-performance", asyncHandler(getBranchPerformance));
 router.post(
     "/student-enrollments",

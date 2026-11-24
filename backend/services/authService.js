@@ -188,17 +188,16 @@ export async function registerUser(role, input) {
         const academicAdmissionYear = Number(
             input.academicAdmissionYear || academicBatch.split("-")[0] || new Date().getFullYear()
         );
-        const academicCompletionYear = studyYear === 4
-            ? academicAdmissionYear + 3
-            : Number(input.academicCompletionYear || academicBatch.split("-")[1] || 0) || null;
+        const academicCompletionYear =
+            Number(input.academicCompletionYear || academicBatch.split("-")[1] || 0) || null;
         if (!academicBatch || !/^(\d{4})-(\d{4})$/u.test(academicBatch)) {
             const error = new Error("Enter a valid academic batch such as 2026-2029.");
             error.statusCode = 400;
             error.field = "academicBatch";
             throw error;
         }
-        if (!Number.isInteger(studyYear) || studyYear < 1 || studyYear > 4) {
-            const error = new Error("Course year must be between 1 and 4.");
+        if (!Number.isInteger(studyYear) || studyYear < 1 || studyYear > 3) {
+            const error = new Error("Course year must be between 1 and 3.");
             error.statusCode = 400;
             error.field = "studyYear";
             throw error;
@@ -229,7 +228,7 @@ export async function registerUser(role, input) {
             academicAdmissionYear,
             academicCompletionYear,
             academicSession: String(input.academicSession || academicBatch).trim(),
-            academicStatus: studyYear === 4 ? "ACTIVE" : "ACTIVE",
+            academicStatus: "ACTIVE",
             academicYearUpdatedAt: new Date(),
             sectorId: branch.sector || null,
             collegeId: institutionKey,

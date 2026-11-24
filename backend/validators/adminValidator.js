@@ -3,8 +3,8 @@ import { body, param } from "express-validator";
 const cohortFields = [
     body("academicBatch").trim().matches(/^\d{4}-\d{4}$/u)
         .withMessage("Academic batch must use the YYYY-YYYY format."),
-    body("studyYear").isInt({ min: 1, max: 4 })
-        .withMessage("Year of study must be from 1 to 4."),
+    body("studyYear").isInt({ min: 1, max: 3 })
+        .withMessage("Year of study must be from 1 to 3."),
     body("semester").isInt({ min: 1, max: 6 })
         .withMessage("Semester must be from 1 to 6.")
 ];

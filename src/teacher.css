@@ -712,6 +712,76 @@
   box-shadow: 0 7px 22px rgba(23, 41, 79, 0.035);
 }
 
+.results-subject-group,
+.results-test-group {
+  margin-bottom: 14px;
+  overflow: hidden;
+  border: 1px solid var(--teacher-line);
+  border-radius: 14px;
+  background: var(--teacher-surface);
+  box-shadow: 0 7px 22px rgba(23, 41, 79, 0.035);
+}
+
+.results-subject-group > summary,
+.results-test-group > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 16px 20px;
+  color: var(--teacher-ink);
+  cursor: pointer;
+  font-weight: 750;
+  list-style-position: inside;
+}
+
+.results-subject-group > summary {
+  background: #eef4ff;
+  font-size: 15px;
+}
+
+.results-test-group > summary {
+  border-top: 1px solid var(--teacher-line);
+  font-size: 13px;
+}
+
+.results-test-group > summary small,
+.results-subject-group > summary small {
+  color: var(--teacher-muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: right;
+}
+
+.results-test-list {
+  padding: 0 14px 4px;
+}
+
+.results-roster-table {
+  margin: 0 12px 14px;
+}
+
+.results-roster-table .management-table-header,
+.results-roster-table .management-table-row {
+  min-width: 930px;
+  grid-template-columns: 1fr 1.4fr 1.3fr 0.9fr 0.8fr 0.8fr 0.6fr;
+}
+
+@media (max-width: 700px) {
+  .results-subject-group > summary,
+  .results-test-group > summary {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px;
+  }
+
+  .results-test-group > summary small,
+  .results-subject-group > summary small {
+    text-align: left;
+  }
+}
+
 .management-table-header,
 .management-table-row {
   min-width: 740px;

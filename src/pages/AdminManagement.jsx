@@ -7,6 +7,7 @@ import { useToast } from "../context/useToast";
 import {
     createAdminBranch,
     deleteAdminBranch,
+    deleteAdminBranchAdministrator,
     listAdminBranchAdministrators,
     listAdminBranches,
     listAdminBranchPerformance,
@@ -195,6 +196,17 @@ function AdminManagement() {
         void runAction(
             () => setAdminBranchAdministratorStatus(administrator.id, status, reason),
             `Branch Administrator ${status.toLowerCase()} successfully.`
+        );
+    };
+
+    const removeAdministrator = async (administrator) => {
+        const confirmed = window.confirm(
+            `Delete the ${administrator.approvalStatus || "pending"} Branch Administrator "${administrator.name}"?`
+        );
+        if (!confirmed) return;
+        await runAction(
+            () => deleteAdminBranchAdministrator(administrator.id),
+            "Branch Administrator deleted successfully."
         );
     };
 
@@ -454,6 +466,9 @@ function AdminManagement() {
                                                 )}
                                                 {administrator.approvalStatus !== "REJECTED" && (
                                                     <button type="button" className="danger" disabled={isSaving} onClick={() => reviewAdministrator(administrator, "REJECTED")}>Reject</button>
+                                                )}
+                                                {administrator.approvalStatus !== "APPROVED" && (
+                                                    <button type="button" className="danger" disabled={isSaving} onClick={() => void removeAdministrator(administrator)}>Delete</button>
                                                 )}
                                             </div>
                                         </div>

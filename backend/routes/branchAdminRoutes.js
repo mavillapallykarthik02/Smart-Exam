@@ -22,6 +22,9 @@ import {
     setBranchTeacherVerification,
     updateBranchTeacherAssignment,
     updateBranchAdminSubject
+    ,
+    deleteBranchTeacherRequest,
+    deleteBranchTeacher
 } from "../services/branchAdminService.js";
 import { validateRequest } from "../middleware/validationMiddleware.js";
 import {
@@ -60,6 +63,14 @@ router.patch("/branch-requests/:id/status", asyncHandler(async (request, respons
     return sendSuccess(response, { request: branchRequest }, "Branch request updated.");
 }));
 
+router.delete("/branch-requests/:id", asyncHandler(async (request, response) => {
+    if (!mongoose.isValidObjectId(request.params.id)) {
+        return sendError(response, 400, "Branch request ID is invalid.");
+    }
+    await deleteBranchTeacherRequest(request.user, request.params.id);
+    return sendSuccess(response, null, "Branch request deleted.");
+}));
+
 router.get("/teachers", asyncHandler(async (request, response) => {
     return sendSuccess(response, { teachers: await listBranchTeachers(request.user) });
 }));
@@ -81,6 +92,14 @@ router.patch("/teachers/:id/verification", asyncHandler(async (request, response
         request.body.reason || ""
     );
     return sendSuccess(response, { teacher }, "Teacher verification status updated.");
+}));
+
+router.delete("/teachers/:id", asyncHandler(async (request, response) => {
+    if (!mongoose.isValidObjectId(request.params.id)) {
+        return sendError(response, 400, "Teacher ID is invalid.");
+    }
+    await deleteBranchTeacher(request.user, request.params.id);
+    return sendSuccess(response, null, "Teacher deleted.");
 }));
 
 router.get("/subjects", asyncHandler(async (request, response) => {

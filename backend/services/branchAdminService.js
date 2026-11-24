@@ -84,6 +84,44 @@ export async function reviewBranchTeacherRequest(administrator, requestId, statu
     };
 }
 
+export async function deleteBranchTeacherRequest(administrator, requestId) {
+    const branch = await getBranchForAdministrator(administrator);
+    const request = await TeacherBranchRequest.findOne({
+        _id: requestId,
+        branch: branch._id
+    });
+    if (!request) throw resourceError(404, "Branch request not found.");
+    if (request.status === "APPROVED") {
+        throw resourceError(409, "Approved branch requests cannot be deleted.");
+    }
+    await TeacherBranchRequest.deleteOne({ _id: request._id, branch: branch._id });
+}
+
+export async function deleteBranchTeacher(administrator, teacherId) {
+    const branch = await getBranchForAdministrator(administrator);
+    const teacher = await User.findOne({
+        _id: teacherId,
+        role: "teacher",
+        institutionKey: administrator.institutionKey,
+        branchName: branch.name
+    }).select("_id verificationStatus");
+    if (!teacher) throw resourceError(404, "Teacher not found in your branch.");
+    if (teacher.verificationStatus === "APPROVED") {
+        throw resourceError(409, "Approved teachers cannot be deleted. Reject or deactivate the account instead.");
+    }
+
+    const [assignments, tests] = await Promise.all([
+        TeacherAssignment.exists({ teacher: teacher._id, branch: branch._id }),
+        Test.exists({ createdBy: teacher._id, branch: branch._id })
+    ]);
+    if (assignments || tests) {
+        throw resourceError(409, "This teacher has academic records and cannot be deleted.");
+    }
+
+    await TeacherBranchRequest.deleteMany({ teacher: teacher._id, branch: branch._id });
+    await User.deleteOne({ _id: teacher._id, role: "teacher" });
+}
+
 export async function getBranchAdminOverview(administrator) {
     const branch = await getBranchForAdministrator(administrator);
     const [pendingTeachers, approvedTeachers, subjects, students, results] = await Promise.all([
@@ -328,7 +366,7 @@ export async function getBranchStudentPerformance(administrator) {
         role: "student",
         institutionKey: administrator.institutionKey,
         branch: branch._id
-    }).select("name studentId username").sort({ name: 1 });
+    }).select("name studentId username academicBatch studyYear semester").sort({ name: 1 });
     const studentIds = students.map((student) => student._id);
     if (studentIds.length === 0) return [];
 
@@ -352,6 +390,9 @@ export async function getBranchStudentPerformance(administrator) {
             name: student.name,
             studentId: student.studentId,
             username: student.username,
+            academicBatch: student.academicBatch,
+            studyYear: student.studyYear,
+            semester: student.semester,
             completedTests: performance?.completedTests || 0,
             averagePercentage: performance ? Number(performance.averagePercentage.toFixed(2)) : 0,
             highestPercentage: performance ? Number(performance.highestPercentage.toFixed(2)) : 0,
