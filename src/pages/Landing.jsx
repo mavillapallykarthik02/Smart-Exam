@@ -23,6 +23,24 @@ function TeacherIcon() {
   );
 }
 
+function BranchAdminIcon() {
+  return (
+    <svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
+      <path d="M7 40h34M11 40V18l13-8 13 8v22" />
+      <path d="M18 22h3m8 0h3m-14 8h3m8 0h3m-8 10v-8h4v8" />
+    </svg>
+  );
+}
+
+function CollegeAdminIcon() {
+  return (
+    <svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
+      <path d="m6 18 18-10 18 10H6Z" />
+      <path d="M9 22h30M12 22v16m8-16v16m8-16v16m8-16v16M7 42h34" />
+    </svg>
+  );
+}
+
 function ArrowIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -41,14 +59,10 @@ function Landing() {
             <strong>SMARTEXAM</strong>
           </span>
         </Link>
-        <h1 className="landing-header-title">Authentication</h1>
       </header>
 
       <main className="landing-main">
         <section className="landing-hero" aria-labelledby="landing-title">
-          <div className="landing-hero-logo" aria-label="SmartExam logo">
-            <BrandLogoImage />
-          </div>
           <span className="landing-badge">
             <span className="landing-badge-dot" />
             Smart Online Examination
@@ -89,8 +103,8 @@ function Landing() {
               </span>
             </Link>
             <Link to="/branch-admin/login" className="landing-role-card">
-              <span className="landing-role-icon teacher-icon">
-                <TeacherIcon />
+              <span className="landing-role-icon branch-admin-icon">
+                <BranchAdminIcon />
               </span>
               <span className="landing-role-copy">
                 <strong>Branch Administrator</strong>
@@ -101,8 +115,8 @@ function Landing() {
               </span>
             </Link>
             <Link to="/admin/login" className="landing-role-card">
-              <span className="landing-role-icon teacher-icon">
-                <TeacherIcon />
+              <span className="landing-role-icon college-admin-icon">
+                <CollegeAdminIcon />
               </span>
               <span className="landing-role-copy">
                 <strong>College Administrator</strong>

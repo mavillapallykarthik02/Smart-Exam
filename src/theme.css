@@ -1,0 +1,289 @@
+:root {
+  --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --primary: #2b55be;
+  --primary-dark: #21449f;
+  --secondary: #13776f;
+  --dark: #17243b;
+  --text: #3f4e66;
+  --muted: #64748b;
+  --background: #f5f7fb;
+  --border: #e2e8f0;
+  --shadow-sm: 0 2px 8px rgba(20, 35, 67, 0.045);
+  --shadow-md: 0 10px 28px rgba(20, 35, 67, 0.075);
+  --shadow-lg: 0 24px 64px rgba(20, 35, 67, 0.12);
+  --student-ink: #17243b;
+  --student-muted: #64748b;
+  --student-line: #e2e8f0;
+  --student-canvas: #f5f7fb;
+  --student-primary: #2b55be;
+  --student-primary-dark: #21449f;
+  --student-primary-soft: #edf2ff;
+  --student-green: #13776f;
+  --student-green-soft: #eaf6f3;
+  --teacher-ink: #17243b;
+  --teacher-muted: #64748b;
+  --teacher-line: #e2e8f0;
+  --teacher-canvas: #f5f7fb;
+  --teacher-primary: #2b55be;
+  --teacher-primary-dark: #21449f;
+  --teacher-primary-soft: #edf2ff;
+
+  color: var(--dark);
+  background: var(--background);
+  font-family: var(--font-sans);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  color: var(--dark);
+  background: var(--background);
+  font-family: var(--font-sans);
+  line-height: 1.55;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: var(--font-sans);
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+::selection {
+  color: #ffffff;
+  background: #2b55be;
+}
+
+:focus-visible {
+  outline-color: rgba(43, 85, 190, 0.55);
+}
+
+.student-page,
+.teacher-page {
+  background: var(--background);
+}
+
+.student-navbar,
+.teacher-navbar,
+.admin-navbar {
+  border-bottom-color: var(--border);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 4px 18px rgba(20, 35, 67, 0.045);
+}
+
+.student-nav-links a,
+.teacher-nav a {
+  font-size: 13px;
+}
+
+.student-nav-links a:hover,
+.teacher-nav a:hover {
+  color: var(--primary);
+  background: #f2f5fb;
+}
+
+.student-nav-links a.active,
+.teacher-nav a.teacher-nav-active {
+  color: var(--primary);
+  background: #edf2ff;
+}
+
+.student-page .page-title h1,
+.teacher-page-heading h1 {
+  color: var(--dark);
+  letter-spacing: -0.04em;
+}
+
+.dashboard-stat-card p,
+.progress-stat span,
+.teacher-stat-card p {
+  font-size: 12px;
+}
+
+.dashboard-stat-card,
+.progress-stat,
+.teacher-stat-card,
+.teacher-action-card,
+.teacher-panel,
+.teacher-overview-card,
+.student-test-card,
+.branch-card,
+.subject-card,
+.series-test-card,
+.dashboard-panel,
+.progress-panel,
+.improvement-panel,
+.profile-card,
+.student-subject-teacher,
+.student-subject-test-section {
+  border-color: var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-sm);
+}
+
+.student-welcome,
+.teacher-welcome {
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 84% 18%, rgba(255, 255, 255, 0.18), transparent 15rem),
+    linear-gradient(118deg, #203b7d 0%, #2b55be 62%, #4b6dc9 100%);
+  box-shadow: 0 16px 38px rgba(36, 70, 155, 0.17);
+}
+
+.landing-page {
+  background:
+    radial-gradient(ellipse at 50% 0, rgba(43, 85, 190, 0.09), transparent 44rem),
+    var(--background);
+}
+
+.landing-header {
+  min-height: 76px;
+  border-bottom-color: var(--border);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 3px 14px rgba(20, 35, 67, 0.035);
+}
+
+.landing-brand,
+.landing-brand-copy strong,
+.landing-hero h1 {
+  color: var(--dark);
+}
+
+.landing-main {
+  padding: clamp(32px, 5vw, 58px) 24px;
+}
+
+.landing-hero {
+  width: min(100%, 720px);
+}
+
+.landing-badge {
+  border-color: #dce5f6;
+  color: var(--primary);
+  background: #ffffff;
+}
+
+.landing-badge-dot {
+  background: var(--secondary);
+}
+
+.landing-hero h1 {
+  letter-spacing: -0.045em;
+}
+
+.landing-role-list {
+  gap: 13px;
+  margin-top: 28px;
+}
+
+.landing-role-card {
+  min-height: 98px;
+  padding: 16px 20px;
+  border-color: var(--border);
+  border-radius: 15px;
+  box-shadow: var(--shadow-sm);
+}
+
+.landing-role-card:hover {
+  border-color: #c7d4ef;
+  box-shadow: var(--shadow-md);
+}
+
+.landing-role-copy strong {
+  color: var(--dark);
+}
+
+.landing-role-icon.student-icon {
+  background: #edf2ff;
+}
+
+.landing-role-icon.student-icon svg {
+  stroke: var(--primary);
+}
+
+.landing-role-icon.teacher-icon {
+  background: #eaf6f3;
+}
+
+.landing-role-icon.teacher-icon svg {
+  stroke: var(--secondary);
+}
+
+.landing-role-icon.branch-admin-icon {
+  background: #eef3fb;
+}
+
+.landing-role-icon.branch-admin-icon svg {
+  stroke: #516b96;
+}
+
+.landing-role-icon.college-admin-icon {
+  background: #eaf6f3;
+}
+
+.landing-role-icon.college-admin-icon svg {
+  stroke: var(--secondary);
+}
+
+.landing-role-arrow {
+  color: var(--primary);
+  background: #edf2ff;
+}
+
+.landing-role-card:hover .landing-role-arrow {
+  background: var(--primary);
+}
+
+.auth-page--login {
+  background:
+    radial-gradient(circle at 50% 0, rgba(43, 85, 190, 0.09), transparent 40rem),
+    var(--background);
+}
+
+.auth-card--login {
+  border-color: var(--border);
+  box-shadow: var(--shadow-lg);
+}
+
+.auth-login-brand,
+.auth-card--login h1 {
+  color: var(--dark);
+}
+
+.auth-password-toggle {
+  color: var(--secondary);
+}
+
+@media (max-width: 600px) {
+  .landing-header {
+    min-height: 66px;
+  }
+
+  .landing-main {
+    padding: 28px 16px;
+  }
+
+  .landing-role-list {
+    gap: 10px;
+    margin-top: 22px;
+  }
+
+  .landing-role-card {
+    min-height: 84px;
+    padding: 11px 13px;
+  }
+}
