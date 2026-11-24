@@ -4,12 +4,36 @@ import process from "node:process";
 const requiredEnvironmentVariables = ["MONGODB_URI", "JWT_SECRET", "FIELD_ENCRYPTION_KEY"];
 const nodeEnv = process.env.NODE_ENV || "development";
 const isProduction = nodeEnv === "production";
+
+function normalizeClientOrigin(origin) {
+    try {
+        const parsedOrigin = new URL(origin);
+        if (
+            !["http:", "https:"].includes(parsedOrigin.protocol) ||
+            parsedOrigin.username ||
+            parsedOrigin.password ||
+            parsedOrigin.pathname !== "/" ||
+            parsedOrigin.search ||
+            parsedOrigin.hash
+        ) {
+            return null;
+        }
+        return parsedOrigin.origin;
+    } catch {
+        return null;
+    }
+}
+
 const configuredClientOrigins = (process.env.CLIENT_ORIGIN || "")
     .split(",")
-    .map((origin) => origin.trim())
+    .map((origin) => normalizeClientOrigin(origin.trim()))
     .filter((origin) => origin && (!isProduction || !/^https?:\/\/localhost(?::|$)/iu.test(origin)));
 const defaultClientOrigins = isProduction
-    ? ["https://smart-exam-theta.vercel.app", "https://smart-exam-gptm.vercel.app"]
+    ? [
+        "https://smart-exam-theta.vercel.app",
+        "https://smart-exam-gptm.vercel.app",
+        "https://smart-exam1.vercel.app"
+    ]
     : ["http://localhost:5173"];
 const clientOrigins = [...new Set([...defaultClientOrigins, ...configuredClientOrigins])];
 const smartExamPreviewOriginPattern =
@@ -44,5 +68,9 @@ export const config = {
 };
 
 export function isAllowedClientOrigin(origin) {
-    return clientOrigins.includes(origin) || smartExamPreviewOriginPattern.test(origin);
+    const normalizedOrigin = normalizeClientOrigin(origin);
+    return Boolean(
+        normalizedOrigin &&
+        (clientOrigins.includes(normalizedOrigin) || smartExamPreviewOriginPattern.test(normalizedOrigin))
+    );
 }

@@ -8,7 +8,7 @@ import request from "supertest";
 process.env.NODE_ENV = "test";
 process.env.JWT_SECRET = "teacher-branch-access-integration-secret";
 process.env.FIELD_ENCRYPTION_KEY = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-process.env.CLIENT_ORIGIN = "http://localhost:5173,https://smart-exam-theta.vercel.app,https://smart-exam-gptm.vercel.app";
+process.env.CLIENT_ORIGIN = "http://localhost:5173,https://smart-exam-theta.vercel.app/,https://smart-exam-gptm.vercel.app,https://smart-exam1.vercel.app";
 
 let memoryServer;
 let mongoose;
@@ -48,6 +48,7 @@ test("branch approval grants a teacher student management access to that branch"
     for (const origin of [
         "https://smart-exam-theta.vercel.app",
         "https://smart-exam-gptm.vercel.app",
+        "https://smart-exam1.vercel.app",
         "https://smart-exam-hf2hmivry-smart-exam1.vercel.app"
     ]) {
         const corsPreflight = await request(app)
