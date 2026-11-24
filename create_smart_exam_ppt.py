@@ -1,3 +1,4 @@
+from io import BytesIO
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
@@ -6,20 +7,21 @@ from pptx.dml.color import RGBColor
 from pptx.chart.data import ChartData
 from pptx.enum.chart import XL_CHART_TYPE, XL_LEGEND_POSITION
 from pathlib import Path
+from PIL import Image
 
 
-OUT = Path(r"C:\Users\harik\OneDrive\Desktop\SmartExam_Project_Submission_Presentation.pptx")
+OUT = Path(r"C:\Users\harik\OneDrive\Desktop\SmartExam_Project_Reference_Approval_Hierarchy.pptx")
 ROOT = Path(r"C:\Users\harik\OneDrive\Desktop\Main_Online_Exam_Project\SmartExam")
 
-NAVY = RGBColor(13, 32, 58)
-NAVY2 = RGBColor(20, 48, 82)
+NAVY = RGBColor(11, 37, 69)
+NAVY2 = RGBColor(19, 64, 116)
 CYAN = RGBColor(38, 198, 218)
-BLUE = RGBColor(67, 132, 245)
+BLUE = RGBColor(0, 122, 204)
 ORANGE = RGBColor(255, 166, 77)
 WHITE = RGBColor(255, 255, 255)
 INK = RGBColor(31, 45, 61)
 MUTED = RGBColor(108, 125, 145)
-LIGHT = RGBColor(244, 248, 252)
+LIGHT = RGBColor(248, 250, 252)
 GREEN = RGBColor(52, 182, 126)
 RED = RGBColor(235, 92, 92)
 GOLD = RGBColor(247, 191, 66)
@@ -120,6 +122,87 @@ def card(slide, x, y, w, h, title, body, accent=BLUE, number=None):
     text(slide, x + 0.22, y + 0.62, w - 0.44, h - 0.76, body, 12, MUTED)
 
 
+def add_picture_fit(slide, image_path, x, y, w, h, crop=None):
+    if not image_path.exists():
+        raise FileNotFoundError(image_path)
+    with Image.open(image_path) as source:
+        image = source.convert("RGB")
+        if crop:
+            left, top, right, bottom = crop
+            image = image.crop((
+                left,
+                top,
+                min(right, image.width),
+                min(bottom, image.height)
+            ))
+        image_width, image_height = image.size
+        image_stream = BytesIO()
+        image.save(image_stream, format="PNG")
+    image_stream.seek(0)
+    scale = min(w / image_width, h / image_height)
+    fitted_width = image_width * scale
+    fitted_height = image_height * scale
+    slide.shapes.add_picture(
+        image_stream,
+        Inches(x + (w - fitted_width) / 2),
+        Inches(y + (h - fitted_height) / 2),
+        width=Inches(fitted_width),
+        height=Inches(fitted_height)
+    )
+
+
+def flow_node(slide, x, y, w, h, heading, body, accent=BLUE):
+    rect(slide, x, y, w, h, WHITE, True, RGBColor(222, 231, 242))
+    rect(slide, x, y, 0.08, h, accent, False)
+    text(slide, x + 0.20, y + 0.20, w - 0.38, 0.48,
+         heading, 12, NAVY, True, PP_ALIGN.CENTER)
+    text(slide, x + 0.18, y + 0.78, w - 0.34, h - 0.94,
+         body, 10, MUTED, False, PP_ALIGN.CENTER)
+
+
+def flow_arrow(slide, x, y, color=BLUE, down=False):
+    arrow = slide.shapes.add_shape(
+        MSO_SHAPE.DOWN_ARROW if down else MSO_SHAPE.RIGHT_ARROW,
+        Inches(x), Inches(y), Inches(0.30 if not down else 0.22),
+        Inches(0.34 if not down else 0.24)
+    )
+    arrow.fill.solid()
+    arrow.fill.fore_color.rgb = color
+    arrow.line.color.rgb = color
+
+
+def screenshot_panel(slide, x, y, w, h, title, caption, image_path,
+                    accent=BLUE, crop=None):
+    rect(slide, x, y, w, h, WHITE, True, RGBColor(222, 231, 242))
+    rect(slide, x, y, 0.08, h, accent, False)
+    text(slide, x + 0.22, y + 0.16, w - 0.44, 0.34, title, 14, NAVY, True)
+    add_picture_fit(
+        slide, image_path, x + 0.16, y + 0.58, w - 0.32, h - 1.20, crop
+    )
+    text(slide, x + 0.22, y + h - 0.52, w - 0.44, 0.38,
+         caption, 10, MUTED)
+
+
+def hierarchy_card(slide, y, number, title, description, fill):
+    x = 2.10
+    w = 9.12
+    h = 0.72
+    rect(slide, x, y, w, h, fill, True)
+    badge = slide.shapes.add_shape(
+        MSO_SHAPE.OVAL, Inches(x + 0.22), Inches(y + 0.13),
+        Inches(0.46), Inches(0.46)
+    )
+    badge.fill.solid()
+    badge.fill.fore_color.rgb = WHITE
+    badge.line.color.rgb = WHITE
+    text(slide, x + 0.22, y + 0.14, 0.46, 0.43, number,
+         11, fill, True, PP_ALIGN.CENTER, valign=MSO_ANCHOR.MIDDLE)
+    text(slide, x + 0.88, y + 0.09, w - 1.10, 0.28,
+         title, 16, WHITE, True)
+    text(slide, x + 0.88, y + 0.40, w - 1.10, 0.22,
+         description, 10, RGBColor(226, 236, 246))
+
+
 # 1. Title
 slide = prs.slides.add_slide(prs.slide_layouts[6])
 slide.background.fill.solid()
@@ -130,9 +213,9 @@ logo = ROOT / "public" / "logo.png"
 if logo.exists():
     slide.shapes.add_picture(str(logo), Inches(9.73), Inches(1.13),
                              width=Inches(2.39), height=Inches(2.39))
-text(slide, 0.72, 0.62, 2.3, 0.28, "PROJECT SUBMISSION", 10, CYAN, True)
+text(slide, 0.72, 0.62, 4.2, 0.28, "DIPLOMA CAPSTONE PROJECT PRESENTATION", 10, CYAN, True)
 text(slide, 0.72, 1.38, 7.35, 1.18, "SmartExam", 42, WHITE, True)
-text(slide, 0.72, 2.52, 7.8, 0.62, "Intelligent Online Examination System", 23, RGBColor(198, 215, 232), False)
+text(slide, 0.72, 2.52, 7.8, 0.62, "Secure Online Examination & Academic Progress Platform", 21, RGBColor(198, 215, 232), False)
 rect(slide, 0.72, 3.32, 1.05, 0.06, CYAN, False)
 text(slide, 0.72, 3.72, 7.75, 0.72,
      "A secure, role-based full-stack platform for academic assessment,\nserver-authoritative exams, and controlled result publication",
@@ -196,7 +279,42 @@ for i, (role, duties, color) in enumerate(roles):
     text(slide, x + 0.25, 4.10, 2.32, 0.86, duties, 12, MUTED, False, PP_ALIGN.CENTER)
 pill(slide, 4.75, 5.88, 3.84, "FRONTEND HIDES CONTROLS • BACKEND ENFORCES ACCESS", NAVY)
 
-# 5. Architecture
+# 5. Approval hierarchy
+slide = base_slide("Approval and Academic Control Hierarchy", "03 • Users & Governance")
+hierarchy_card(
+    slide, 1.52, "01", "College Administrator",
+    "College-wide control • Branch management",
+    NAVY2
+)
+flow_arrow(slide, 6.55, 2.26, ORANGE, down=True)
+pill(slide, 4.52, 2.53, 4.30, "APPROVES BRANCH ADMINISTRATORS",
+     RGBColor(255, 239, 224), RGBColor(156, 74, 20))
+hierarchy_card(
+    slide, 2.93, "02", "Branch Administrator",
+    "Branch management • Student performance",
+    BLUE
+)
+flow_arrow(slide, 6.55, 3.67, ORANGE, down=True)
+pill(slide, 4.52, 3.94, 4.30, "APPROVES TEACHERS",
+     RGBColor(255, 239, 224), RGBColor(156, 74, 20))
+hierarchy_card(
+    slide, 4.34, "03", "Teacher",
+    "Subjects • Tests • Student management",
+    GREEN
+)
+flow_arrow(slide, 6.55, 5.08, ORANGE, down=True)
+pill(slide, 4.52, 5.35, 4.30, "APPROVES STUDENTS",
+     RGBColor(255, 239, 224), RGBColor(156, 74, 20))
+hierarchy_card(
+    slide, 5.75, "04", "Student",
+    "Examinations • Practice • Results • Progress",
+    RGBColor(45, 50, 56)
+)
+text(slide, 0.70, 6.62, 11.95, 0.30,
+     "Every approval is validated by the API and scoped to the role's institution, branch, or assigned class.",
+     12, MUTED, True, PP_ALIGN.CENTER)
+
+# 6. Architecture
 slide = base_slide("Three-Tier Application Architecture", "04 • System Design")
 columns = [
     ("PRESENTATION", "React 19 + Vite", "Pages • Router • Context\nAPI services • CSS themes", BLUE),
@@ -216,7 +334,95 @@ text(slide, 0.62, 5.85, 12.05, 0.44,
      "JSON over HTTP  •  JWT cookie session  •  Consistent success/error responses  •  Centralized API client",
      13, NAVY, True, PP_ALIGN.CENTER)
 
-# 6. Tech Stack
+# 6. API data flow
+slide = base_slide("Data Flow 1 — From User Action to Database", "04 • System Design")
+api_flow = [
+    ("User", "Student or teacher\nuses a protected\nportal page", BLUE),
+    ("React app", "Route, page state,\ncontext, and UI\nactions", CYAN),
+    ("API client", "Central service\nsends JSON requests\nwith session cookie", ORANGE),
+    ("Express API", "Authentication,\nrole checks, and\nrequest validation", GREEN),
+    ("Services", "Business rules,\ncohort access, and\nrecord assembly", BLUE),
+    ("MongoDB", "Mongoose models\nread and persist\nacademic records", NAVY2),
+]
+for i, (heading, body, accent) in enumerate(api_flow):
+    x = 0.55 + i * 2.08
+    flow_node(slide, x, 2.05, 1.72, 2.05, heading, body, accent)
+    if i < len(api_flow) - 1:
+        flow_arrow(slide, x + 1.78, 2.88, ORANGE)
+rect(slide, 0.78, 4.75, 11.78, 1.00, NAVY, True)
+text(slide, 1.02, 4.98, 11.30, 0.52,
+     "Responses return through the API client; centralized middleware formats errors and success payloads.",
+     14, WHITE, True, PP_ALIGN.CENTER)
+
+# 7. Approval and access data flow
+slide = base_slide("Data Flow 2 — Registration to Approved Access", "04 • System Design")
+approval_flow = [
+    ("Register", "Student submits\nidentity, branch,\nbatch, and class", BLUE),
+    ("Pending", "Account is stored\nwithout test or\nportal access", ORANGE),
+    ("Class review", "Assigned class\nincharge approves\nor rejects request", CYAN),
+    ("Access gate", "Status and role\nare checked during\nsign-in and APIs", GREEN),
+    ("Student portal", "Approved student\nsees only assigned\nclass information", NAVY2),
+]
+for i, (heading, body, accent) in enumerate(approval_flow):
+    x = 0.55 + i * 2.48
+    flow_node(slide, x, 2.03, 2.08, 2.00, heading, body, accent)
+    if i < len(approval_flow) - 1:
+        flow_arrow(slide, x + 2.13, 2.82, ORANGE)
+rect(slide, 2.04, 4.75, 9.26, 1.00, RGBColor(255, 239, 239), True)
+text(slide, 2.28, 4.98, 8.78, 0.50,
+     "Pending, rejected, or suspended accounts are denied sign-in; class access is scoped by branch, batch, year, and semester.",
+     13, RED, True, PP_ALIGN.CENTER)
+
+# 8. Examination data flow
+slide = base_slide("Data Flow 3 — Test Attempt and Evaluation", "09 • Timed Attempts")
+exam_flow = [
+    ("Configure", "Teacher assigns\nsubject, cohort,\nquestions, and window", BLUE),
+    ("Authorize", "API checks publish\nstatus, schedule, and\nclass placement", CYAN),
+    ("Start attempt", "Backend stores\nstudent, start time,\nand deadline", GREEN),
+    ("Save answers", "Answers attach to\nattempt + question;\nlate writes are blocked", ORANGE),
+    ("Submit", "Student submits or\nexpiry worker locks\nthe attempt", RED),
+    ("Evaluate", "MCQ auto-scores;\ndescriptive work is\nteacher-reviewed", NAVY2),
+]
+for i, (heading, body, accent) in enumerate(exam_flow):
+    x = 0.55 + i * 2.08
+    flow_node(slide, x, 2.03, 1.72, 2.10, heading, body, accent)
+    if i < len(exam_flow) - 1:
+        flow_arrow(slide, x + 1.78, 2.88, ORANGE)
+rect(slide, 1.48, 4.82, 10.36, 0.90, NAVY, True)
+text(slide, 1.72, 5.04, 9.88, 0.45,
+     "The server owns exam deadlines; the browser countdown is only a display of the authoritative attempt expiry.",
+     13, WHITE, True, PP_ALIGN.CENTER)
+
+# 9. Results and progress data flow
+slide = base_slide("Data Flow 4 — Results Become Progress Insights", "10 • Assessment")
+flow_node(slide, 0.55, 1.82, 2.35, 1.55,
+          "Submitted attempt", "Responses and timing\nare persisted", BLUE)
+flow_arrow(slide, 2.98, 2.42, ORANGE)
+flow_node(slide, 3.38, 1.82, 2.35, 1.55,
+          "Evaluate", "Objective scoring or\nteacher grading", CYAN)
+flow_arrow(slide, 5.81, 2.42, ORANGE)
+flow_node(slide, 6.21, 1.82, 2.35, 1.55,
+          "Publish result", "Score and pass status\nbecome student-visible", GREEN)
+flow_arrow(slide, 8.64, 2.42, ORANGE)
+flow_node(slide, 9.04, 1.82, 3.15, 1.55,
+          "Persisted results", "Published records feed\nviews and metrics", NAVY2)
+rect(slide, 1.10, 3.78, 11.12, 0.48, NAVY, True)
+text(slide, 1.28, 3.86, 10.76, 0.28,
+     "Role-aware read models and cohort-scoped reporting",
+     12, WHITE, True, PP_ALIGN.CENTER)
+for arrow_x in (2.48, 6.28, 10.08):
+    flow_arrow(slide, arrow_x, 4.38, CYAN, down=True)
+flow_node(slide, 0.85, 4.92, 3.68, 1.35,
+          "Student progress", "Own history, completed tests, marks, and trends", BLUE)
+flow_node(slide, 4.83, 4.92, 3.68, 1.35,
+          "Teacher results", "Subject → test → every student in the exact class", ORANGE)
+flow_node(slide, 8.80, 4.92, 3.68, 1.35,
+          "Class insights", "Branch, year, and subject performance from persisted results", GREEN)
+text(slide, 0.75, 6.38, 11.95, 0.32,
+     "Unattempted students appear in the teacher's class roster; they are not counted as submitted results.",
+     12, MUTED, True, PP_ALIGN.CENTER)
+
+# 10. Tech Stack
 slide = base_slide("Technology Stack", "05 • Implementation")
 tech = [
     ("Frontend", "React 19\nVite\nReact Router\nContext API", BLUE),
@@ -368,8 +574,7 @@ card(slide, 9.91, 1.66, 2.85, 4.72,
 slide = base_slide("Role-Based User Experience", "12 • Frontend")
 hero = ROOT / "presentation_assets" / "landing.png"
 if hero.exists():
-    slide.shapes.add_picture(str(hero), Inches(0.55), Inches(1.70),
-                             width=Inches(5.20), height=Inches(4.40))
+    add_picture_fit(slide, hero, 0.55, 1.70, 5.20, 4.40)
 else:
     rect(slide, 0.55, 1.70, 5.20, 4.40, NAVY2, True)
     text(slide, 0.55, 3.20, 5.20, 0.50, "SMARTEXAM PLATFORM", 24, WHITE, True,
@@ -386,28 +591,26 @@ for i, (title, body) in enumerate(dashboards):
     text(slide, 6.42, y + 0.20, 1.58, 0.32, title, 16, NAVY, True)
     text(slide, 8.04, y + 0.18, 4.38, 0.70, body, 12, MUTED)
 
-# 14. Live student dashboard
-slide = base_slide("Student Dashboard — Live Interface", "12 • Screenshots")
-student_dash = ROOT / "presentation_assets" / "student_dashboard.png"
-if student_dash.exists():
-    slide.shapes.add_picture(str(student_dash), Inches(0.55), Inches(1.55),
-                             width=Inches(8.20), height=Inches(5.10))
-rect(slide, 9.02, 1.55, 3.72, 5.10, NAVY, True)
-text(slide, 9.35, 1.95, 3.06, 0.42, "STUDENT WORKFLOW", 16, CYAN, True)
-bullet_list(slide, 9.35, 2.58, 2.96,
-            ["View assigned branch and cohort",
-             "Browse published class tests",
-             "Start and submit timed attempts",
-             "Review published results",
-             "Track real progress"],
-            12, WHITE, CYAN, 0.70)
+# 18. Authentication screens
+slide = base_slide("Live Screens — Student and Teacher Sign-In", "12 • Screenshots")
+screenshot_panel(
+    slide, 0.55, 1.55, 6.00, 5.30, "Student sign-in",
+    "Students authenticate before seeing their assigned tests and published results.",
+    ROOT / "presentation_assets" / "student_login.png", GREEN
+)
+screenshot_panel(
+    slide, 6.78, 1.55, 6.00, 5.30, "Teacher sign-in",
+    "Teacher ID, username, or email; account status is validated by the API.",
+    ROOT / "presentation_assets" / "teacher_login_live.png",
+    BLUE, (0, 0, 1281, 840)
+)
 
-# 15. Live teacher dashboard
+# 19. Live teacher dashboard
 slide = base_slide("Teacher Dashboard — Live Interface", "12 • Screenshots")
-teacher_dash = ROOT / "presentation_assets" / "teacher_dashboard.png"
-if teacher_dash.exists():
-    slide.shapes.add_picture(str(teacher_dash), Inches(0.55), Inches(1.55),
-                             width=Inches(8.20), height=Inches(5.10))
+add_picture_fit(
+    slide, ROOT / "presentation_assets" / "teacher_dashboard_live.png",
+    0.55, 1.55, 8.20, 5.10, (0, 0, 1281, 850)
+)
 rect(slide, 9.02, 1.55, 3.72, 5.10, NAVY, True)
 text(slide, 9.35, 1.95, 3.06, 0.42, "TEACHER WORKFLOW", 16, ORANGE, True)
 bullet_list(slide, 9.35, 2.58, 2.96,
@@ -418,7 +621,52 @@ bullet_list(slide, 9.35, 2.58, 2.96,
              "Monitor proctoring events"],
             12, WHITE, ORANGE, 0.70)
 
-# 16. Testing and delivery
+# 20. Teacher workspace screenshots
+slide = base_slide("Live Screens — Students and Approvals", "12 • Screenshots")
+screenshot_panel(
+    slide, 0.55, 1.55, 6.00, 5.30, "Class-based student management",
+    "Roster groups display branch, cohort, enrollment status, attempts, and results.",
+    ROOT / "presentation_assets" / "teacher_students_live.png",
+    BLUE, (0, 0, 1281, 900)
+)
+screenshot_panel(
+    slide, 6.78, 1.55, 6.00, 5.30, "Registration approvals",
+    "Teachers review approval states for the classes assigned to them.",
+    ROOT / "presentation_assets" / "teacher_approvals_live.png",
+    ORANGE, (0, 0, 1281, 900)
+)
+
+# 21. Academic and test screenshots
+slide = base_slide("Live Screens — Subjects and Tests", "12 • Screenshots")
+screenshot_panel(
+    slide, 0.55, 1.55, 6.00, 5.30, "Assigned subjects",
+    "Subject access is tied to branch and an exact class assignment.",
+    ROOT / "presentation_assets" / "teacher_subjects_live.png",
+    CYAN, (0, 0, 1281, 514)
+)
+screenshot_panel(
+    slide, 6.78, 1.55, 6.00, 5.30, "Test management",
+    "Published tests retain their subject, branch, schedule, and question count.",
+    ROOT / "presentation_assets" / "teacher_tests_live.png",
+    BLUE, (0, 250, 1281, 1125)
+)
+
+# 22. Results screenshots
+slide = base_slide("Live Screens — Results by Subject and Class", "12 • Screenshots")
+screenshot_panel(
+    slide, 0.55, 1.55, 6.00, 5.30, "Student results",
+    "Teacher results are grouped by subject, then test, with a roster for each test's class.",
+    ROOT / "presentation_assets" / "teacher_results_unattempted_crop.png",
+    GREEN
+)
+screenshot_panel(
+    slide, 6.78, 1.55, 6.00, 5.30, "Class performance context",
+    "Each test roster includes students who have not attempted the test.",
+    ROOT / "presentation_assets" / "teacher_students_live.png",
+    ORANGE, (0, 0, 1281, 900)
+)
+
+# 23. Testing and delivery
 slide = base_slide("Quality Assurance and Deployment", "13 • Validation")
 rect(slide, 0.55, 1.66, 5.85, 4.86, WHITE, True)
 text(slide, 0.88, 1.98, 5.18, 0.38, "Automated test areas", 17, NAVY, True)
@@ -438,7 +686,7 @@ for i, (name, command, purpose) in enumerate(commands):
     text(slide, 8.48, y - 0.02, 3.60, 0.30, command, 12, NAVY, True)
     text(slide, 8.48, y + 0.34, 3.60, 0.28, purpose, 11, MUTED)
 
-# 15. Conclusion
+# 24. Conclusion
 slide = base_slide("Conclusion and Future Direction", "14 • Closing", dark=True)
 rect(slide, 0.55, 1.66, 7.32, 4.82, NAVY2, True)
 text(slide, 0.90, 2.02, 6.62, 0.42, "What SmartExam delivers", 18, CYAN, True)
