@@ -81,6 +81,20 @@ Administrator APIs remain protected by the administrator role; no public adminis
 
 Branch administrators create and publish branch subjects from the Branch Administrator dashboard. The related APIs are `GET/POST /api/branch-admin/subjects`, `PUT /api/branch-admin/subjects/:id`, `PATCH /api/branch-admin/subjects/:id/status`, and `DELETE /api/branch-admin/subjects/:id`. A subject with tests or teacher assignments can be deleted after transferring its tests and assignments to another active subject in the same branch; existing attempts, answers, and results remain connected through their unchanged test records. Duplicate teacher/class assignments are merged by retaining the destination assignment and removing the source duplicate. Subjects without tests or assignments can be deleted directly; deletion archives the subject. They assign each subject to an active, approved teacher and a class through `POST /api/branch-admin/subjects/:id/assignments`; after an assignment exists, the dashboard hides the add-assignment form and allows the assigned teacher to be changed through `PATCH /api/branch-admin/assignments/:id`. A teacher must also have approved access to that branch. Assignments can be deactivated or reactivated through `PATCH /api/branch-admin/assignments/:id/status`. Students see all active published subjects in their assigned branch; only published tests matching the student's batch, year, and semester and an active approved teacher assignment are accessible.
 
+### Local demo accounts
+
+For local testing only, the backend provides an opt-in demo seeder. Start MongoDB, ensure an active college administrator exists, then run this from PowerShell:
+
+```powershell
+$env:SEED_DEMO_DATA = "true"
+npm --prefix backend run seed:demo
+Remove-Item Env:\SEED_DEMO_DATA
+```
+
+The script refuses to run in production and requires a separate explicit opt-in for non-local MongoDB hosts. It is safe to rerun: it reuses its demo records and does not delete unrelated data. It creates six clearly named demo branches, one branch administrator per branch, five approved class teachers and ten approved students per branch, one subject per branch, and teacher/class assignments with two students in each teacher's cohort. All seeded users share the test-only password `Demo@123`. Login names follow `branchadmin.<prefix>`, `<prefix>.teacher01` through `.teacher05`, and `<prefix>.student01` through `.student10`; prefixes are `dcs`, `dec`, `dee`, `dme`, `dce`, and `daiml`. Do not reuse the demo password outside local testing.
+
+For a confirmed non-production remote test database only, additionally set `$env:SEED_DEMO_DATA_ALLOW_REMOTE = "true"` in the same PowerShell session before running the seeder. This is a separate explicit opt-in; never set it for production or a database containing real users.
+
 ## Examination workflow
 
 - Branch administrators manage subject creation and publication. Teachers see subjects assigned to them and can create, publish, and manage tests only for an active subject/class assignment approved for their branch.

@@ -90,7 +90,11 @@ function StudentAttempt() {
             setPendingSaveCount((count) => count + 1);
             setError("");
             try {
-                await saveAttemptAnswer(attempt.id, question.id, response);
+                const answerPayload = { ...response };
+                if (question.questionType !== "MCQ") {
+                    delete answerPayload.selectedOption;
+                }
+                await saveAttemptAnswer(attempt.id, question.id, answerPayload);
                 if (JSON.stringify(latestResponses.current[question.id]) === JSON.stringify(response)) {
                     updateUnsavedStatus(question.id, false);
                 }

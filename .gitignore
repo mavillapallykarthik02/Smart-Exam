@@ -17,6 +17,7 @@ dist-ssr
 backend/.env
 backend/.env.*
 !backend/.env.example
+DEMO_CREDENTIALS.txt
 
 # Editor directories and files
 .vscode/*
