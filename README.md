@@ -11,13 +11,13 @@ SmartExam keeps the React/Vite application at the repository root and adds an Ex
    - `JWT_SECRET` (random, at least 32 characters)
    - `FIELD_ENCRYPTION_KEY` (64 random hexadecimal characters; keep a secure backup and never commit it)
    - Optionally `PORT`, `NODE_ENV`, and `CLIENT_ORIGIN`
-   - `GMAIL_USER` and `GMAIL_APP_PASSWORD` for password-reset email. Use a Google App Password (not your regular Gmail password); enable 2-Step Verification on the Gmail account first. `GMAIL_FROM` can optionally override the sender label/address.
+   - `BREVO_API_KEY` and `BREVO_SENDER_EMAIL` for password-reset email. Verify the sender address in Brevo first. `BREVO_SENDER_NAME` optionally changes the displayed sender name. The API sends over HTTPS, so the backend does not need SMTP ports.
 4. Start MongoDB, then run `npm run dev:api` and `npm run dev` in separate terminals.
 5. Vite proxies `/api` to `http://localhost:5000`.
 
 ## Deployment
 
-- **Render API:** Create a Blueprint from `render.yaml` (or use `backend/` as the service root directory), with build command `npm run build` and start command `npm start`. The backend build script installs production dependencies from its lockfile. Set `MONGODB_URI`, `JWT_SECRET`, and `FIELD_ENCRYPTION_KEY` in the Render environment.
+- **Render API:** Create a Blueprint from `render.yaml` (or use `backend/` as the service root directory), with build command `npm run build` and start command `npm start`. The backend build script installs production dependencies from its lockfile. Set `MONGODB_URI`, `JWT_SECRET`, and `FIELD_ENCRYPTION_KEY` in the Render environment. For password-reset email, also set `BREVO_API_KEY` and `BREVO_SENDER_EMAIL` (and optionally `BREVO_SENDER_NAME`).
 - **Vercel frontend:** Import the repository with the project root as the root directory. `vercel.json` builds with `npm run vercel-build`, serves `dist`, proxies `/api/*` to Render, and routes other paths to the React app. Production frontend requests use the same-origin proxy, so do not set `VITE_API_BASE_URL` in Vercel. Do not put backend secrets in Vercel variables.
 
 ## Student IDs
@@ -39,10 +39,11 @@ $env:ADMIN_NAME = "SmartExam Administrator"
 $env:ADMIN_USERNAME = "examadmin"
 $env:ADMIN_EMAIL = "examadmin@example.edu"
 $env:ADMIN_PASSWORD = "use-a-unique-password-of-at-least-12-characters"
+$env:ADMIN_ID = "6b051b64a92e6452948e77da" # Optional; omit to let MongoDB generate the ID.
 npm --prefix backend run create-admin
 ```
 
-The script creates an administrator only; it does not offer a public administrator-registration endpoint. Sign in through `POST /api/auth/admin/login`. The authenticated administrator can:
+The script creates an administrator only; it does not offer a public administrator-registration endpoint. `ADMIN_ID` is optional and, when provided, must be an unused 24-character MongoDB ObjectId. Keep the administrator password in a local environment variable and never insert a plaintext password directly into MongoDB. Sign in through `POST /api/auth/admin/login`. The authenticated administrator can:
 
 - Create a branch for an active, verified teacher with `POST /api/admin/branches`, sending the teacher ID, branch `name`, and `code`. The existing-branch duplicate checks still apply. The branch is created under that teacher so it is available to their subjects and classes.
 - Assign an active subject to an active, approved teacher who has branch access with `POST /api/admin/teacher-assignments`, sending `teacher`, `subject`, `branch`, `academicBatch`, `studyYear`, and `semester`. The teacher can view active assignments through `GET /api/teacher/assignments`. Administrators can list assignments and activate/deactivate them through the `/api/admin/teacher-assignments` endpoints.

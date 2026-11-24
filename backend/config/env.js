@@ -59,9 +59,9 @@ export const config = {
     fieldEncryptionKey: process.env.FIELD_ENCRYPTION_KEY,
     clientOrigin: configuredClientOrigins[0] || defaultClientOrigins[0],
     clientOrigins,
-    gmailUser: process.env.GMAIL_USER || "",
-    gmailAppPassword: process.env.GMAIL_APP_PASSWORD || "",
-    gmailFrom: process.env.GMAIL_FROM || "",
+    brevoApiKey: process.env.BREVO_API_KEY || "",
+    brevoSenderEmail: process.env.BREVO_SENDER_EMAIL || "",
+    brevoSenderName: process.env.BREVO_SENDER_NAME || "SmartExam",
     nodeEnv,
     sessionCookieName: "smartexam_session",
     sessionCookieMaxAge: 24 * 60 * 60 * 1000
