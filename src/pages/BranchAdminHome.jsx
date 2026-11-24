@@ -33,6 +33,7 @@ function BranchAdminHome() {
     const [selectedTeacherDetails, setSelectedTeacherDetails] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [isAccountEditing, setIsAccountEditing] = useState(false);
     const [error, setError] = useState("");
     const [notice, setNotice] = useState("");
     const [accountForm, setAccountForm] = useState({
@@ -143,6 +144,7 @@ function BranchAdminHome() {
         setNotice("");
         try {
             await updateProfile(accountForm);
+            setIsAccountEditing(false);
             setNotice("Account details updated successfully.");
         } catch (requestError) {
             setError(requestError.message);
@@ -314,7 +316,7 @@ function BranchAdminHome() {
                             </article>
                         )}
                         {activeSection === "subjects" && (
-                            <BranchAdminSubjects teachers={teachers} branchRequests={branchRequests} />
+                            <BranchAdminSubjects />
                         )}
                         {activeSection === "performance" && (
                             <>
@@ -357,15 +359,43 @@ function BranchAdminHome() {
                         )}
                         {activeSection === "account" && (
                             <article className="teacher-panel admin-section">
-                                <div className="teacher-panel-heading"><div><h2>Administrator Account</h2></div></div>
+                                <div className="teacher-panel-heading">
+                                    <div>
+                                        <h2>Administrator Account</h2>
+                                        <p>View and update the profile saved to your branch administrator account.</p>
+                                    </div>
+                                    {!isAccountEditing && (
+                                        <button
+                                            type="button"
+                                            className="teacher-primary-button"
+                                            onClick={() => setIsAccountEditing(true)}
+                                        >
+                                            Edit Account
+                                        </button>
+                                    )}
+                                </div>
                                 <p><strong>Administrator ID:</strong> {user?.administratorId}</p>
                                 <p><strong>Branch:</strong> {user?.branch}</p>
                                 <form className="admin-assignment-form" onSubmit={saveAccount}>
-                                    <div className="form-group"><label htmlFor="account-name">Full Name</label><input id="account-name" value={accountForm.name} onChange={(event) => setAccountForm((current) => ({ ...current, name: event.target.value }))} /></div>
-                                    <div className="form-group"><label htmlFor="account-username">Username</label><input id="account-username" value={accountForm.username} onChange={(event) => setAccountForm((current) => ({ ...current, username: event.target.value }))} /></div>
-                                    <div className="form-group"><label htmlFor="account-email">Email</label><input id="account-email" type="email" value={accountForm.email} onChange={(event) => setAccountForm((current) => ({ ...current, email: event.target.value }))} /></div>
-                                    <div className="form-group"><label htmlFor="account-mobile">Mobile</label><input id="account-mobile" value={accountForm.mobile} onChange={(event) => setAccountForm((current) => ({ ...current, mobile: event.target.value }))} /></div>
-                                    <button type="submit" className="auth-button" disabled={isSaving}>{isSaving ? "Saving..." : "Save Account"}</button>
+                                    <div className="form-group"><label htmlFor="account-name">Full Name</label><input id="account-name" value={accountForm.name} onChange={(event) => setAccountForm((current) => ({ ...current, name: event.target.value }))} disabled={!isAccountEditing || isSaving} required /></div>
+                                    <div className="form-group"><label htmlFor="account-username">Username</label><input id="account-username" value={accountForm.username} onChange={(event) => setAccountForm((current) => ({ ...current, username: event.target.value }))} disabled={!isAccountEditing || isSaving} required /></div>
+                                    <div className="form-group"><label htmlFor="account-email">Email</label><input id="account-email" type="email" value={accountForm.email} onChange={(event) => setAccountForm((current) => ({ ...current, email: event.target.value }))} disabled={!isAccountEditing || isSaving} required /></div>
+                                    <div className="form-group"><label htmlFor="account-mobile">Mobile</label><input id="account-mobile" value={accountForm.mobile} onChange={(event) => setAccountForm((current) => ({ ...current, mobile: event.target.value }))} disabled={!isAccountEditing || isSaving} /></div>
+                                    {isAccountEditing && (
+                                        <div className="modal-actions">
+                                            <button type="button" disabled={isSaving} onClick={() => {
+                                                setAccountForm({
+                                                    name: user?.name || "",
+                                                    username: user?.username || "",
+                                                    email: user?.email || "",
+                                                    mobile: user?.mobile || ""
+                                                });
+                                                setIsAccountEditing(false);
+                                                setError("");
+                                            }}>Cancel</button>
+                                            <button type="submit" className="teacher-primary-button" disabled={isSaving}>{isSaving ? "Saving..." : "Save Changes"}</button>
+                                        </div>
+                                    )}
                                 </form>
                             </article>
                         )}

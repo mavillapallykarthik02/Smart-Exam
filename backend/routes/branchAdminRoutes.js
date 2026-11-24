@@ -11,6 +11,7 @@ import {
     getBranchTeacherDetails,
     getBranchStudentPerformance,
     listBranchAdminSubjects,
+    listBranchAdminSubjectTeachers,
     listBranchStudents,
     listBranchTeachers,
     listBranchTeacherRequests,
@@ -84,6 +85,10 @@ router.patch("/teachers/:id/verification", asyncHandler(async (request, response
 
 router.get("/subjects", asyncHandler(async (request, response) => {
     return sendSuccess(response, { subjects: await listBranchAdminSubjects(request.user) });
+}));
+
+router.get("/subject-teachers", asyncHandler(async (request, response) => {
+    return sendSuccess(response, { teachers: await listBranchAdminSubjectTeachers(request.user) });
 }));
 
 router.post(

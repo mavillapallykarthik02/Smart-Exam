@@ -136,6 +136,40 @@ export async function listBranchTeachers(administrator) {
     }));
 }
 
+export async function listBranchAdminSubjectTeachers(administrator) {
+    await getBranchForAdministrator(administrator);
+    const [teachers, approvedRequests] = await Promise.all([
+        User.find({
+            role: "teacher",
+            institutionKey: administrator.institutionKey,
+            verificationStatus: "APPROVED",
+            accountStatus: "active"
+        }).select("name teacherId").sort({ name: 1 }),
+        TeacherBranchRequest.find({ status: "APPROVED" })
+            .populate("branch", "name code")
+            .select("teacher branch")
+    ]);
+    const branchesByTeacher = new Map();
+    for (const request of approvedRequests) {
+        if (!request.branch) continue;
+        const teacherId = request.teacher?.toString();
+        if (!teacherId) continue;
+        const branches = branchesByTeacher.get(teacherId) || [];
+        branches.push({
+            id: request.branch.id,
+            name: request.branch.name,
+            code: request.branch.code
+        });
+        branchesByTeacher.set(teacherId, branches);
+    }
+    return teachers.map((teacher) => ({
+        id: teacher.id,
+        name: teacher.name,
+        teacherId: teacher.teacherId,
+        branches: branchesByTeacher.get(teacher.id) || []
+    }));
+}
+
 export async function setBranchTeacherVerification(administrator, teacherId, status, reason = "") {
     if (!["APPROVED", "REJECTED"].includes(status)) {
         throw resourceError(400, "Choose APPROVED or REJECTED.");
@@ -637,7 +671,7 @@ export async function createBranchTeacherAssignment(administrator, subjectId, in
     validateSubjectCohort(input);
     const branch = await getBranchForAdministrator(administrator);
     if (!branch.isActive) throw resourceError(409, "Your branch is inactive.");
-    const [teacher, subject, branchRequest] = await Promise.all([
+    const [teacher, subject] = await Promise.all([
         User.findOne({
             _id: input.teacher,
             role: "teacher",
@@ -649,17 +683,25 @@ export async function createBranchTeacherAssignment(administrator, subjectId, in
             _id: subjectId,
             branch: branch._id,
             isDeleted: { $ne: true }
-        }),
-        TeacherBranchRequest.findOne({
-            teacher: input.teacher,
-            branch: branch._id,
-            status: "APPROVED"
-        }).select("_id")
+        })
     ]);
-    if (!teacher || !branchRequest) {
-        throw resourceError(403, "Only an active, approved teacher for your branch can be assigned.");
+    if (!teacher) {
+        throw resourceError(403, "Only an active, approved institution teacher can be assigned.");
     }
     if (!subject) throw resourceError(404, "Subject not found in your branch.");
+    await TeacherBranchRequest.findOneAndUpdate(
+        { teacher: teacher._id, branch: branch._id },
+        {
+            $set: {
+                status: "APPROVED",
+                reason: "",
+                reviewedBy: administrator._id,
+                reviewedAt: new Date()
+            },
+            $setOnInsert: { teacher: teacher._id, branch: branch._id }
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
     try {
         const assignment = await TeacherAssignment.create({
             teacher: teacher._id,
@@ -702,23 +744,31 @@ export async function updateBranchTeacherAssignment(administrator, assignmentId,
         throw resourceError(404, "Subject not found in your branch.");
     }
 
-    const [teacher, branchRequest] = await Promise.all([
+    const [teacher] = await Promise.all([
         User.findOne({
             _id: teacherId,
             role: "teacher",
             institutionKey: administrator.institutionKey,
             verificationStatus: "APPROVED",
             accountStatus: "active"
-        }).select("_id"),
-        TeacherBranchRequest.findOne({
-            teacher: teacherId,
-            branch: branch._id,
-            status: "APPROVED"
         }).select("_id")
     ]);
-    if (!teacher || !branchRequest) {
-        throw resourceError(403, "Only an active, approved teacher for your branch can be assigned.");
+    if (!teacher) {
+        throw resourceError(403, "Only an active, approved institution teacher can be assigned.");
     }
+    await TeacherBranchRequest.findOneAndUpdate(
+        { teacher: teacher._id, branch: branch._id },
+        {
+            $set: {
+                status: "APPROVED",
+                reason: "",
+                reviewedBy: administrator._id,
+                reviewedAt: new Date()
+            },
+            $setOnInsert: { teacher: teacher._id, branch: branch._id }
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
 
     assignment.teacher = teacher._id;
     try {

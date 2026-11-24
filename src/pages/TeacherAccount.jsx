@@ -104,7 +104,7 @@ function TeacherAccount() {
                         {!isEditing && (
                             <button className="teacher-primary-button" type="button"
                                 onClick={() => setIsEditing(true)}>
-                                Edit Profile
+                                Edit Account
                             </button>
                         )}
                     </div>

@@ -3,14 +3,16 @@ import {
     assignBranchAdminSubject,
     createBranchAdminSubject,
     deleteBranchAdminSubject,
+    listBranchAdminSubjectTeachers,
     listBranchAdminSubjects,
     updateBranchAdminAssignment,
     setBranchAdminAssignmentStatus,
     setBranchAdminSubjectStatus
 } from "../services/branchAdminService";
 
-function BranchAdminSubjects({ teachers, branchRequests }) {
+function BranchAdminSubjects() {
     const [subjects, setSubjects] = useState([]);
+    const [eligibleTeachers, setEligibleTeachers] = useState([]);
     const [form, setForm] = useState({ name: "", code: "", description: "" });
     const [assignments, setAssignments] = useState({});
     const [expandedSubjects, setExpandedSubjects] = useState({});
@@ -25,7 +27,12 @@ function BranchAdminSubjects({ teachers, branchRequests }) {
         setError("");
         setIsLoading(true);
         try {
-            setSubjects(await listBranchAdminSubjects());
+            const [subjectList, teacherList] = await Promise.all([
+                listBranchAdminSubjects(),
+                listBranchAdminSubjectTeachers()
+            ]);
+            setSubjects(subjectList);
+            setEligibleTeachers(teacherList);
         } catch (requestError) {
             setError(requestError.message);
         } finally {
@@ -36,14 +43,6 @@ function BranchAdminSubjects({ teachers, branchRequests }) {
     useEffect(() => {
         Promise.resolve().then(loadSubjects);
     }, [loadSubjects]);
-
-    const eligibleTeachers = teachers.filter((teacher) =>
-        teacher.verificationStatus === "APPROVED" &&
-        teacher.accountStatus === "active" &&
-        branchRequests.some((request) =>
-            request.teacher?.id === teacher.id && request.status === "APPROVED"
-        )
-    );
 
     const updateAssignmentForm = (subjectId, key, value) => {
         setAssignments((current) => ({
@@ -433,7 +432,7 @@ function BranchAdminSubjects({ teachers, branchRequests }) {
                                 </button>
                             </form>
                         )}
-                        {!subject.assignments.length && <form className="admin-assignment-form" onSubmit={(event) => assignTeacher(event, subject)}>
+                        {subject.isActive && <form className="admin-assignment-form" onSubmit={(event) => assignTeacher(event, subject)}>
                             <label>
                                 Approved teacher
                                 <select required value={values.teacher}

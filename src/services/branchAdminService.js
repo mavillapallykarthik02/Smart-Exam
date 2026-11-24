@@ -56,6 +56,11 @@ export async function listBranchAdminSubjects() {
     return subjects;
 }
 
+export async function listBranchAdminSubjectTeachers() {
+    const { teachers } = await apiRequest("/branch-admin/subject-teachers");
+    return teachers;
+}
+
 export async function createBranchAdminSubject(details) {
     const { subject } = await apiRequest("/branch-admin/subjects", {
         method: "POST",
